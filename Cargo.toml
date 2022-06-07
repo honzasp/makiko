@@ -1,0 +1,25 @@
+[package]
+name = "makiko"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+aes = "0.8"
+bytes = "1.1"
+cipher = "0.4.3"
+ctr = "0.9"
+futures-core = "0.3"
+log = "0.4"
+parking_lot = "0.12"
+pin-project = "1.0"
+rand = "0.8"
+rand_chacha = "0.3"
+ring = "0.16"
+thiserror = "1.0"
+tokio = {version = "1", features = ["sync"]}
+tokio-util = {version = "0.7", features = []}
+
+[dev-dependencies]
+anyhow = "1"
+env_logger = "0.9"
+tokio = {version = "1", features = ["full"]}
