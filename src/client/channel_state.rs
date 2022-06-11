@@ -5,6 +5,7 @@ use parking_lot::Mutex;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::{mpsc, oneshot};
@@ -39,6 +40,7 @@ pub(super) struct ChannelState {
     send_reqs: VecDeque<ChannelReq>,
     send_datas: VecDeque<SendData>,
     recv_replies: VecDeque<RecvReply>,
+    send_replies: VecDeque<SendReply>,
     send_window: usize,
     recv_window: usize,
     send_len_max: usize,
@@ -62,6 +64,11 @@ struct RecvReply {
     reply_tx: oneshot::Sender<ChannelReply>,
 }
 
+#[derive(Debug)]
+struct SendReply {
+    reply_rx: oneshot::Receiver<ChannelReply>,
+}
+
 pub(super) fn init_channel(init: ChannelInit) -> ChannelState {
     ChannelState {
         our_id: init.our_id,
@@ -74,6 +81,7 @@ pub(super) fn init_channel(init: ChannelInit) -> ChannelState {
         send_reqs: VecDeque::new(),
         send_datas: VecDeque::new(),
         recv_replies: VecDeque::new(),
+        send_replies: VecDeque::new(),
         send_window: init.send_window,
         recv_window: init.recv_window,
         send_len_max: init.send_len_max,
@@ -84,7 +92,7 @@ pub(super) fn init_channel(init: ChannelInit) -> ChannelState {
 pub(super) fn pump_channel(
     st: &mut ClientState,
     channel_st: &mut ChannelState,
-    _cx: &mut Context,
+    cx: &mut Context,
 ) -> Result<Pump> {
     debug_assert!(!channel_st.closed);
 
@@ -101,6 +109,7 @@ pub(super) fn pump_channel(
         channel_st.send_reqs.clear();
         channel_st.send_datas.clear();
         channel_st.recv_replies.clear();
+        channel_st.send_replies.clear();
         return Ok(Pump::Progress)
     }
 
@@ -111,6 +120,19 @@ pub(super) fn pump_channel(
                 channel_st.recv_replies.push_back(RecvReply { reply_tx });
             }
             return Ok(Pump::Progress)
+        }
+
+        if !channel_st.send_replies.is_empty() {
+            let send_reply = channel_st.send_replies.front_mut().unwrap();
+            if let Poll::Ready(reply) = Pin::new(&mut send_reply.reply_rx).poll(cx) {
+                let reply = match reply {
+                    Ok(reply) => reply,
+                    Err(_) => ChannelReply::Failure,
+                };
+                send_channel_reply(st, channel_st, reply)?;
+                channel_st.send_replies.pop_front();
+                return Ok(Pump::Progress)
+            }
         }
 
         if let Some(mut data) = channel_st.send_datas.pop_front() {
@@ -161,7 +183,7 @@ fn send_channel_request(st: &mut ClientState, channel_st: &ChannelState, req: &C
     Ok(())
 }
 
-pub(super) fn recv_channel_success(_st: &mut ClientState, channel_st: &mut ChannelState) -> ResultRecvState {
+pub(super) fn recv_channel_success(channel_st: &mut ChannelState) -> ResultRecvState {
     guard!{let Some(reply) = channel_st.recv_replies.pop_front() else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_SUCCESS, but no reply was expected"))
     }};
@@ -170,13 +192,58 @@ pub(super) fn recv_channel_success(_st: &mut ClientState, channel_st: &mut Chann
     Ok(None)
 }
 
-pub(super) fn recv_channel_failure(_st: &mut ClientState, channel_st: &mut ChannelState) -> ResultRecvState {
+pub(super) fn recv_channel_failure(channel_st: &mut ChannelState) -> ResultRecvState {
     guard!{let Some(reply) = channel_st.recv_replies.pop_front() else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_FAILURE, but no reply was expected"))
     }};
     log::debug!("received SSH_MSG_CHANNEL_FAILURE for our channel {}", channel_st.our_id);
     let _ = reply.reply_tx.send(ChannelReply::Failure);
     Ok(None)
+}
+
+
+
+pub(super) fn recv_channel_request(
+    channel_st: &mut ChannelState,
+    channel_mutex: Arc<Mutex<ChannelState>>,
+    payload: &mut PacketDecode,
+) -> ResultRecvState {
+    let request_type = payload.get_string()?;
+    let want_reply = payload.get_bool()?;
+
+    let reply_tx = if want_reply {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        channel_st.send_replies.push_back(SendReply { reply_rx });
+        Some(reply_tx)
+    } else {
+        None
+    };
+
+    log::debug!("received SSH_MSG_CHANNEL_REQUEST {:?} for our channel {}", request_type, channel_st.our_id);
+
+    let channel_req = ChannelReq {
+        request_type,
+        payload: payload.remaining(),
+        reply_tx,
+    };
+    send_event(channel_mutex, ChannelEvent::Request(channel_req))
+}
+
+fn send_channel_reply(st: &mut ClientState, channel_st: &ChannelState, reply: ChannelReply) -> Result<()> {
+    let mut payload = PacketEncode::new();
+    match reply {
+        ChannelReply::Success => {
+            payload.put_u8(msg::CHANNEL_SUCCESS);
+            log::debug!("sending SSH_MSG_CHANNEL_SUCCESS for our channel {:?}", channel_st.our_id);
+        },
+        ChannelReply::Failure => {
+            payload.put_u8(msg::CHANNEL_FAILURE);
+            log::debug!("sending SSH_MSG_CHANNEL_FAILURE for our channel {:?}", channel_st.our_id);
+        },
+    }
+    payload.put_u32(channel_st.their_id);
+    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    Ok(())
 }
 
 

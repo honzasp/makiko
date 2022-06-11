@@ -4,7 +4,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::sync::oneshot;
-use crate::codec::PacketEncode;
+use crate::codec::{PacketDecode, PacketEncode};
 use crate::error::{Result, Error};
 use super::channel::{
     Channel, ChannelReceiver, ChannelEvent,
@@ -85,6 +85,7 @@ impl Session {
 
 
 #[derive(Debug)]
+#[must_use = "please use .want_reply() to await the reply, or .no_reply() to ignore it"]
 pub struct Reply {
     reply_rx: oneshot::Receiver<ChannelReply>,
 }
@@ -127,19 +128,13 @@ pub struct SessionReceiver {
 impl SessionReceiver {
     pub fn poll_recv(&mut self, cx: &mut Context) -> Poll<Result<Option<SessionEvent>>> {
         loop {
-            let event = match ready!(self.channel_rx.poll_recv(cx)) {
-                Some(ChannelEvent::Data(data, DATA_STANDARD)) =>
-                    SessionEvent::StdoutData(data),
-                Some(ChannelEvent::Data(data, DATA_STDERR)) =>
-                    SessionEvent::StderrData(data),
-                Some(ChannelEvent::Eof) =>
-                    SessionEvent::Eof,
-                Some(_) =>
-                    continue,
-                None =>
-                    return Poll::Ready(Ok(None)),
-            };
-            return Poll::Ready(Ok(Some(event)))
+            match ready!(self.channel_rx.poll_recv(cx)) {
+                Some(channel_event) => match translate_event(channel_event)? {
+                    Some(event) => return Poll::Ready(Ok(Some(event))),
+                    None => continue,
+                },
+                None => return Poll::Ready(Ok(None)),
+            }
         }
     }
 
@@ -153,4 +148,44 @@ impl SessionReceiver {
         }
         Recv { rx: self }.await
     }
+}
+
+fn translate_event(event: ChannelEvent) -> Result<Option<SessionEvent>> {
+    Ok(match event {
+        ChannelEvent::Data(data, DATA_STANDARD) =>
+            Some(SessionEvent::StdoutData(data)),
+        ChannelEvent::Data(data, DATA_STDERR) =>
+            Some(SessionEvent::StderrData(data)),
+        ChannelEvent::Eof =>
+            Some(SessionEvent::Eof),
+        ChannelEvent::Request(req) =>
+            translate_request(req)?,
+        _ =>
+            None,
+    })
+}
+
+fn translate_request(request: ChannelReq) -> Result<Option<SessionEvent>> {
+    let mut payload = PacketDecode::new(request.payload);
+    let event = match request.request_type.as_str() {
+        "exit-status" => {
+            let status = payload.get_u32()?;
+            SessionEvent::ExitStatus(status)
+        },
+        "exit-signal" => {
+            let signal_name = payload.get_string()?;
+            let core_dumped = payload.get_bool()?;
+            let message = payload.get_string()?;
+            let message_lang = payload.get_string()?;
+            let signal = ExitSignal { signal_name, core_dumped, message, message_lang };
+            SessionEvent::ExitSignal(signal)
+        },
+        _ =>
+            return Ok(None)
+    };
+
+    if let Some(reply_tx) = request.reply_tx {
+        let _ = reply_tx.send(ChannelReply::Success);
+    }
+    Ok(Some(event))
 }

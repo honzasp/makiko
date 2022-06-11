@@ -68,3 +68,12 @@ impl AuthMethod for AuthNone {
         }
     }
 }
+
+impl AuthNoneResult {
+    pub fn ok_or_error(&self) -> Result<()> {
+        match self {
+            Self::Success => Ok(()),
+            Self::Failure(_) => Err(Error::AuthFailed),
+        }
+    }
+}

@@ -135,6 +135,7 @@ pub(super) fn recv_conn_packet(
         msg::CHANNEL_OPEN_FAILURE => recv_channel_open_failure(st, payload),
         msg::CHANNEL_SUCCESS => recv_channel_success(st, payload),
         msg::CHANNEL_FAILURE => recv_channel_failure(st, payload),
+        msg::CHANNEL_REQUEST => recv_channel_request(st, payload),
         msg::CHANNEL_DATA => recv_channel_data(st, payload),
         msg::CHANNEL_EXTENDED_DATA => recv_channel_extended_data(st, payload),
         msg::CHANNEL_WINDOW_ADJUST => recv_channel_window_adjust(st, payload),
@@ -258,7 +259,7 @@ fn recv_channel_open_failure(
 
 fn recv_channel_success(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
     recv_channel_packet(st, payload,
-        |st, channel_st, _| channel_state::recv_channel_success(st, &mut channel_st.lock()),
+        |_, channel_st, _| channel_state::recv_channel_success(&mut channel_st.lock()),
         "received SSH_MSG_CHANNEL_SUCCESS for unknown channel",
         "received SSH_MSG_CHANNEL_SUCCESS for a channel that is not ready",
     )
@@ -266,9 +267,18 @@ fn recv_channel_success(st: &mut ClientState, payload: &mut PacketDecode) -> Res
 
 fn recv_channel_failure(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
     recv_channel_packet(st, payload,
-        |st, channel_st, _| channel_state::recv_channel_failure(st, &mut channel_st.lock()),
+        |_, channel_st, _| channel_state::recv_channel_failure(&mut channel_st.lock()),
         "received SSH_MSG_CHANNEL_FAILURE for unknown channel",
         "received SSH_MSG_CHANNEL_FAILURE for a channel that is not ready",
+    )
+}
+
+fn recv_channel_request(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
+    recv_channel_packet(st, payload,
+        |_, channel_st, payload|
+            channel_state::recv_channel_request(&mut channel_st.lock(), channel_st.clone(), payload),
+        "received SSH_MSG_CHANNEL_REQUEST for unknown channel",
+        "received SSH_MSG_CHANNEL_REQUEST for a channel that is not ready",
     )
 }
 

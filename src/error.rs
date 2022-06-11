@@ -25,6 +25,8 @@ pub enum Error {
     AuthMethodPending,
     #[error("authentication method was aborted")]
     AuthAborted,
+    #[error("authentication failed")]
+    AuthFailed,
     #[error("channel is closed")]
     ChannelClosed,
     #[error("could not open channel")]
