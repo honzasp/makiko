@@ -168,7 +168,8 @@ fn send_channel_open(st: &mut ClientState, open_st: &OpenChannelState) -> Result
     payload.put_u32(open_st.open.recv_packet_len_max as u32);
     payload.put_raw(&open_st.open.open_payload);
     st.codec.send_pipe.feed_packet(&payload.finish())?;
-    log::debug!("sending SSH_MSG_CHANNEL_OPEN for our channel {}", open_st.our_id);
+    log::debug!("sending SSH_MSG_CHANNEL_OPEN {:?} for our channel {}",
+        open_st.open.channel_type, open_st.our_id);
     Ok(())
 }
 

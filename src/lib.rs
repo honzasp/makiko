@@ -1,8 +1,10 @@
 pub use crate::client::{
-    Client, ClientReceiver, ClientFuture, ClientEvent, AcceptPubkeySender,
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
+pub use crate::client::{Client, ClientReceiver, ClientFuture};
+pub use crate::client::{ClientEvent, AcceptPubkeySender};
+pub use crate::client::{Session, SessionReceiver, SessionEvent};
 pub use crate::codec::{PacketEncode, PacketDecode};
 pub use crate::error::{Result, Error, Disconnect};
 
@@ -14,4 +16,3 @@ pub mod kex;
 pub mod mac;
 pub mod numbers;
 pub mod pubkey;
-

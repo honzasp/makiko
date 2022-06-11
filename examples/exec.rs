@@ -8,7 +8,13 @@ async fn main() -> Result<()> {
 
     let (client, mut client_rx, client_fut) = makiko::Client::open(sock)?;
 
-    let client_fut_task = tokio::task::spawn(client_fut);
+    let client_fut_task = tokio::task::spawn(async move {
+        match client_fut.await {
+            Ok(_) => log::info!("client finished"),
+            Err(err) => log::error!("client failed: {}", err),
+        }
+    });
+
 
     let client_task = tokio::task::spawn(async move {
         while let Some(event) = client_rx.recv().await {
@@ -17,55 +23,58 @@ async fn main() -> Result<()> {
                     log::info!("accepting server pubkey {}", pubkey);
                     verify_tx.accept();
                 },
-                /*
-                makiko::ClientEvent::ForwardedTunnel(tunnel) => {
-                    println!("forwarded tunnel from {:?} port {}",
-                        tunnel.connected_host(), tunnel.connected_port());
-                    let (channel, channel_rx) = tunnel.into_channel();
+                _ => {},
+            }
+        }
+        log::info!("client was closed");
+    });
+
+    log::info!("authentication: {:?}", client.auth_none("root".into()).await?);
+    log::info!("authenticated? {:?}", client.is_authenticated());
+
+    let (session, mut session_rx) = client.open_session().await?;
+
+    let session_task = tokio::task::spawn(async move {
+        loop {
+            let event = match session_rx.recv().await {
+                Ok(Some(event)) => event,
+                Ok(None) => {
+                    log::info!("session was closed");
+                    break
                 },
-                */
+                Err(err) => {
+                    log::error!("session receive failed: {}", err);
+                    break
+                },
+            };
+
+            match event {
+                makiko::SessionEvent::StdoutData(data) =>
+                    log::info!("received stdout: {:?}", data),
+                makiko::SessionEvent::StderrData(data) =>
+                    log::info!("received stderr: {:?}", data),
+                makiko::SessionEvent::Eof =>
+                    log::info!("received eof"),
+                makiko::SessionEvent::ExitStatus(status) =>
+                    log::info!("command exited with status {}", status),
+                makiko::SessionEvent::ExitSignal(signal) =>
+                    log::info!("command exited with signal {:?}", signal),
                 _ => {},
             }
         }
     });
 
-    println!("{:?}", client.auth_none("root".into()).await?);
-    println!("{:?}", client.is_authenticated());
+    //session.env("FOO".as_bytes(), "bar".as_bytes())?.want_reply().await?;
+    //session.env("SPAM".as_bytes(), "eggs".as_bytes())?.no_reply();
+    session.exec("echo 'foo bar' && cat && ls /".as_bytes())?.want_reply().await?;
 
-    client_fut_task.await??;
-    client_task.await?;
-
-    /*
-    let (session, session_rx) = client.open_session().await?;
-
-    let session_task = tokio::task::spawn(async move {
-        while let Some(event) = session_rx.recv().await {
-            makiko::SessionEvent::Data(chunk, makiko::DATA_STANDARD) =>
-                println!("received {} bytes from stdout", chunk.len()),
-            makiko::SessionEvent::Data(chunk, makiko::DATA_STDERR) =>
-                println!("received {} bytes from stderr", chunk.len()),
-            makiko::SessionEvent::Eof =>
-                println!("received eof"),
-            makiko::SessionEvent::XonXoff(client_can_do) =>
-                println!("client can do xon-xoff: {:?}", client_can_do),
-            makiko::SessionEvent::Exit(makiko::Exit::Status(status)) =>
-                println!("command exited with status {}", status),
-            makiko::SessionEvent::Exit(makiko::Exit::Signal(signal)) =>
-                println!("command exited with signal {:?}", signal),
-            _ => {},
-        }
-    });
-
-    session.env("FOO", "bar").await?.want_reply().await?;
-    session.env("SPAM", "eggs").await?.no_reply();
-    session.exec("cat").await?.want_reply().await?;
-    session.signal("KILL");
-
-    session.send_data("foo bar", makiko::DATA_STANDARD).await?;
-    session.send_data("spam eggs", makiko::DATA_STDERR).await?;
+    session.send_stdin("quick brown fox\n".into()).await?;
+    session.send_stdin("spam eggs".into()).await?;
     session.send_eof().await?;
-    session.close();
-    */
+
+    session_task.await?;
+    client_task.await?;
+    client_fut_task.await?;
 
     Ok(())
 }

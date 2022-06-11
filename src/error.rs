@@ -29,6 +29,8 @@ pub enum Error {
     ChannelClosed,
     #[error("could not open channel")]
     ChannelOpenFailure(ChannelOpenFailure),
+    #[error("channel request failed")]
+    ChannelReqFailure,
     #[error("IO error when reading")]
     ReadIo(#[source] std::io::Error),
     #[error("IO error when writing")]

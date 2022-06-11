@@ -156,7 +156,8 @@ fn send_channel_request(st: &mut ClientState, channel_st: &ChannelState, req: &C
     payload.put_bool(req.reply_tx.is_some());
     payload.put_raw(&req.payload);
     st.codec.send_pipe.feed_packet(&payload.finish())?;
-    log::debug!("sending SSH_MSG_CHANNEL_REQUEST for our channel {}", channel_st.our_id);
+    log::debug!("sending SSH_MSG_CHANNEL_REQUEST {:?} for our channel {}",
+        req.request_type, channel_st.our_id);
     Ok(())
 }
 

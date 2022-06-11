@@ -15,6 +15,7 @@ use super::channel::{Channel, ChannelReceiver};
 use super::client_event::ClientEvent;
 use super::client_state::{self, ClientState};
 use super::conn::{self, OpenChannel};
+use super::session::{Session, SessionReceiver};
 
 #[derive(Clone)]
 pub struct Client {
@@ -73,7 +74,9 @@ impl Client {
         Ok((channel, channel_rx, confirmed.confirm_payload))
     }
 
-    //pub async fn open_session(&self) -> Result<(Session, SessionReceiver)>;
+    pub async fn open_session(&self) -> Result<(Session, SessionReceiver)> {
+        Session::open(self).await
+    }
 
     //pub async fn open_tunnel(&self, tunnel: OpenTunnel) -> Result<(Tunnel, TunnelReceiver)>;
 }

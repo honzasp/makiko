@@ -4,6 +4,7 @@ pub use self::channel::{
 };
 pub use self::client::{Client, ClientReceiver, ClientFuture};
 pub use self::client_event::{ClientEvent, AcceptPubkeySender};
+pub use self::session::{Session, SessionReceiver, SessionEvent};
 
 #[macro_use] mod pump;
 mod auth;
@@ -16,6 +17,7 @@ mod client_state;
 mod conn;
 mod negotiate;
 mod recv;
+mod session;
 
 /*
 
