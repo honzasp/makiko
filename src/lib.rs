@@ -1,4 +1,9 @@
-pub use crate::client::{Client, ClientReceiver, ClientFuture, ClientEvent, AcceptPubkeySender};
+pub use crate::client::{
+    Client, ClientReceiver, ClientFuture, ClientEvent, AcceptPubkeySender,
+    Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
+    DataType, DATA_STANDARD, DATA_STDERR,
+};
+pub use crate::codec::{PacketEncode, PacketDecode};
 pub use crate::error::{Result, Error, Disconnect};
 
 pub mod cipher;

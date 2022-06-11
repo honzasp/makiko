@@ -56,13 +56,14 @@ async fn main() -> Result<()> {
         }
     });
 
-    session.env("FOO", "bar").want_reply().await?;
-    session.env("SPAM", "eggs").no_reply();
-    session.exec("cat").want_reply().await?;
+    session.env("FOO", "bar").await?.want_reply().await?;
+    session.env("SPAM", "eggs").await?.no_reply();
+    session.exec("cat").await?.want_reply().await?;
     session.signal("KILL");
 
     session.send_data("foo bar", makiko::DATA_STANDARD).await?;
     session.send_data("spam eggs", makiko::DATA_STDERR).await?;
+    session.send_eof().await?;
     session.close();
     */
 

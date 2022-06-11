@@ -1,3 +1,5 @@
+use std::ops::{BitOr, BitOrAssign};
+
 macro_rules! pump_ready {
     ($e:expr) => {
         match $e {
@@ -19,5 +21,22 @@ impl Pump {
             Pump::Progress => true,
             Pump::Pending => false,
         }
+    }
+}
+
+impl BitOr<Pump> for Pump {
+    type Output = Pump;
+    fn bitor(self, rhs: Pump) -> Pump {
+        match (self, rhs) {
+            (Pump::Progress, _) => Pump::Progress,
+            (_, Pump::Progress) => Pump::Progress,
+            (Pump::Pending, Pump::Pending) => Pump::Pending,
+        }
+    }
+}
+
+impl BitOrAssign<Pump> for Pump {
+    fn bitor_assign(&mut self, rhs: Pump) {
+        *self = *self | rhs;
     }
 }

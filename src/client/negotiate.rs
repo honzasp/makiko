@@ -10,7 +10,7 @@ use crate::kex::{self, Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo};
 use crate::numbers::msg;
 use crate::pubkey::{self, PubkeyAlgo, SignatureVerified};
-use super::client::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
+use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::ClientState;
 use super::pump::Pump;
 use super::recv::ResultRecvState;

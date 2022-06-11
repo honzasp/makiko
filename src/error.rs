@@ -7,12 +7,12 @@ pub enum Error {
     Crypto(&'static str),
     #[error("randomness error: {0}")]
     Random(&'static str),
-    #[error("server public key was not accepted")]
-    PubkeyAccept(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("mac verification failed")]
     Mac,
     #[error("signature verification failed")]
     Signature,
+    #[error("server public key was not accepted")]
+    PubkeyAccept(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("protocol error: {0}")]
     Protocol(&'static str),
     #[error("could not decode bytes: {0}")]
@@ -25,6 +25,10 @@ pub enum Error {
     AuthMethodPending,
     #[error("authentication method was aborted")]
     AuthAborted,
+    #[error("channel is closed")]
+    ChannelClosed,
+    #[error("could not open channel")]
+    ChannelOpenFailure(ChannelOpenFailure),
     #[error("IO error when reading")]
     ReadIo(#[source] std::io::Error),
     #[error("IO error when writing")]
@@ -37,6 +41,13 @@ pub enum Error {
 
 #[derive(Debug)]
 pub struct Disconnect {
+    pub reason_code: u32,
+    pub description: String,
+    pub description_lang: String,
+}
+
+#[derive(Debug)]
+pub struct ChannelOpenFailure {
     pub reason_code: u32,
     pub description: String,
     pub description_lang: String,

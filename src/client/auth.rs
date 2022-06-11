@@ -4,7 +4,7 @@ use crate::error::{Result, Error};
 use crate::numbers::msg;
 use super::negotiate;
 use super::auth_method::AuthMethod;
-use super::client::{ClientEvent, AuthBanner};
+use super::client_event::{ClientEvent, AuthBanner};
 use super::client_state::{self, ClientState};
 use super::pump::Pump;
 use super::recv::{self, ResultRecvState};

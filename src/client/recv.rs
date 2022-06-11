@@ -3,8 +3,8 @@ use std::task::{Context, Poll};
 use crate::codec::{PacketDecode, PacketEncode, RecvPacket};
 use crate::error::{self, Error, Result};
 use crate::numbers::msg;
-use super::{auth, negotiate};
-use super::client::{ClientEvent, DebugMsg};
+use super::{auth, conn, negotiate};
+use super::client_event::{ClientEvent, DebugMsg};
 use super::client_state::ClientState;
 use super::pump::Pump;
 
@@ -51,6 +51,7 @@ fn recv_packet_dispatch(st: &mut ClientState, payload: &mut PacketDecode) -> Res
         30..=49 => negotiate::recv_kex_packet(st, msg_id, payload),
         50..=59 => auth::recv_auth_packet(st, msg_id, payload),
         60..=79 => auth::recv_auth_method_packet(st, msg_id, payload),
+        80..=127 => conn::recv_conn_packet(st, msg_id, payload),
         _ => Err(Error::PacketNotImplemented(msg_id)),
     }
 }
@@ -85,6 +86,8 @@ fn recv_service_accept(st: &mut ClientState, payload: &mut PacketDecode) -> Resu
 
     if service_name.as_str() == "ssh-userauth" {
         auth::recv_service_accept(st)
+    } else if service_name.as_str() == "ssh-connection" {
+        conn::recv_service_accept(st)
     } else {
         log::debug!("received SSH_MSG_SERVICE_ACCEPT for unknown service {:?}", service_name);
         Ok(None)
@@ -93,23 +96,21 @@ fn recv_service_accept(st: &mut ClientState, payload: &mut PacketDecode) -> Resu
 
 pub(super) fn send_event(event: ClientEvent) -> ResultRecvState {
     struct SendEventState {
-        sent: bool,
         event: Option<ClientEvent>,
     }
 
     impl RecvState for SendEventState {
         fn poll(&mut self, st: &mut ClientState, cx: &mut Context) -> Poll<Result<()>> {
-            if !self.sent {
-                if ready!(st.event_tx.poll_reserve(cx)).is_ok() {
-                    let _ = st.event_tx.send_item(self.event.take().unwrap());
-                }
-                self.sent = true;
+            let reserve_res = ready!(st.event_tx.poll_reserve(cx));
+            let event = self.event.take().unwrap();
+            if reserve_res.is_ok() {
+                let _ = st.event_tx.send_item(event);
             }
             Poll::Ready(Ok(()))
         }
     }
 
-    Ok(Some(Box::new(SendEventState { sent: false, event: Some(event) })))
+    Ok(Some(Box::new(SendEventState { event: Some(event) })))
 }
 
 fn not_implemented(st: &mut ClientState, msg_id: u8, packet: &RecvPacket) -> ResultRecvState {

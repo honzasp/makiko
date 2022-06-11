@@ -71,6 +71,11 @@ impl PacketDecode {
     pub fn as_original_bytes(&self) -> &[u8] {
         &self.orig_buf
     }
+
+    /// Return the remaining undecoded bytes.
+    pub fn remaining(&self) -> Bytes {
+        self.buf.clone()
+    }
 }
 
 fn decode_string(bytes: &[u8]) -> Result<String> {

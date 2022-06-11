@@ -1,10 +1,19 @@
-pub use client::{Client, ClientReceiver, ClientFuture, ClientEvent, AcceptPubkeySender};
+pub use self::channel::{
+    Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
+    DataType, DATA_STANDARD, DATA_STDERR,
+};
+pub use self::client::{Client, ClientReceiver, ClientFuture};
+pub use self::client_event::{ClientEvent, AcceptPubkeySender};
 
 #[macro_use] mod pump;
 mod auth;
 mod auth_method;
+mod channel;
+mod channel_state;
 mod client;
+mod client_event;
 mod client_state;
+mod conn;
 mod negotiate;
 mod recv;
 

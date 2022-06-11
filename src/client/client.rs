@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use parking_lot::Mutex;
 use pin_project::pin_project;
 use ring::rand::SystemRandom;
@@ -8,13 +9,16 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
 use crate::{Error, Result};
-use crate::pubkey::Pubkey;
-use super::{auth, client_state};
+use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
+use super::channel::{Channel, ChannelReceiver};
+use super::client_event::ClientEvent;
+use super::client_state::{self, ClientState};
+use super::conn::{self, OpenChannel};
 
 #[derive(Clone)]
 pub struct Client {
-    #[allow(dead_code)] client_st: Arc<Mutex<client_state::ClientState>>,
+    client_st: Arc<Mutex<ClientState>>,
 }
 
 impl Client {
@@ -43,9 +47,35 @@ impl Client {
         auth::is_authenticated(&self.client_st.lock())
     }
 
-    //pub fn open_session(&self) -> impl Future<Output = Result<(Session, SessionReceiver)>>;
+    pub async fn open_channel(&self, channel_type: String, open_payload: Bytes) 
+        -> Result<(Channel, ChannelReceiver, Bytes)> 
+    {
+        let (confirmed_tx, confirmed_rx) = oneshot::channel();
+        let open = OpenChannel {
+            channel_type,
+            recv_window: 100_000,
+            recv_window_max: 100_000,
+            recv_packet_len_max: 1_000_000,
+            open_payload,
+            confirmed_tx,
+        };
+        conn::open_channel(&mut self.client_st.lock(), open);
 
-    //pub fn open_tunnel(&self, tunnel: OpenTunnel) -> impl Future<Output = Result<(Channel, ChannelReceiver)>>;
+        let confirmed = confirmed_rx.await.map_err(|_| Error::ChannelClosed)??;
+
+        let channel = Channel {
+            client_st: self.client_st.clone(), 
+            channel_st: confirmed.channel_st,
+        };
+        let channel_rx = ChannelReceiver {
+            event_rx: confirmed.event_rx,
+        };
+        Ok((channel, channel_rx, confirmed.confirm_payload))
+    }
+
+    //pub async fn open_session(&self) -> Result<(Session, SessionReceiver)>;
+
+    //pub async fn open_tunnel(&self, tunnel: OpenTunnel) -> Result<(Tunnel, TunnelReceiver)>;
 }
 
 pub struct ClientReceiver {
@@ -62,57 +92,8 @@ impl ClientReceiver {
     }
 }
 
-#[non_exhaustive]
-pub enum ClientEvent {
-    ServerPubkey(Pubkey, AcceptPubkeySender),
-    DebugMsg(DebugMsg),
-    AuthBanner(AuthBanner),
-    //ForwardedTunnel(ForwardedTunnel),
-}
-
-#[derive(Debug)]
-pub struct DebugMsg {
-    pub always_display: bool,
-    pub message: String,
-    pub message_lang: String,
-}
-
-#[derive(Debug)]
-pub struct AuthBanner {
-    pub message: String,
-    pub message_lang: String,
-}
 
 
-#[derive(Debug)]
-pub struct AcceptPubkeySender {
-    pub(super) accept_tx: oneshot::Sender<Result<PubkeyAccepted>>,
-}
-
-#[derive(Debug)]
-pub(super) struct PubkeyAccepted(());
-
-impl AcceptPubkeySender {
-    pub fn accept(self) {
-        let _ = self.accept_tx.send(Ok(PubkeyAccepted(())));
-    }
-
-    pub fn reject<E: std::error::Error + Send + Sync + 'static>(self, err: E) {
-        let _ = self.accept_tx.send(Err(Error::PubkeyAccept(Box::new(err))));
-    }
-}
-
-/*
-pub struct ForwardedTunnel;
-
-impl ForwardedTunnel {
-    pub fn connected_host(&self) -> &str;
-    pub fn connected_port(&self) -> u32;
-    pub fn original_host(&self) -> &str;
-    pub fn original_port(&self) -> u32;
-    pub fn into_channel(self) -> (Channel, ChannelReceiver);
-}
-*/
 
 #[pin_project]
 pub struct ClientFuture<IO> {

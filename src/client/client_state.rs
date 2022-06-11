@@ -7,9 +7,10 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_util::sync::PollSender;
 use crate::codec::{Codec, RecvPipe, SendPipe};
-use super::client::ClientEvent;
 use crate::error::{Error, Result};
 use super::auth::{self, AuthState};
+use super::client_event::ClientEvent;
+use super::conn::{self, ConnState};
 use super::negotiate::{self, NegotiateState};
 use super::pump::Pump;
 use super::recv::{self, RecvState};
@@ -26,6 +27,7 @@ pub(super) struct ClientState {
     pub recv_st: Option<Box<dyn RecvState + Send>>,
     pub negotiate_st: Box<NegotiateState>,
     pub auth_st: Box<AuthState>,
+    pub conn_st: Box<ConnState>,
     pub session_id: Option<Vec<u8>>,
     waker: Option<Waker>,
 }
@@ -50,6 +52,7 @@ pub(super) fn new_client(
         recv_st: None,
         negotiate_st: Box::new(negotiate::init_negotiate()),
         auth_st: Box::new(auth::init_auth()),
+        conn_st: Box::new(conn::init_conn()),
         session_id: None,
         waker: None,
     })
@@ -61,12 +64,17 @@ pub(super) fn poll_client(
     cx: &mut Context,
 ) -> Poll<Result<()>> {
     loop {
-        if auth::pump_auth(st, cx)?.is_progress() { continue }
-        if negotiate::pump_negotiate(st, cx)?.is_progress() { continue }
-        if recv::pump_recv(st, cx)?.is_progress() { continue }
+        let mut progress = false;
+
+        while recv::pump_recv(st, cx)?.is_progress() { progress = true }
+        while negotiate::pump_negotiate(st, cx)?.is_progress() { progress = true }
+        while auth::pump_auth(st, cx)?.is_progress() { progress = true }
+        while conn::pump_conn(st, cx)?.is_progress() { progress = true }
+
         if pump_read(st, stream.as_mut(), cx)?.is_progress() { continue }
-        if pump_write(st, stream.as_mut(), cx)?.is_progress() { continue }
-        break
+        while pump_write(st, stream.as_mut(), cx)?.is_progress() { progress = true }
+
+        if !progress { break }
     }
 
     st.waker = Some(cx.waker().clone());
