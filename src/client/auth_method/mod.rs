@@ -5,6 +5,7 @@ use crate::error::Result;
 use super::auth::AuthFailure;
 
 pub mod none;
+pub mod password;
 
 pub trait AuthMethod {
     fn recv_success(&mut self) -> Result<()>;

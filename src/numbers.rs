@@ -28,4 +28,62 @@ pub mod msg {
 
     pub const KEX_ECDH_INIT: u8 = 30;
     pub const KEX_ECDH_REPLY: u8 = 31;
+
+    pub const USERAUTH_PASSWD_CHANGEREQ: u8 = 60;
+}
+
+pub mod disconnect {
+    pub const HOST_NOT_ALLOWED_TO_CONNECT: u32 = 1;
+    pub const PROTOCOL_ERROR: u32 = 2;
+    pub const KEY_EXCHANGE_FAILED: u32 = 3;
+    pub const RESERVED: u32 = 4;
+    pub const MAC_ERROR: u32 = 5;
+    pub const COMPRESSION_ERROR: u32 = 6;
+    pub const SERVICE_NOT_AVAILABLE: u32 = 7;
+    pub const PROTOCOL_VERSION_NOT_SUPPORTED: u32 = 8;
+    pub const HOST_KEY_NOT_VERIFIABLE: u32 = 9;
+    pub const CONNECTION_LOST: u32 = 10;
+    pub const BY_APPLICATION: u32 = 11;
+    pub const TOO_MANY_CONNECTIONS: u32 = 12;
+    pub const AUTH_CANCELLED_BY_USER: u32 = 13;
+    pub const NO_MORE_AUTH_METHODS_AVAILABLE: u32 = 14;
+    pub const ILLEGAL_USER_NAME: u32 = 15;
+
+    pub const fn to_str(code: u32) -> Option<&'static str> {
+        Some(match code {
+            HOST_NOT_ALLOWED_TO_CONNECT => "host not allowed to connect",
+            PROTOCOL_ERROR => "protocol error",
+            KEY_EXCHANGE_FAILED => "key exchange failed",
+            RESERVED => "reserved",
+            MAC_ERROR => "mac error",
+            COMPRESSION_ERROR => "compression error",
+            SERVICE_NOT_AVAILABLE => "service not available",
+            PROTOCOL_VERSION_NOT_SUPPORTED => "protocol version not supported",
+            HOST_KEY_NOT_VERIFIABLE => "host key not verifiable",
+            CONNECTION_LOST => "connection lost",
+            BY_APPLICATION => "by application",
+            TOO_MANY_CONNECTIONS => "too many connections",
+            AUTH_CANCELLED_BY_USER => "auth cancelled by user",
+            NO_MORE_AUTH_METHODS_AVAILABLE => "no more auth methods available",
+            ILLEGAL_USER_NAME => "illegal user name",
+            _ => return None,
+        })
+    }
+}
+
+pub mod open {
+    pub const ADMINISTRATIVELY_PROHIBITED: u32 = 1;
+    pub const CONNECT_FAILED: u32 = 2;
+    pub const UNKNOWN_CHANNEL_TYPE: u32 = 3;
+    pub const RESOURCE_SHORTAGE: u32 = 4;
+
+    pub const fn to_str(code: u32) -> Option<&'static str> {
+        Some(match code {
+            ADMINISTRATIVELY_PROHIBITED => "administratively prohibited",
+            CONNECT_FAILED => "connect failed",
+            UNKNOWN_CHANNEL_TYPE => "unknown channel type",
+            RESOURCE_SHORTAGE => "resource shortage",
+            _ => return None,
+        })
+    }
 }

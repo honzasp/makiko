@@ -21,7 +21,6 @@ impl Ed25519Pubkey {
         if pubkey.get_string()? != "ssh-ed25519" {
             return Err(Error::Decode("expected pubkey format 'ssh-ed25519'"))
         }
-
         let pubkey_data = pubkey.get_bytes()?.as_ref().into();
         Ok(Ed25519Pubkey { pubkey: pubkey_data })
     }
@@ -33,6 +32,7 @@ impl Ed25519Pubkey {
         }
 
         let signature_data = signature.get_bytes()?;
+
         match ED25519.verify(
             AsRef::<[u8]>::as_ref(&self.pubkey).into(),
             message.into(),

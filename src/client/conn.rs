@@ -7,7 +7,7 @@ use std::sync::{Arc, Weak};
 use std::task::Context;
 use tokio::sync::{oneshot, mpsc};
 use crate::codec::{PacketEncode, PacketDecode};
-use crate::error::{Result, ChannelOpenFailure, Error};
+use crate::error::{Result, ChannelOpenError, Error};
 use crate::numbers::msg;
 use super::{auth, negotiate};
 use super::channel::ChannelEvent;
@@ -249,8 +249,8 @@ fn recv_channel_open_failure(
 
     log::debug!("received SSH_MSG_CHANNEL_OPEN_FAILURE for our channel {}", our_id);
 
-    let failure = ChannelOpenFailure { reason_code, description, description_lang };
-    let _ = open_st.open.confirmed_tx.send(Err(Error::ChannelOpenFailure(failure)));
+    let error = ChannelOpenError { reason_code, description, description_lang };
+    let _ = open_st.open.confirmed_tx.send(Err(Error::ChannelOpen(error)));
 
     Ok(None)
 }

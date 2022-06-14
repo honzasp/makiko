@@ -6,7 +6,7 @@ pub use crate::client::{Client, ClientReceiver, ClientFuture};
 pub use crate::client::{ClientEvent, AcceptPubkeySender};
 pub use crate::client::{Session, SessionReceiver, SessionEvent};
 pub use crate::codec::{PacketEncode, PacketDecode};
-pub use crate::error::{Result, Error, Disconnect};
+pub use crate::error::{Result, Error, AlgoNegotiateError, DisconnectError, ChannelOpenError};
 
 pub mod cipher;
 pub mod client;

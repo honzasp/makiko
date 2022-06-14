@@ -3,7 +3,7 @@ use std::future::Future as _;
 use std::pin::Pin;
 use std::task::Context;
 use tokio::sync::oneshot;
-use crate::{Error, Result};
+use crate::error::{Error, Result, AlgoNegotiateError};
 use crate::cipher::{self, CipherAlgo};
 use crate::codec::{PacketEncode, PacketDecode};
 use crate::kex::{self, Kex, KexAlgo, KexInput, KexOutput};
@@ -196,7 +196,7 @@ pub(super) fn recv_kex_packet(
 
 fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
     let kex_algos = vec![&kex::CURVE25519_SHA256];
-    let server_pubkey_algos = vec![&pubkey::SSH_ED25519];
+    let server_pubkey_algos = vec![&pubkey::SSH_ED25519, &pubkey::SSH_RSA];
     let cipher_algos = vec![&cipher::AES128_CTR];
     let mac_algos = vec![&mac::HMAC_SHA2_256];
 
@@ -294,8 +294,12 @@ fn negotiate_algos(st: &ClientState) -> Result<Algos> {
                 }
             }
         }
-        log::debug!("could not negotiate algo for {}", name);
-        Err(Error::AlgoNegotiate(name))
+
+        Err(Error::AlgoNegotiate(AlgoNegotiateError {
+            algo_name: name.into(),
+            our_algos: our_algos.iter().map(|a| a.name().into()).collect(),
+            their_algos: their_algos.into(),
+        }))
     }
 
     let our = st.negotiate_st.our_kex_init.as_ref().unwrap();

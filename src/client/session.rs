@@ -94,7 +94,7 @@ impl Reply {
     pub async fn want_reply(self) -> Result<()> {
         match self.reply_rx.await {
             Ok(ChannelReply::Success) => Ok(()),
-            Ok(ChannelReply::Failure) => Err(Error::ChannelReqFailure),
+            Ok(ChannelReply::Failure) => Err(Error::ChannelReq),
             Err(_) => Err(Error::ChannelClosed),
         }
     }

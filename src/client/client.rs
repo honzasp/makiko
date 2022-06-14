@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::{Error, Result};
 use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
+use super::auth_method::password::{AuthPassword, AuthPasswordResult};
 use super::channel::{Channel, ChannelReceiver};
 use super::client_event::ClientEvent;
 use super::client_state::{self, ClientState};
@@ -40,6 +41,18 @@ impl Client {
     pub async fn auth_none(&self, username: String) -> Result<AuthNoneResult> {
         let (result_tx, result_rx) = oneshot::channel();
         let method = AuthNone::new(username, result_tx);
+        auth::start_method(&mut self.client_st.lock(), Box::new(method))?;
+        result_rx.await.map_err(|_| Error::AuthAborted)
+    }
+
+    pub async fn auth_password(
+        &self,
+        username: String,
+        password: String,
+        new_password: Option<String>,
+    ) -> Result<AuthPasswordResult> {
+        let (result_tx, result_rx) = oneshot::channel();
+        let method = AuthPassword::new(username, password, new_password, result_tx);
         auth::start_method(&mut self.client_st.lock(), Box::new(method))?;
         result_rx.await.map_err(|_| Error::AuthAborted)
     }

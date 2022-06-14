@@ -1,7 +1,7 @@
 use futures_core::ready;
 use std::task::{Context, Poll};
 use crate::codec::{PacketDecode, PacketEncode, RecvPacket};
-use crate::error::{self, Error, Result};
+use crate::error::{Error, Result, DisconnectError};
 use crate::numbers::msg;
 use super::{auth, conn, negotiate};
 use super::client_event::{ClientEvent, DebugMsg};
@@ -57,7 +57,7 @@ fn recv_packet_dispatch(st: &mut ClientState, payload: &mut PacketDecode) -> Res
 }
 
 fn recv_disconnect(_: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
-    let disconnect = error::Disconnect {
+    let disconnect = DisconnectError {
         reason_code: payload.get_u32()?,
         description: payload.get_string()?,
         description_lang: payload.get_string()?,
