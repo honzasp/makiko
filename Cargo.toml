@@ -1,7 +1,18 @@
 [package]
 name = "makiko"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
+
+authors = ["Jan Špaček <patek.mail@gmail.com>"]
+homepage = "https://github.com/honzasp/makiko"
+repository = "https://github.com/honzasp/makiko"
+documentation = "https://docs.rs/makiko"
+license = "Unlicense"
+readme = "README.md"
+
+keywords = ["ssh", "ssh-client", "tokio", "async"]
+categories = ["network-programming", "asynchronous"]
+description = "Asynchronous SSH client library"
 
 [dependencies]
 aes = "0.8"
