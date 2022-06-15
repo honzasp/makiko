@@ -33,10 +33,10 @@ pub(super) struct ClientState {
 }
 
 pub(super) fn new_client(
-    mut rng: Box<dyn SecureRandom + Send + Sync>,
+    rng: Box<dyn SecureRandom + Send + Sync>,
     event_tx: mpsc::Sender<ClientEvent>,
 ) -> Result<ClientState> {
-    let mut send_pipe = SendPipe::new(&mut *rng)?;
+    let mut send_pipe = SendPipe::new(&*rng)?;
     let our_ident: Bytes = "SSH-2.0-makiko".into();
     send_pipe.feed_ident(&our_ident);
 

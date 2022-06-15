@@ -7,8 +7,8 @@ use std::sync::{Arc, Weak};
 use std::task::Context;
 use tokio::sync::{oneshot, mpsc};
 use crate::codec::{PacketEncode, PacketDecode};
+use crate::codes::msg;
 use crate::error::{Result, ChannelOpenError, Error};
-use crate::numbers::msg;
 use super::{auth, negotiate};
 use super::channel::ChannelEvent;
 use super::channel_state::{self, ChannelState, ChannelInit};
@@ -83,10 +83,7 @@ pub(super) fn pump_conn(st: &mut ClientState, cx: &mut Context) -> Result<Pump> 
         }
 
         channels.retain(|_, conn_channel_st| {
-            match conn_channel_st {
-                ConnChannelState::Closed => false,
-                _ => true,
-            }
+            !matches!(conn_channel_st, ConnChannelState::Closed)
         });
 
         return Ok(progress)

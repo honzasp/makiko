@@ -11,8 +11,8 @@ use std::task::{Context, Poll};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::PollSender;
 use crate::codec::{PacketEncode, PacketDecode};
+use crate::codes::msg;
 use crate::error::{Result, Error};
-use crate::numbers::msg;
 use super::negotiate;
 use super::channel::{ChannelEvent, ChannelReq, ChannelReply, DataType};
 use super::client_state::{self, ClientState};
@@ -24,7 +24,6 @@ pub(super) struct ChannelInit {
     pub their_id: u32,
     pub event_tx: mpsc::Sender<ChannelEvent>,
     pub send_window: usize,
-    pub recv_window: usize,
     pub send_len_max: usize,
     pub recv_window_max: usize,
 }
@@ -83,7 +82,7 @@ pub(super) fn init_channel(init: ChannelInit) -> ChannelState {
         recv_replies: VecDeque::new(),
         send_replies: VecDeque::new(),
         send_window: init.send_window,
-        recv_window: init.recv_window,
+        recv_window: init.recv_window_max,
         send_len_max: init.send_len_max,
         recv_window_max: init.recv_window_max,
     }
@@ -113,7 +112,7 @@ pub(super) fn pump_channel(
         return Ok(Pump::Progress)
     }
 
-    if negotiate::is_ready(st) {
+    if negotiate::is_ready(st) && !channel_st.close_sent {
         if let Some(req) = channel_st.send_reqs.pop_front() {
             send_channel_request(st, channel_st, &req)?;
             if let Some(reply_tx) = req.reply_tx {
@@ -399,6 +398,10 @@ pub(super) fn recv_channel_close(channel_st: &mut ChannelState) -> ResultRecvSta
     log::debug!("received SSH_MSG_CHANNEL_CLOSE for our channel {}", channel_st.our_id);
     channel_st.close_recvd = true;
     Ok(None)
+}
+
+pub(super) fn is_closing(channel_st: &ChannelState) -> bool {
+    channel_st.closed || channel_st.want_close || channel_st.close_sent || channel_st.close_recvd
 }
 
 pub(super) fn is_closed(channel_st: &ChannelState) -> bool {

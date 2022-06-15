@@ -1,6 +1,7 @@
 use crate::Result;
 use super::{CipherAlgo, Encrypt, Decrypt};
 
+/// "none" cipher (no encryption).
 pub static NONE: CipherAlgo = CipherAlgo {
     name: "none",
     block_len: 8,

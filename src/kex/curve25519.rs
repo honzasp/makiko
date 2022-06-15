@@ -7,10 +7,11 @@ use ring::digest::{SHA256, digest};
 use ring::rand::SecureRandom;
 use std::task::Poll;
 use crate::codec::{PacketDecode, PacketEncode};
+use crate::codes::msg;
 use crate::error::{Error, Result};
-use crate::numbers::msg;
 use super::{KexAlgo, KexInput, KexOutput, Kex};
 
+/// "curve25519-sha256" key exchange from RFC 8731.
 pub static CURVE25519_SHA256: KexAlgo = KexAlgo {
     name: "curve25519-sha256",
     make_kex: |rng| Ok(Box::new(init_kex(rng)?)),

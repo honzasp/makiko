@@ -5,18 +5,20 @@ use ring::signature::{ED25519, VerificationAlgorithm as _};
 use std::fmt;
 use super::{PubkeyAlgo, Pubkey, SignatureVerified};
 
+/// "ssh-ed25519" public key algorithm from RFC 8709.
 pub static SSH_ED25519: PubkeyAlgo = PubkeyAlgo {
     name: "ssh-ed25519",
     decode_pubkey: |pubkey| Ed25519Pubkey::decode(pubkey).map(Pubkey::Ed25519),
 };
 
+/// Ed25519 public key from RFC 8032.
 #[derive(Debug, Clone)]
 pub struct Ed25519Pubkey {
     pubkey: Vec<u8>,
 }
 
 impl Ed25519Pubkey {
-    pub fn decode(pubkey: Bytes) -> Result<Ed25519Pubkey> {
+    pub(crate) fn decode(pubkey: Bytes) -> Result<Ed25519Pubkey> {
         let mut pubkey = PacketDecode::new(pubkey);
         if pubkey.get_string()? != "ssh-ed25519" {
             return Err(Error::Decode("expected pubkey format 'ssh-ed25519'"))
@@ -25,7 +27,7 @@ impl Ed25519Pubkey {
         Ok(Ed25519Pubkey { pubkey: pubkey_data })
     }
 
-    pub fn verify(&self, message: &[u8], signature: Bytes) -> Result<SignatureVerified> {
+    pub(crate) fn verify(&self, message: &[u8], signature: Bytes) -> Result<SignatureVerified> {
         let mut signature = PacketDecode::new(signature);
         if signature.get_string()? != "ssh-ed25519" {
             return Err(Error::Decode("expected signature format 'ssh-ed25519'"))

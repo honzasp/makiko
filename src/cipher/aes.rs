@@ -2,6 +2,7 @@ use cipher::{InnerIvInit as _, KeyInit as _, StreamCipher as _};
 use crate::Result;
 use super::{CipherAlgo, Encrypt, Decrypt};
 
+/// "aes128-ctr" cipher from RFC 4344.
 pub static AES128_CTR: CipherAlgo = CipherAlgo {
     name: "aes128-ctr",
     block_len: 16,

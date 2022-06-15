@@ -1,4 +1,8 @@
-pub mod msg {
+//! Various codes from the SSH protocol.
+#![allow(dead_code)]
+#![allow(missing_docs)]
+
+pub(crate) mod msg {
     pub const DISCONNECT: u8 = 1;
     pub const IGNORE: u8 = 2;
     pub const UNIMPLEMENTED: u8 = 3;
@@ -32,6 +36,7 @@ pub mod msg {
     pub const USERAUTH_PASSWD_CHANGEREQ: u8 = 60;
 }
 
+/// Reason codes for [`DisconnectError`][crate::DisconnectError].
 pub mod disconnect {
     pub const HOST_NOT_ALLOWED_TO_CONNECT: u32 = 1;
     pub const PROTOCOL_ERROR: u32 = 2;
@@ -49,6 +54,7 @@ pub mod disconnect {
     pub const NO_MORE_AUTH_METHODS_AVAILABLE: u32 = 14;
     pub const ILLEGAL_USER_NAME: u32 = 15;
 
+    /// Convert a reason code to a string.
     pub const fn to_str(code: u32) -> Option<&'static str> {
         Some(match code {
             HOST_NOT_ALLOWED_TO_CONNECT => "host not allowed to connect",
@@ -71,12 +77,14 @@ pub mod disconnect {
     }
 }
 
+/// Reason codes for [`ChannelOpenError`][crate::ChannelOpenError].
 pub mod open {
     pub const ADMINISTRATIVELY_PROHIBITED: u32 = 1;
     pub const CONNECT_FAILED: u32 = 2;
     pub const UNKNOWN_CHANNEL_TYPE: u32 = 3;
     pub const RESOURCE_SHORTAGE: u32 = 4;
 
+    /// Convert a reason code to a string.
     pub const fn to_str(code: u32) -> Option<&'static str> {
         Some(match code {
             ADMINISTRATIVELY_PROHIBITED => "administratively prohibited",
@@ -86,4 +94,24 @@ pub mod open {
             _ => return None,
         })
     }
+}
+
+/// Signal codes for [`Session::signal()`][crate::Session::signal()] and
+/// [`ExitSignal`][crate::ExitSignal].
+///
+/// The constants are the same as the codes, so for example [`ABRT`][signal::ABRT] is `"ABRT"`.
+pub mod signal {
+    pub static ABRT: &'static str = "ABRT";
+    pub static ALRM: &'static str = "ALRM";
+    pub static FPE: &'static str = "FPE";
+    pub static HUP: &'static str = "HUP";
+    pub static ILL: &'static str = "ILL";
+    pub static INT: &'static str = "INT";
+    pub static KILL: &'static str = "KILL";
+    pub static PIPE: &'static str = "PIPE";
+    pub static QUIT: &'static str = "QUIT";
+    pub static SEGV: &'static str = "SEGV";
+    pub static TERM: &'static str = "TERM";
+    pub static USR1: &'static str = "USR1";
+    pub static USR2: &'static str = "USR2";
 }

@@ -1,9 +1,15 @@
 use std::fmt;
-use crate::numbers::{disconnect, open};
+use crate::codes::{disconnect, open};
 
+/// Result type for our [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Error that occured while handling SSH connection.
+///
+/// This enum is `#[non_exhaustive]`, so we reserve the right to add more variants and don't
+/// consider this to break backwards compatibility.
 #[derive(thiserror::Error, Debug)]
+#[allow(missing_docs)]
 #[non_exhaustive]
 pub enum Error {
     #[error("cryptography error: {0}")]
@@ -46,19 +52,41 @@ pub enum Error {
     PeerDisconnected(DisconnectError),
 }
 
+/// Error that occured because we could not negotiate an algorithm.
+///
+/// During the SSH key exchange, the client and the server must negotiate which cryptographic
+/// algorithms (such as ciphers or MACs) to use, as described in RFC 4253, section 7.1. This error
+/// occurs when there is no intersection between the set of algorithms supported by us (the client)
+/// and by the server.
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("for {algo_name:}, our algos are {our_algos:?}, their algos are {their_algos:?}")]
 pub struct AlgoNegotiateError {
+    /// Human readable name of the algorithm.
     pub algo_name: String,
+    /// The set of algorithms supplied by us (the client).
     pub our_algos: Vec<String>,
+    /// The set of algorithms supplied by them (the server).
     pub their_algos: Vec<String>,
 }
 
+/// Error that occured because the server disconnected.
+///
+/// This corresponds to the `SSH_MSG_DISCONNECT` packet described in RFC 4253, section 11.1.
 #[derive(Debug, Clone, thiserror::Error)]
 pub struct DisconnectError {
+    /// Machine-readable reason code (see [`codes::disconnect`][crate::codes::disconnect]).
     pub reason_code: u32,
+    /// Human-readable description of the error.
     pub description: String,
+    /// Language tag of `description` (per RFC 3066).
     pub description_lang: String,
+}
+
+impl DisconnectError {
+    /// Translates the [`reason_code`][Self::reason_code] into a string.
+    pub fn reason_to_str(&self) -> Option<&'static str> {
+        disconnect::to_str(self.reason_code)
+    }
 }
 
 impl fmt::Display for DisconnectError {
@@ -67,10 +95,17 @@ impl fmt::Display for DisconnectError {
     }
 }
 
+/// Error that occured when opening a channel.
+///
+/// This corresponds to the `SSH_MSG_CHANNEL_OPEN_FAILURE` packet described in RFC 4254, section
+/// 5.1.
 #[derive(Debug, Clone, thiserror::Error)]
 pub struct ChannelOpenError {
+    /// Machine-readable reason code (see [`codes::open`][crate::codes::open]).
     pub reason_code: u32,
+    /// Human-readable description of the error.
     pub description: String,
+    /// Language tag of `description` (per RFC 3066).
     pub description_lang: String,
 }
 

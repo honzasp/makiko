@@ -1,6 +1,7 @@
 use crate::Result;
 use super::{Mac, MacAlgo, MacVerified};
 
+/// "none" MAC (no message authentication).
 pub static NONE: MacAlgo = MacAlgo {
     name: "none",
     tag_len: 0,

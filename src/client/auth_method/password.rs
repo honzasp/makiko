@@ -2,22 +2,42 @@ use bytes::Bytes;
 use std::task::Poll;
 use tokio::sync::oneshot;
 use crate::codec::{PacketDecode, PacketEncode};
+use crate::codes::msg;
 use crate::error::{Result, Error};
-use crate::numbers::msg;
 use super::super::auth::AuthFailure;
 use super::AuthMethod;
 
+/// Result of the ["password"][crate::Client::auth_password] authentication method.
 #[derive(Debug, Clone)]
 #[must_use]
 pub enum AuthPasswordResult {
+    /// The authentication was successful.
+    ///
+    /// If you requested a password change, the password has been changed.
     Success,
+
+    /// The server asks you to change your password.
+    ///
+    /// You will have to change your password using the `new_password` argument to
+    /// [`Client::auth_password`][crate::Client::auth_password]. If you in fact requested a change
+    /// of password, this response means that the password was not changed, because the new
+    /// password was not acceptable.
     ChangePassword(AuthPasswordPrompt),
+
+    /// The authentication was rejected.
+    ///
+    /// Of you requested a password change and [`AuthFailure::partial_success`] is true,
+    /// then the password has been changed, but more authentications are needed. Otherwise, if
+    /// `partial_success` is false, the password has not been changed.
     Failure(AuthFailure),
 }
 
+/// Prompt that the server sends when asking you to change your password.
 #[derive(Debug, Clone)]
 pub struct AuthPasswordPrompt {
+    /// Human-readable prompt.
     pub prompt: String,
+    /// Language tag of `prompt` (per RFC 3066).
     pub prompt_lang: String,
 }
 
@@ -80,7 +100,7 @@ impl AuthMethod for AuthPassword {
             payload.put_bool(self.new_password.is_some());
             payload.put_str(&self.password);
             if let Some(new_password) = self.new_password.as_ref() {
-                payload.put_str(&new_password);
+                payload.put_str(new_password);
             }
             log::debug!("sending SSH_MSG_USERAUTH_REQUEST for method 'password'");
             self.request_sent = true;
@@ -99,6 +119,7 @@ impl AuthMethod for AuthPassword {
 }
 
 impl AuthPasswordResult {
+    /// Returns `Ok` if this is a success, `Err` otherwise.
     pub fn success_or_error(&self) -> Result<()> {
         match self {
             Self::Success => Ok(()),

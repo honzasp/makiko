@@ -1,8 +1,8 @@
 use futures_core::ready;
 use std::task::{Context, Poll};
 use crate::codec::{PacketDecode, PacketEncode, RecvPacket};
+use crate::codes::msg;
 use crate::error::{Error, Result, DisconnectError};
-use crate::numbers::msg;
 use super::{auth, conn, negotiate};
 use super::client_event::{ClientEvent, DebugMsg};
 use super::client_state::ClientState;

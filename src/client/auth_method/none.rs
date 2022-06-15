@@ -2,15 +2,19 @@ use bytes::Bytes;
 use std::task::Poll;
 use tokio::sync::oneshot;
 use crate::codec::{PacketDecode, PacketEncode};
+use crate::codes::msg;
 use crate::error::{Result, Error};
-use crate::numbers::msg;
 use super::super::auth::AuthFailure;
 use super::AuthMethod;
 
+/// Result of the ["none"][crate::Client::auth_none] authentication method.
 #[derive(Debug, Clone)]
 #[must_use]
 pub enum AuthNoneResult {
+    /// The authentication was successful.
     Success,
+
+    /// The authentication was rejected.
     Failure(AuthFailure),
 }
 
@@ -70,6 +74,7 @@ impl AuthMethod for AuthNone {
 }
 
 impl AuthNoneResult {
+    /// Returns `Ok` if this is a success, `Err` otherwise.
     pub fn success_or_error(&self) -> Result<()> {
         match self {
             Self::Success => Ok(()),

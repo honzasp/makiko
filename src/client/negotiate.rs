@@ -6,9 +6,9 @@ use tokio::sync::oneshot;
 use crate::error::{Error, Result, AlgoNegotiateError};
 use crate::cipher::{self, CipherAlgo};
 use crate::codec::{PacketEncode, PacketDecode};
+use crate::codes::msg;
 use crate::kex::{self, Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo};
-use crate::numbers::msg;
 use crate::pubkey::{self, PubkeyAlgo, SignatureVerified};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::ClientState;
@@ -103,7 +103,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
 
             let kex_input = KexInput {
                 client_ident: &st.our_ident,
-                server_ident: &st.their_ident.as_ref().unwrap(),
+                server_ident: st.their_ident.as_ref().unwrap(),
                 client_kex_init: &st.negotiate_st.our_kex_init.as_ref().unwrap().payload,
                 server_kex_init: &st.negotiate_st.their_kex_init.as_ref().unwrap().payload,
             };
@@ -391,7 +391,7 @@ fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>>
     let mut key = {
         let mut to_hash = to_hash_prefix.clone();
         to_hash.put_u8(key_type);
-        to_hash.put_raw(&session_id);
+        to_hash.put_raw(session_id);
         kex.compute_hash(&to_hash.finish())
     };
 
@@ -406,8 +406,5 @@ fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>>
 }
 
 pub(super) fn is_ready(st: &ClientState) -> bool {
-    match st.negotiate_st.state {
-        State::Idle => true,
-        _ => false,
-    }
+    matches!(st.negotiate_st.state, State::Idle)
 }

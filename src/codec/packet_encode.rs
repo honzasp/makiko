@@ -1,13 +1,15 @@
 use bytes::{BufMut as _, Bytes, BytesMut};
 
+/// Encoding of SSH packets and other payloads (low level API).
+///
+/// The format is described in RFC 4251, section 5. This struct just wraps a [`BytesMut`] instance.
 #[derive(Debug, Clone)]
 pub struct PacketEncode {
     buf: BytesMut,
 }
 
-/// Encoding of SSH packets.
-/// The format is described in RFC 4251, section 5.
 impl PacketEncode {
+    /// Creates an empty [`PacketEncode`].
     pub fn new() -> PacketEncode {
         PacketEncode { buf: BytesMut::new() }
     }
@@ -85,9 +87,19 @@ impl PacketEncode {
         self.buf.put_slice(data);
     }
 
+    /// Unwraps the internal bytes.
+    pub fn into_bytes(self) -> BytesMut {
+        self.buf
+    }
+
+    /// Unwraps and freezes the internal bytes.
     pub fn finish(self) -> Bytes {
         self.buf.freeze()
     }
+}
+
+impl Default for PacketEncode {
+    fn default() -> Self { Self::new() }
 }
 
 #[cfg(test)]

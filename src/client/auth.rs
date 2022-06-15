@@ -1,7 +1,7 @@
 use std::task::Context;
 use crate::codec::{PacketDecode, PacketEncode};
+use crate::codes::msg;
 use crate::error::{Result, Error};
-use crate::numbers::msg;
 use super::negotiate;
 use super::auth_method::AuthMethod;
 use super::client_event::{ClientEvent, AuthBanner};
@@ -9,9 +9,21 @@ use super::client_state::{self, ClientState};
 use super::pump::Pump;
 use super::recv::{self, ResultRecvState};
 
+/// Message sent by the server when authentication attempt fails.
+///
+/// This corresponds to `SSH_MSG_USERAUTH_FAILURE` (RFC 4252, section 5.1). Note that this may
+/// actually represent a [partial success][Self::partial_success].
 #[derive(Debug, Clone)]
 pub struct AuthFailure {
+    /// Authentication methods that may productively continue the authentication.
+    ///
+    /// Note that the server must not list the `"none"` method here, even if it is supported.
     pub methods_can_continue: Vec<String>,
+
+    /// True if the authentication request was successful, but the authentication should continue.
+    ///
+    /// For example, this might be used if the server requires that you pass multiple
+    /// authentications before continuing.
     pub partial_success: bool,
 }
 

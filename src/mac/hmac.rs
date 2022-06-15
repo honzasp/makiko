@@ -3,6 +3,7 @@ use ring::constant_time::verify_slices_are_equal;
 use crate::error::{Result, Error};
 use super::{MacAlgo, Mac, MacVerified};
 
+/// "hmac-sha2-256" MAC from RFC 6668.
 pub static HMAC_SHA2_256: MacAlgo = MacAlgo {
     name: "hmac-sha2-256",
     tag_len: 32,

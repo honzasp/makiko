@@ -6,18 +6,20 @@ use sha1::Digest as _;
 use std::fmt;
 use super::{PubkeyAlgo, Pubkey, SignatureVerified};
 
+/// "ssh-rsa" public key algorithm from RFC 4253.
 pub static SSH_RSA: PubkeyAlgo = PubkeyAlgo {
     name: "ssh-rsa",
     decode_pubkey: |pubkey| RsaPubkey::decode(pubkey).map(Pubkey::Rsa),
 };
 
+/// RSA public key.
 #[derive(Debug, Clone)]
 pub struct RsaPubkey {
     pubkey: rsa::RsaPublicKey,
 }
 
 impl RsaPubkey {
-    pub fn decode(pubkey: Bytes) -> Result<RsaPubkey> {
+    pub(crate) fn decode(pubkey: Bytes) -> Result<RsaPubkey> {
         let mut pubkey = PacketDecode::new(pubkey);
         if pubkey.get_string()? != "ssh-rsa" {
             return Err(Error::Decode("expected pubkey format 'ssh-rsa'"))
@@ -33,7 +35,7 @@ impl RsaPubkey {
         Ok(RsaPubkey { pubkey: rsa_pubkey })
     }
 
-    pub fn verify(&self, message: &[u8], signature: Bytes) -> Result<SignatureVerified> {
+    pub(crate) fn verify(&self, message: &[u8], signature: Bytes) -> Result<SignatureVerified> {
         let mut signature = PacketDecode::new(signature);
         if signature.get_string()? != "ssh-rsa" {
             return Err(Error::Decode("expected signature format 'ssh-rsa'"))

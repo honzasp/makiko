@@ -2,15 +2,18 @@ use bytes::{Buf as _, Bytes};
 use std::str;
 use crate::{Error, Result};
 
+/// Decoding of SSH packets and other payloads (low level API).
+///
+/// The format of SSH payloads is described in RFC 4251, section 5. This struct just wraps a
+/// [`Bytes`] instance.
 #[derive(Debug)]
 pub struct PacketDecode {
     orig_buf: Bytes,
     buf: Bytes,
 }
 
-/// Encoding of SSH packets.
-/// The format is described in RFC 4251, section 5.
 impl PacketDecode {
+    /// Wraps the bytes into [`PacketDecode`].
     pub fn new(buf: Bytes) -> PacketDecode {
         PacketDecode { orig_buf: buf.clone(), buf }
     }
@@ -67,7 +70,7 @@ impl PacketDecode {
         }
     }
 
-    /// Return a slice of the original packet payload.
+    /// Return a slice of the original bytes given to [`PacketDecode::new()`].
     pub fn as_original_bytes(&self) -> &[u8] {
         &self.orig_buf
     }
