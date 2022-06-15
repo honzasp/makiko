@@ -400,9 +400,11 @@ pub(super) fn recv_channel_close(channel_st: &mut ChannelState) -> ResultRecvSta
     Ok(None)
 }
 
+/*
 pub(super) fn is_closing(channel_st: &ChannelState) -> bool {
     channel_st.closed || channel_st.want_close || channel_st.close_sent || channel_st.close_recvd
 }
+*/
 
 pub(super) fn is_closed(channel_st: &ChannelState) -> bool {
     channel_st.closed

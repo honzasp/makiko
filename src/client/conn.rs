@@ -38,7 +38,6 @@ struct OpenChannelState {
 
 pub(super) struct OpenChannel {
     pub channel_type: String,
-    pub recv_window: usize,
     pub recv_window_max: usize,
     pub recv_packet_len_max: usize,
     pub open_payload: Bytes,
@@ -162,7 +161,7 @@ fn send_channel_open(st: &mut ClientState, open_st: &OpenChannelState) -> Result
     payload.put_u8(msg::CHANNEL_OPEN);
     payload.put_str(&open_st.open.channel_type);
     payload.put_u32(open_st.our_id);
-    payload.put_u32(open_st.open.recv_window as u32);
+    payload.put_u32(open_st.open.recv_window_max as u32);
     payload.put_u32(open_st.open.recv_packet_len_max as u32);
     payload.put_raw(&open_st.open.open_payload);
     st.codec.send_pipe.feed_packet(&payload.finish())?;
@@ -205,7 +204,6 @@ fn recv_channel_open_confirmation(
     let channel_init = ChannelInit {
         our_id, their_id, event_tx,
         send_window,
-        recv_window: open_st.open.recv_window,
         send_len_max: send_packet_len_max - 100,
         recv_window_max: open_st.open.recv_window_max,
     };

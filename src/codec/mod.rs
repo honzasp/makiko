@@ -1,9 +1,9 @@
 pub use self::packet_encode::PacketEncode;
 pub use self::packet_decode::PacketDecode;
-pub use self::recv_pipe::{RecvPipe, RecvPacket};
-pub use self::send_pipe::SendPipe;
+pub(crate) use self::recv_pipe::{RecvPipe, RecvPacket};
+pub(crate) use self::send_pipe::SendPipe;
 
-pub struct Codec {
+pub(crate) struct Codec {
     pub recv_pipe: RecvPipe,
     pub send_pipe: SendPipe,
 }

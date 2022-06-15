@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use crate::cipher::{self, Decrypt};
 use crate::mac::{self, Mac, MacVerified};
 
-pub struct RecvPipe {
+pub(crate) struct RecvPipe {
     buf: BytesMut,
     state: State,
     decrypt: Box<dyn Decrypt + Send>,

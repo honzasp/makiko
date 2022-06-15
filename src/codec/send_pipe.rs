@@ -6,7 +6,7 @@ use crate::{Error, Result};
 use crate::cipher::{self, Encrypt};
 use crate::mac::{self, Mac};
 
-pub struct SendPipe {
+pub(crate) struct SendPipe {
     buf: BytesMut,
     encrypt: Box<dyn Encrypt + Send>,
     block_len: usize,
