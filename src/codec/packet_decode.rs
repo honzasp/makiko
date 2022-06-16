@@ -103,23 +103,23 @@ mod tests {
     #[test]
     fn test_get_uint32() {
         let mut d = decode(&[0,0,0,42, 0xde,0xad,0xbe,0xef]);
-        assert_eq!(d.get_uint32().unwrap(), 42);
-        assert_eq!(d.get_uint32().unwrap(), 0xdeadbeef);
+        assert_eq!(d.get_u32().unwrap(), 42);
+        assert_eq!(d.get_u32().unwrap(), 0xdeadbeef);
 
         let mut d = decode(&[0xde,0xad]);
-        assert!(d.get_uint32().is_err());
+        assert!(d.get_u32().is_err());
     }
 
     #[test]
-    fn test_get_string() {
+    fn test_get_bytes() {
         let mut d = decode(&[0,0,0,2, 10,20]);
-        assert_eq!(d.get_string().unwrap().as_ref(), &[10,20]);
+        assert_eq!(d.get_bytes().unwrap().as_ref(), &[10,20]);
 
         let mut d = decode(&[0,0,2]);
-        assert!(d.get_string().is_err());
+        assert!(d.get_bytes().is_err());
 
         let mut d = decode(&[0,0,0,8, 10,20,30]);
-        assert!(d.get_string().is_err());
+        assert!(d.get_bytes().is_err());
     }
 
     #[test]

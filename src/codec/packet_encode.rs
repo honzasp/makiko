@@ -115,31 +115,51 @@ mod tests {
     #[test]
     fn test_put_uint32() {
         let mut e = PacketEncode::new();
-        e.put_uint32(10);
-        e.put_uint32(0xdeadbeef);
+        e.put_u32(10);
+        e.put_u32(0xdeadbeef);
         assert_eq!(e.finish().as_ref(), &[0,0,0,10, 0xde,0xad,0xbe,0xef]);
     }
 
     #[test]
     fn test_put_string() {
         let mut e = PacketEncode::new();
-        e.put_string(&[]);
-        e.put_string(&[10, 20, 30]);
+        e.put_bytes(&[]);
+        e.put_bytes(&[10, 20, 30]);
         assert_eq!(e.finish().as_ref(), &[0,0,0,0, 0,0,0,3,10,20,30]);
     }
 
     #[test]
     fn test_put_name_list() {
-        let mut e = PacketEncode::new();
-        e.put_name_list(&[]);
-        assert_eq!(e.finish().as_ref(), &[0,0,0,0]);
+        fn check(value: &[&str], expected_bytes: &[u8]) {
+            let mut e = PacketEncode::new();
+            e.put_name_list(value);
+            assert_eq!(e.finish().as_ref(), expected_bytes);
+        }
 
-        let mut e = PacketEncode::new();
-        e.put_name_list(&["foo"]);
-        assert_eq!(e.finish().as_ref(), &[0,0,0,3, b'f',b'o',b'o']);
+        check(&[], &[0,0,0,0]);
+        check(&["foo"], &[0,0,0,3, b'f',b'o',b'o']);
+        check(&["foo", "bar"], &[0,0,0,7, b'f',b'o',b'o', b',', b'b',b'a',b'r']);
+    }
 
-        let mut e = PacketEncode::new();
-        e.put_name_list(&["foo", "bar"]);
-        assert_eq!(e.finish().as_ref(), &[0,0,0,7, b'f',b'o',b'o', b',', b'b',b'a',b'r']);
+    #[test]
+    fn test_put_mpint_uint_be() {
+        fn check(value: &[u8], expected_bytes: &[u8]) {
+            let mut e = PacketEncode::new();
+            e.put_mpint_uint_be(value);
+            assert_eq!(e.finish().as_ref(), expected_bytes);
+        }
+
+        check(&[], &[0,0,0,0]);
+        check(&[42], &[0,0,0,1, 42]);
+        check(&[10, 20, 30], &[0,0,0,3, 10, 20, 30]);
+
+        check(&[127, 20, 30], &[0,0,0,3, 127, 20, 30]);
+        check(&[128, 20, 30], &[0,0,0,4, 0, 128, 20, 30]);
+
+        check(&[0], &[0,0,0,0]);
+        check(&[0, 20, 30], &[0,0,0,2, 20, 30]);
+        check(&[0, 0, 0, 20, 30], &[0,0,0,2, 20, 30]);
+        check(&[0, 200, 30], &[0,0,0,3, 0, 200, 30]);
+        check(&[0, 0, 0, 200, 30], &[0,0,0,3, 0, 200, 30]);
     }
 }
