@@ -38,7 +38,11 @@ impl SendPipe {
         self.buf.put_slice(&b"\r\n"[..]);
     }
 
-    pub fn feed_packet(&mut self, payload: &[u8]) -> Result<()> {
+    pub fn feed_packet(&mut self, payload: &[u8]) -> Result<u32> {
+        let packet_seq = self.packet_seq;
+        log::trace!("feed packet {}, len {}, seq {}",
+            payload.get(0).cloned().unwrap_or(0), payload.len(), self.packet_seq);
+
         let padding_len = calculate_padding_len(payload.len(), self.block_len);
 
         // RFC 4253, section 6
@@ -62,14 +66,14 @@ impl SendPipe {
             self.padding_rng.fill_bytes(&mut packet[5 + payload.len()..][..padding_len]);
 
             let (plaintext, tag) = packet.split_at_mut(5 + payload.len() + padding_len);
-            self.mac.sign(self.packet_seq, plaintext, tag)?;
+            self.mac.sign(packet_seq, plaintext, tag)?;
 
             self.encrypt.encrypt(plaintext)?;
         }
 
         self.packet_seq = self.packet_seq.wrapping_add(1);
 
-        Ok(())
+        Ok(packet_seq)
     }
 
     pub fn set_cipher(&mut self, encrypt: Box<dyn Encrypt + Send>, block_len: usize) {
@@ -84,6 +88,10 @@ impl SendPipe {
 
     pub fn peek_bytes(&self) -> &[u8] {
         &self.buf
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buf.is_empty()
     }
 
     pub fn consume_bytes(&mut self, len: usize) {

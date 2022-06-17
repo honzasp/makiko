@@ -50,6 +50,10 @@ pub enum Error {
     PeerClosed,
     #[error("peer disconnected: {0}")]
     PeerDisconnected(DisconnectError),
+    #[error("client is closed")]
+    ClientClosed,
+    #[error("client has already disconnected")]
+    ClientDisconnected,
 }
 
 /// Error that occured because we could not negotiate an algorithm.
@@ -69,7 +73,7 @@ pub struct AlgoNegotiateError {
     pub their_algos: Vec<String>,
 }
 
-/// Error that occured because the server disconnected.
+/// Error that describes SSH disconnection.
 ///
 /// This corresponds to the `SSH_MSG_DISCONNECT` packet described in RFC 4253, section 11.1.
 #[derive(Debug, Clone, thiserror::Error)]
@@ -86,6 +90,18 @@ impl DisconnectError {
     /// Translates the [`reason_code`][Self::reason_code] into a string.
     pub fn reason_to_str(&self) -> Option<&'static str> {
         disconnect::to_str(self.reason_code)
+    }
+
+    /// Reasonable default instance for use with
+    /// [`Client::disconnect()`][crate::Client::disconnect()].
+    ///
+    /// This instance has reason code `SSH_DISCONNECT_BY_APPLICATION` and a matching description.
+    pub fn by_app() -> DisconnectError {
+        DisconnectError {
+            reason_code: disconnect::BY_APPLICATION,
+            description: "disconnected by application".into(),
+            description_lang: "".into(),
+        }
     }
 }
 

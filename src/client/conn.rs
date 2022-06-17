@@ -19,6 +19,7 @@ use super::recv::ResultRecvState;
 #[derive(Default)]
 pub(super) struct ConnState {
     service_requested: bool,
+    service_request_seq: Option<u32>,
     service_accepted: bool,
     open_channels: VecDeque<OpenChannel>,
     channels: Arc<Mutex<HashMap<u32, ConnChannelState>>>,
@@ -60,8 +61,9 @@ pub(super) fn pump_conn(st: &mut ClientState, cx: &mut Context) -> Result<Pump> 
     }
 
     if !st.conn_st.service_requested && negotiate::is_ready(st) {
-        send_service_request(st)?;
+        let seq = send_service_request(st)?;
         st.conn_st.service_requested = true;
+        st.conn_st.service_request_seq = Some(seq);
         return Ok(Pump::Progress)
     }
 
@@ -345,17 +347,33 @@ fn recv_channel_packet<F>(
 
 
 
-fn send_service_request(st: &mut ClientState) -> Result<()> {
+fn send_service_request(st: &mut ClientState) -> Result<u32> {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::SERVICE_REQUEST);
     payload.put_str("ssh-connection");
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    let seq = st.codec.send_pipe.feed_packet(&payload.finish())?;
     log::debug!("sending SSH_MSG_SERVICE_REQUEST for 'ssh-connection'");
-    Ok(())
+    Ok(seq)
 }
 
 pub(super) fn recv_service_accept(st: &mut ClientState) -> ResultRecvState {
     log::debug!("received SSH_MSG_SERVICE_ACCEPT for 'ssh-connection'");
     st.conn_st.service_accepted = true;
+    st.conn_st.service_request_seq = None;
     Ok(None)
+}
+
+
+pub(super) fn recv_unimplemented(st: &mut ClientState, packet_seq: u32) -> Result<bool> {
+    if st.conn_st.service_request_seq == Some(packet_seq) {
+        log::debug!("received SSH_MSG_UNIMPLEMENTED in reply to \
+            SSH_MSG_SERVICE_REQUEST for 'ssh-connection'");
+        // OpenSSH does not understand or require SSH_MSG_SERVICE_REQUEST for 'ssh-connection', so
+        // we just assume that the service request was accepted
+        st.conn_st.service_accepted = true;
+        st.conn_st.service_request_seq = None;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }

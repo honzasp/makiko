@@ -22,11 +22,19 @@ use super::client_state::ClientState;
 /// You can cheaply clone this object and safely share the clones between tasks.
 #[derive(Clone)]
 pub struct Channel {
-    pub(super) client_st: Arc<Mutex<ClientState>>,
+    pub(super) client_st: Weak<Mutex<ClientState>>,
     pub(super) channel_st: Weak<Mutex<ChannelState>>,
 }
 
 impl Channel {
+    fn upgrade_client(&self) -> Result<Arc<Mutex<ClientState>>> {
+        self.client_st.upgrade().ok_or(Error::ClientClosed)
+    }
+
+    fn upgrade_channel(&self) -> Result<Arc<Mutex<ChannelState>>> {
+        self.channel_st.upgrade().ok_or(Error::ChannelClosed)
+    }
+
     /// Send a request to the server.
     ///
     /// This sends a `SSH_MSG_CHANNEL_REQUEST` to the channel (RFC 4254, section 5.4). We simply
@@ -34,10 +42,10 @@ impl Channel {
     /// [`ChannelReq::reply_tx`] to wait for the reply. Note that requests are not subject to the
     /// SSH flow control mechanism.
     pub fn send_request(&self, req: ChannelReq) -> Result<()> {
-        let mut st = self.client_st.lock();
-        let channel_st = self.get_channel_st()?;
-        let mut channel_st = channel_st.lock();
-        channel_state::send_request(&mut st, &mut channel_st, req)
+        let st = self.upgrade_client()?;
+        let channel_st = self.upgrade_channel()?;
+        channel_state::send_request(&mut st.lock(), &mut channel_st.lock(), req)?;
+        Ok(())
     }
 
     /// Send channel data to the server.
@@ -85,22 +93,19 @@ impl Channel {
     /// further requests or data to the server.
     ///
     /// This method is idempotent: if the channel is already closed or closing, we do nothing.
-    pub fn close(&self) {
-        let mut st = self.client_st.lock();
-        if let Ok(channel_st) = self.get_channel_st() {
-            channel_state::close(&mut st, &mut channel_st.lock());
+    pub fn close(&self) -> Result<()> {
+        let st = self.upgrade_client()?;
+        if let Ok(channel_st) = self.upgrade_channel() {
+            channel_state::close(&mut st.lock(), &mut channel_st.lock());
         }
+        Ok(())
     }
 
     fn send_channel_data(&self, data: ChannelSendData) -> Result<impl Future<Output = Result<()>>> {
-        let mut st = self.client_st.lock();
-        let channel_st = self.get_channel_st()?;
-        let mut channel_st = channel_st.lock();
-        channel_state::send_data(&mut st, &mut channel_st, data)
-    }
-
-    fn get_channel_st(&self) -> Result<Arc<Mutex<ChannelState>>> {
-        self.channel_st.upgrade().ok_or(Error::ChannelClosed)
+        let st = self.upgrade_client()?;
+        let channel_st = self.upgrade_channel()?;
+        let fut = channel_state::send_data(&mut st.lock(), &mut channel_st.lock(), data)?;
+        Ok(fut)
     }
 }
 

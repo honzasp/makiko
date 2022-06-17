@@ -13,6 +13,7 @@ use crate::pubkey::Pubkey;
 /// backwards compatibility. It should always be safe to ignore any events that you don't intend to
 /// handle.
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum ClientEvent {
     /// Server presented its public key and you should verify it.
     ///

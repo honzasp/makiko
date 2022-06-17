@@ -75,9 +75,11 @@ fn recv_debug(_st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvSt
     send_event(ClientEvent::DebugMsg(debug_msg))
 }
 
-fn recv_unimplemented(_: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
+fn recv_unimplemented(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
     let packet_seq = payload.get_u32()?;
-    log::debug!("received SSH_MSG_UNIMPLEMENTED for packet seq {}", packet_seq);
+    if !conn::recv_unimplemented(st, packet_seq)? {
+        log::debug!("received SSH_MSG_UNIMPLEMENTED for packet seq {}", packet_seq);
+    }
     Ok(None)
 }
 

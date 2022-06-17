@@ -38,7 +38,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub(crate) async fn open(client: &Client) -> Result<(Session, SessionReceiver)> {
+    pub(super) async fn open(client: &Client) -> Result<(Session, SessionReceiver)> {
         let (channel, channel_rx, _) = client.open_channel("session".into(), Bytes::new()).await?;
         Ok((Session { channel }, SessionReceiver { channel_rx }))
     }
@@ -49,7 +49,7 @@ impl Session {
     /// once the server acknowledges our request.
     ///
     /// This method is idempotent: if the session is already closed or closing, we do nothing.
-    pub fn close(&self) {
+    pub fn close(&self) -> Result<()> {
         self.channel.close()
     }
 }

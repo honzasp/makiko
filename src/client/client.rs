@@ -4,11 +4,11 @@ use pin_project::pin_project;
 use ring::rand::SystemRandom;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
-use crate::{Error, Result};
+use crate::{Error, Result, DisconnectError};
 use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
@@ -35,7 +35,7 @@ use super::session::{Session, SessionReceiver};
 /// You can cheaply clone this object and safely share the clones between tasks.
 #[derive(Clone)]
 pub struct Client {
-    client_st: Arc<Mutex<ClientState>>,
+    client_st: Weak<Mutex<ClientState>>,
 }
 
 impl Client {
@@ -60,10 +60,14 @@ impl Client {
         let client_st = client_state::new_client(rng, event_tx)?;
         let client_st = Arc::new(Mutex::new(client_st));
 
-        let client = Client { client_st: client_st.clone() };
+        let client = Client { client_st: Arc::downgrade(&client_st) };
         let client_rx = ClientReceiver { event_rx };
         let client_fut = ClientFuture { client_st, stream };
         Ok((client, client_rx, client_fut))
+    }
+
+    fn upgrade(&self) -> Result<Arc<Mutex<ClientState>>> {
+        self.client_st.upgrade().ok_or(Error::ClientClosed)
     }
 
     /// Try to authenticate using the "none" method.
@@ -82,7 +86,7 @@ impl Client {
     pub async fn auth_none(&self, username: String) -> Result<AuthNoneResult> {
         let (result_tx, result_rx) = oneshot::channel();
         let method = AuthNone::new(username, result_tx);
-        auth::start_method(&mut self.client_st.lock(), Box::new(method))?;
+        auth::start_method(&mut self.upgrade()?.lock(), Box::new(method))?;
         result_rx.await.map_err(|_| Error::AuthAborted)
     }
 
@@ -104,15 +108,15 @@ impl Client {
     ) -> Result<AuthPasswordResult> {
         let (result_tx, result_rx) = oneshot::channel();
         let method = AuthPassword::new(username, password, new_password, result_tx);
-        auth::start_method(&mut self.client_st.lock(), Box::new(method))?;
+        auth::start_method(&mut self.upgrade()?.lock(), Box::new(method))?;
         result_rx.await.map_err(|_| Error::AuthAborted)
     }
 
     /// Returns true if the server has authenticated you.
     ///
     /// You must use one of the `auth_*` methods to authenticate.
-    pub fn is_authenticated(&self) -> bool {
-        auth::is_authenticated(&self.client_st.lock())
+    pub fn is_authenticated(&self) -> Result<bool> {
+        Ok(auth::is_authenticated(&self.upgrade()?.lock()))
     }
 
     /// Opens an SSH session to execute a program or the shell.
@@ -163,7 +167,7 @@ impl Client {
             open_payload,
             confirmed_tx,
         };
-        conn::open_channel(&mut self.client_st.lock(), open);
+        conn::open_channel(&mut self.upgrade()?.lock(), open);
 
         let confirmed = confirmed_rx.await.map_err(|_| Error::ChannelClosed)??;
 
@@ -175,6 +179,18 @@ impl Client {
             event_rx: confirmed.event_rx,
         };
         Ok((channel, channel_rx, confirmed.confirm_payload))
+    }
+
+    /// Disconnects from the server and closes the client.
+    ///
+    /// We send a disconnection message to the server, so that they can be sure that we intended to
+    /// close the connection (i.e., it was not closed by a man-in-the-middle attacker). After
+    /// this message is sent, the [`ClientFuture`] returns.
+    ///
+    /// The `error` describes the reasons for the disconnection to the server. You may want to use
+    /// [`DisconnectError::by_app()`] as a reasonable default value.
+    pub fn disconnect(&self, error: DisconnectError) -> Result<()> {
+        client_state::disconnect(&mut self.upgrade()?.lock(), error)
     }
 }
 
@@ -234,5 +250,3 @@ impl<IO> Future for ClientFuture<IO>
         client_state::poll_client(&mut client_st, this.stream, cx)
     }
 }
-
-

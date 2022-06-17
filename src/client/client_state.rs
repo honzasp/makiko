@@ -6,8 +6,9 @@ use std::task::{Context, Poll, Waker};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_util::sync::PollSender;
-use crate::codec::{Codec, RecvPipe, SendPipe};
-use crate::error::{Error, Result};
+use crate::codec::{Codec, RecvPipe, SendPipe, PacketEncode};
+use crate::codes::msg;
+use crate::error::{Error, Result, DisconnectError};
 use super::auth::{self, AuthState};
 use super::client_event::ClientEvent;
 use super::conn::{self, ConnState};
@@ -24,6 +25,8 @@ pub(super) struct ClientState {
     pub codec: Codec,
     pub our_ident: Bytes,
     pub their_ident: Option<Bytes>,
+    our_disconnect: Option<DisconnectError>,
+    disconnect_sent: bool,
     pub recv_st: Option<Box<dyn RecvState + Send>>,
     pub negotiate_st: Box<NegotiateState>,
     pub auth_st: Box<AuthState>,
@@ -49,6 +52,8 @@ pub(super) fn new_client(
         },
         our_ident,
         their_ident: None,
+        our_disconnect: None,
+        disconnect_sent: false,
         recv_st: None,
         negotiate_st: Box::new(negotiate::init_negotiate()),
         auth_st: Box::new(auth::init_auth()),
@@ -63,18 +68,32 @@ pub(super) fn poll_client(
     mut stream: Pin<&mut dyn AsyncReadWrite>,
     cx: &mut Context,
 ) -> Poll<Result<()>> {
+    if st.our_disconnect.is_some() && !st.disconnect_sent {
+        let error = st.our_disconnect.take().unwrap();
+        send_disconnect(st, error)?;
+        st.disconnect_sent = true;
+    }
+
     loop {
         let mut progress = false;
 
-        while recv::pump_recv(st, cx)?.is_progress() { progress = true }
-        while negotiate::pump_negotiate(st, cx)?.is_progress() { progress = true }
-        while auth::pump_auth(st, cx)?.is_progress() { progress = true }
-        while conn::pump_conn(st, cx)?.is_progress() { progress = true }
+        if !st.disconnect_sent {
+            while recv::pump_recv(st, cx)?.is_progress() { progress = true }
+            while negotiate::pump_negotiate(st, cx)?.is_progress() { progress = true }
+            while auth::pump_auth(st, cx)?.is_progress() { progress = true }
+            while conn::pump_conn(st, cx)?.is_progress() { progress = true }
 
-        if pump_read(st, stream.as_mut(), cx)?.is_progress() { continue }
+            if pump_read(st, stream.as_mut(), cx)?.is_progress() { continue }
+        }
+
         while pump_write(st, stream.as_mut(), cx)?.is_progress() { progress = true }
 
         if !progress { break }
+    }
+
+    let flushed = flush_write(st, stream.as_mut(), cx)?;
+    if st.disconnect_sent && flushed {
+        return Poll::Ready(Ok(()))
     }
 
     st.waker = Some(cx.waker().clone());
@@ -139,20 +158,28 @@ fn pump_write(
     match stream.as_mut().poll_write(cx, data) {
         Poll::Ready(Ok(0)) | Poll::Pending => {
             log::trace!("pending write of {} bytes", data.len());
-            return Ok(Pump::Pending)
+            Ok(Pump::Pending)
         },
         Poll::Ready(Ok(written_len)) => {
             log::trace!("written {}/{} bytes", written_len, data.len());
-            st.codec.send_pipe.consume_bytes(written_len)
+            st.codec.send_pipe.consume_bytes(written_len);
+            Ok(Pump::Progress)
         },
         Poll::Ready(Err(err)) => {
             log::debug!("error when writing: {}", err);
-            return Err(Error::WriteIo(err))
+            Err(Error::WriteIo(err))
         },
     }
+}
 
+fn flush_write(
+    st: &mut ClientState,
+    stream: Pin<&mut dyn AsyncReadWrite>,
+    cx: &mut Context,
+) -> Result<bool> {
     match stream.poll_flush(cx) {
-        Poll::Ready(Ok(())) | Poll::Pending => Ok(Pump::Progress),
+        Poll::Ready(Ok(())) => Ok(st.codec.send_pipe.is_empty()),
+        Poll::Pending => Ok(false),
         Poll::Ready(Err(err)) => Err(Error::WriteIo(err)),
     }
 }
@@ -217,4 +244,27 @@ fn poll_read_buf(
     unsafe { buf.advance_mut(n); }
 
     Poll::Ready(Ok(n))
+}
+
+
+
+pub(super) fn disconnect(st: &mut ClientState, error: DisconnectError) -> Result<()> {
+    if !st.disconnect_sent && st.our_disconnect.is_none() {
+        st.our_disconnect = Some(error);
+        wakeup_client(st);
+        Ok(())
+    } else {
+        Err(Error::ClientDisconnected)
+    }
+}
+
+fn send_disconnect(st: &mut ClientState, error: DisconnectError) -> Result<()> {
+    let mut payload = PacketEncode::new();
+    payload.put_u8(msg::DISCONNECT);
+    payload.put_u32(error.reason_code);
+    payload.put_str(&error.description);
+    payload.put_str(&error.description_lang);
+    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    log::debug!("sending SSH_MSG_DISCONNECT with reason code {}", error.reason_code);
+    Ok(())
 }
