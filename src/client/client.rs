@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use parking_lot::Mutex;
 use pin_project::pin_project;
-use ring::rand::SystemRandom;
+use rand::rngs::OsRng;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
@@ -59,7 +59,7 @@ impl Client {
     pub fn open<IO>(stream: IO, config: ClientConfig) -> Result<(Client, ClientReceiver, ClientFuture<IO>)>
         where IO: AsyncRead + AsyncWrite
     {
-        let rng = Box::new(SystemRandom::new());
+        let rng = Box::new(OsRng);
         let (event_tx, event_rx) = mpsc::channel(1);
         let client_st = client_state::new_client(config, rng, event_tx)?;
         let client_st = Arc::new(Mutex::new(client_st));

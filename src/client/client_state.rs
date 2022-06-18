@@ -1,14 +1,12 @@
-use bytes::{Bytes, BytesMut};
-use futures_core::ready;
-use ring::rand::SecureRandom;
+use bytes::Bytes;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
-use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_util::sync::PollSender;
 use crate::codec::{Codec, RecvPipe, SendPipe, PacketEncode};
 use crate::codes::msg;
 use crate::error::{Error, Result, DisconnectError};
+use crate::util::{self, AsyncReadWrite, CryptoRngCore};
 use super::auth::{self, AuthState};
 use super::client::ClientConfig;
 use super::client_event::ClientEvent;
@@ -16,9 +14,6 @@ use super::conn::{self, ConnState};
 use super::negotiate::{self, NegotiateState};
 use super::pump::Pump;
 use super::recv::{self, RecvState};
-
-pub(super) trait AsyncReadWrite: AsyncRead + AsyncWrite {}
-impl<T: AsyncRead + AsyncWrite> AsyncReadWrite for T {}
 
 pub(super) struct ClientState {
     pub config: ClientConfig,
@@ -28,7 +23,7 @@ pub(super) struct ClientState {
     pub negotiate_st: Box<NegotiateState>,
     pub auth_st: Box<AuthState>,
     pub conn_st: Box<ConnState>,
-    pub rng: Box<dyn SecureRandom + Send>,
+    pub rng: Box<dyn CryptoRngCore + Send>,
 
     pub event_tx: PollSender<ClientEvent>,
     waker: Option<Waker>,
@@ -42,10 +37,10 @@ pub(super) struct ClientState {
 
 pub(super) fn new_client(
     config: ClientConfig,
-    rng: Box<dyn SecureRandom + Send + Sync>,
+    mut rng: Box<dyn CryptoRngCore + Send>,
     event_tx: mpsc::Sender<ClientEvent>,
 ) -> Result<ClientState> {
-    let mut send_pipe = SendPipe::new(&*rng)?;
+    let mut send_pipe = SendPipe::new(&mut *rng)?;
     let our_ident: Bytes = "SSH-2.0-makiko".into();
     send_pipe.feed_ident(&our_ident);
 
@@ -204,7 +199,7 @@ fn poll_read<F, T>(
             return Poll::Ready(Ok(value))
         }
 
-        match poll_read_buf(stream.as_mut(), cx, st.codec.recv_pipe.feed_buf()) {
+        match util::poll_read_buf(stream.as_mut(), cx, st.codec.recv_pipe.feed_buf()) {
             Poll::Pending => {
                 log::trace!("pending read");
                 return Poll::Pending
@@ -223,34 +218,6 @@ fn poll_read<F, T>(
             },
         }
     }
-}
-
-// adapted from `tokio_util::io::poll_read_buf`
-fn poll_read_buf(
-    stream: Pin<&mut dyn AsyncReadWrite>,
-    cx: &mut Context,
-    buf: &mut BytesMut,
-) -> Poll<std::io::Result<usize>> {
-    use bytes::BufMut as _;
-    use std::mem::MaybeUninit;
-    use tokio::io::ReadBuf;
-
-    assert!(buf.has_remaining_mut());
-
-    let n = {
-        let dst = buf.chunk_mut();
-        let dst = unsafe { &mut *(dst as *mut _ as *mut [MaybeUninit<u8>]) };
-        let mut read_buf = ReadBuf::uninit(dst);
-        let ptr = read_buf.filled().as_ptr();
-        ready!(stream.poll_read(cx, &mut read_buf))?;
-
-        assert_eq!(ptr, read_buf.filled().as_ptr());
-        read_buf.filled().len()
-    };
-
-    unsafe { buf.advance_mut(n); }
-
-    Poll::Ready(Ok(n))
 }
 
 

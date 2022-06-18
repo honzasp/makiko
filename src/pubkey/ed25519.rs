@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use crate::codec::PacketDecode;
 use crate::error::{Result, Error};
-use ring::signature::{ED25519, VerificationAlgorithm as _};
+use ed25519_dalek as ed25519;
 use std::fmt;
 use super::{PubkeyAlgo, Pubkey, SignatureVerified};
 
@@ -14,7 +14,7 @@ pub static SSH_ED25519: PubkeyAlgo = PubkeyAlgo {
 /// Ed25519 public key from RFC 8032.
 #[derive(Debug, Clone)]
 pub struct Ed25519Pubkey {
-    pubkey: Vec<u8>,
+    pubkey: ed25519::PublicKey,
 }
 
 impl Ed25519Pubkey {
@@ -23,8 +23,10 @@ impl Ed25519Pubkey {
         if pubkey.get_string()? != "ssh-ed25519" {
             return Err(Error::Decode("expected pubkey format 'ssh-ed25519'"))
         }
-        let pubkey_data = pubkey.get_bytes()?.as_ref().into();
-        Ok(Ed25519Pubkey { pubkey: pubkey_data })
+        let pubkey_data = pubkey.get_bytes()?;
+        let pubkey = ed25519::PublicKey::from_bytes(&pubkey_data)
+            .map_err(|_| Error::Crypto("ed25519 pubkey is not valid"))?;
+        Ok(Ed25519Pubkey { pubkey })
     }
 
     pub(crate) fn verify(&self, message: &[u8], signature: Bytes) -> Result<SignatureVerified> {
@@ -33,13 +35,10 @@ impl Ed25519Pubkey {
             return Err(Error::Decode("expected signature format 'ssh-ed25519'"))
         }
 
-        let signature_data = signature.get_bytes()?;
+        let signature_data = signature.get_byte_array::<64>()?;
+        let ed_signature = ed25519::Signature::from(signature_data);
 
-        match ED25519.verify(
-            AsRef::<[u8]>::as_ref(&self.pubkey).into(),
-            message.into(),
-            signature_data.as_ref().into(),
-        ) {
+        match self.pubkey.verify_strict(message, &ed_signature) {
             Ok(_) => Ok(SignatureVerified::assertion()),
             Err(_) => Err(Error::Signature),
         }
@@ -48,6 +47,6 @@ impl Ed25519Pubkey {
 
 impl fmt::Display for Ed25519Pubkey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ed25519 {:x}", Bytes::copy_from_slice(&self.pubkey))
+        write!(f, "ed25519 {:x}", Bytes::copy_from_slice(self.pubkey.as_bytes()))
     }
 }

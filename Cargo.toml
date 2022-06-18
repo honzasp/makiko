@@ -22,22 +22,28 @@ harness = false
 [dependencies]
 aes = "0.8"
 bytes = "1.1"
-cipher = "0.4.3"
+cipher = "0.4"
 ctr = "0.9"
 derivative = "2.2"
+digest = "0.10"
+ed25519-dalek = "1.0"
 futures-core = "0.3"
+generic-array = "0.14"
 guard = "0.5"
+hmac = "0.12"
 log = "0.4"
 parking_lot = "0.12"
 pin-project = "1.0"
-rand = "0.8"
-rand_chacha = "0.3"
-ring = "0.16"
+rand = {version = "0.7", features = ["getrandom"]} # older version because of x25519-dalek
+rand_chacha = "0.2"
 rsa = {version = "0.6", default-features = false}
 sha-1 = {version = "0.10", default-features = false}
+sha2 = "0.10"
+subtle = "2.4"
 thiserror = "1.0"
 tokio = {version = "1", features = ["sync"]}
 tokio-util = {version = "0.7", features = []}
+x25519-dalek = "1.1" # due to issue #89
 
 [dev-dependencies]
 anyhow = "1"

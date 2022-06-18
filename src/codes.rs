@@ -33,6 +33,9 @@ pub(crate) mod msg {
     pub const KEX_ECDH_INIT: u8 = 30;
     pub const KEX_ECDH_REPLY: u8 = 31;
 
+    pub const KEXDH_INIT: u8 = 30;
+    pub const KEXDH_REPLY: u8 = 31;
+
     pub const USERAUTH_PASSWD_CHANGEREQ: u8 = 60;
 }
 

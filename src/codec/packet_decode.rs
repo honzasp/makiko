@@ -42,6 +42,18 @@ impl PacketDecode {
         Ok(self.buf.split_to(len))
     }
 
+    /// Decode a `string` with fixed length.
+    pub fn get_byte_array<const N: usize>(&mut self) -> Result<[u8; N]> {
+        let bytes = self.get_bytes()?;
+        if bytes.len() != N {
+            return Err(Error::Decode("wrong size of `string`"))
+        }
+
+        let mut array = [0; N];
+        array.copy_from_slice(&bytes);
+        Ok(array)
+    }
+
     /// Decode a `string` in UTF-8.
     pub fn get_string(&mut self) -> Result<String> {
         self.get_bytes().and_then(|x| decode_string(&x))

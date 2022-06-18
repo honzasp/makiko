@@ -13,10 +13,10 @@
 //! [`CURVE25519_SHA256_LIBSSH`])
 use bytes::Bytes;
 use derivative::Derivative;
-use ring::rand::SecureRandom;
 use std::task::Poll;
 use crate::Result;
 use crate::codec::PacketDecode;
+use crate::util::CryptoRngCore;
 pub use self::curve25519::{CURVE25519_SHA256, CURVE25519_SHA256_LIBSSH};
 
 mod curve25519;
@@ -30,7 +30,7 @@ pub struct KexAlgo {
     /// Name of the algorithm.
     pub name: &'static str,
     #[derivative(Debug = "ignore")]
-    pub(crate) make_kex: fn(rng: &mut dyn SecureRandom) -> Result<Box<dyn Kex + Send>>,
+    pub(crate) make_kex: fn(rng: &mut dyn CryptoRngCore) -> Result<Box<dyn Kex + Send>>,
 }
 
 #[derive(Debug)]

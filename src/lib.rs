@@ -33,3 +33,4 @@ mod error;
 pub mod kex;
 pub mod mac;
 pub mod pubkey;
+mod util;

@@ -1,10 +1,10 @@
 use bytes::{BufMut as _, BytesMut};
 use rand::{RngCore as _, SeedableRng as _};
 use rand_chacha::ChaCha8Rng;
-use ring::rand::SecureRandom;
 use crate::{Error, Result};
 use crate::cipher::{self, Encrypt};
 use crate::mac::{self, Mac};
+use crate::util::CryptoRngCore;
 
 pub(crate) struct SendPipe {
     buf: BytesMut,
@@ -17,8 +17,8 @@ pub(crate) struct SendPipe {
 }
 
 impl SendPipe {
-    pub fn new(rng: &dyn SecureRandom) -> Result<SendPipe> {
-        let padding_rng_seed = ring::rand::generate(rng)
+    pub fn new(rng: &mut dyn CryptoRngCore) -> Result<SendPipe> {
+        let padding_rng = ChaCha8Rng::from_rng(rng.as_rngcore())
             .map_err(|_| Error::Random("could not generate seed for padding generator"))?;
         Ok(SendPipe {
             buf: BytesMut::new(),
@@ -27,7 +27,7 @@ impl SendPipe {
             mac: Box::new(mac::Empty),
             tag_len: 0,
             packet_seq: 0,
-            padding_rng: ChaCha8Rng::from_seed(padding_rng_seed.expose()),
+            padding_rng,
         })
     }
 

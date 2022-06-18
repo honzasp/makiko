@@ -1,4 +1,5 @@
 use bytes::Bytes;
+use rand::Rng as _;
 use std::future::Future as _;
 use std::pin::Pin;
 use std::task::Context;
@@ -195,8 +196,7 @@ pub(super) fn recv_kex_packet(
 }
 
 fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
-    let mut cookie = [0; 16];
-    st.rng.fill(&mut cookie).map_err(|_| Error::Random("could not generate random cookie"))?;
+    let cookie: [u8; 16] = st.rng.gen();
 
     fn get_algo_names<A: NamedAlgo>(algos: &[&A]) -> Vec<&'static str> {
         algos.iter().map(|algo| algo.name()).collect()
