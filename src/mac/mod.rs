@@ -11,6 +11,7 @@
 //! - "hmac-sha2-256" ([`HMAC_SHA2_256`])
 //! - "none" ([`NONE`])
 use crate::Result;
+use derivative::Derivative;
 pub use self::hmac::HMAC_SHA2_256;
 pub use self::none::NONE;
 pub(crate) use self::none::Empty;
@@ -21,11 +22,14 @@ mod hmac;
 /// Algorithm for authenticating messages.
 ///
 /// See the [module documentation][self] for details.
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct MacAlgo {
     /// Name of the algorithm.
     pub name: &'static str,
     pub(crate) tag_len: usize,
     pub(crate) key_len: usize,
+    #[derivative(Debug = "ignore")]
     pub(crate) make_mac: fn(key: &[u8]) -> Box<dyn Mac + Send>,
 }
 

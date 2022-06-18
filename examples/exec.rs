@@ -6,7 +6,7 @@ async fn main() -> Result<()> {
 
     let sock = tokio::net::TcpStream::connect("127.0.0.1:2222").await?;
 
-    let (client, mut client_rx, client_fut) = makiko::Client::open(sock)?;
+    let (client, mut client_rx, client_fut) = makiko::Client::open(sock, makiko::ClientConfig::default())?;
 
     let client_fut_task = tokio::task::spawn(async move {
         match client_fut.await {

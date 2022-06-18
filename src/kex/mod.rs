@@ -9,22 +9,27 @@
 //!
 //! # Supported algorithms
 //!
-//! - "curve25519-sha256" ([`CURVE25519_SHA256`])
+//! - "curve25519-sha256" / "curve25519-sha256@libssh.com" ([`CURVE25519_SHA256`] /
+//! [`CURVE25519_SHA256_LIBSSH`])
 use bytes::Bytes;
+use derivative::Derivative;
 use ring::rand::SecureRandom;
 use std::task::Poll;
 use crate::Result;
 use crate::codec::PacketDecode;
-pub use self::curve25519::CURVE25519_SHA256;
+pub use self::curve25519::{CURVE25519_SHA256, CURVE25519_SHA256_LIBSSH};
 
 mod curve25519;
 
 /// Algorithm for key exchange.
 ///
 /// See the [module documentation][self] for details.
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct KexAlgo {
     /// Name of the algorithm.
     pub name: &'static str,
+    #[derivative(Debug = "ignore")]
     pub(crate) make_kex: fn(rng: &mut dyn SecureRandom) -> Result<Box<dyn Kex + Send>>,
 }
 

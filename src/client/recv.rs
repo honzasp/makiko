@@ -75,11 +75,9 @@ fn recv_debug(_st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvSt
     send_event(ClientEvent::DebugMsg(debug_msg))
 }
 
-fn recv_unimplemented(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
+fn recv_unimplemented(_st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
     let packet_seq = payload.get_u32()?;
-    if !conn::recv_unimplemented(st, packet_seq)? {
-        log::debug!("received SSH_MSG_UNIMPLEMENTED for packet seq {}", packet_seq);
-    }
+    log::debug!("received SSH_MSG_UNIMPLEMENTED for packet seq {}", packet_seq);
     Ok(None)
 }
 
@@ -88,8 +86,6 @@ fn recv_service_accept(st: &mut ClientState, payload: &mut PacketDecode) -> Resu
 
     if service_name.as_str() == "ssh-userauth" {
         auth::recv_service_accept(st)
-    } else if service_name.as_str() == "ssh-connection" {
-        conn::recv_service_accept(st)
     } else {
         log::debug!("received SSH_MSG_SERVICE_ACCEPT for unknown service {:?}", service_name);
         Ok(None)

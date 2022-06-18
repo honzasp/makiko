@@ -18,9 +18,6 @@ use super::recv::ResultRecvState;
 
 #[derive(Default)]
 pub(super) struct ConnState {
-    service_requested: bool,
-    service_request_seq: Option<u32>,
-    service_accepted: bool,
     open_channels: VecDeque<OpenChannel>,
     channels: Arc<Mutex<HashMap<u32, ConnChannelState>>>,
 }
@@ -60,37 +57,26 @@ pub(super) fn pump_conn(st: &mut ClientState, cx: &mut Context) -> Result<Pump> 
         return Ok(Pump::Pending)
     }
 
-    if !st.conn_st.service_requested && negotiate::is_ready(st) {
-        let seq = send_service_request(st)?;
-        st.conn_st.service_requested = true;
-        st.conn_st.service_request_seq = Some(seq);
-        return Ok(Pump::Progress)
+    let channels = st.conn_st.channels.clone();
+    let mut channels = channels.lock();
+    let mut progress = Pump::Pending;
+
+    while let Some(open) = st.conn_st.open_channels.pop_front() {
+        let our_id = alloc_our_id(&channels);
+        let open_st = OpenChannelState { our_id, open, open_sent: false };
+        channels.insert(our_id, ConnChannelState::Open(open_st));
+        progress = Pump::Progress;
     }
 
-    if st.conn_st.service_accepted {
-        let channels = st.conn_st.channels.clone();
-        let mut channels = channels.lock();
-        let mut progress = Pump::Pending;
-
-        while let Some(open) = st.conn_st.open_channels.pop_front() {
-            let our_id = alloc_our_id(&channels);
-            let open_st = OpenChannelState { our_id, open, open_sent: false };
-            channels.insert(our_id, ConnChannelState::Open(open_st));
-            progress = Pump::Progress;
-        }
-
-        for conn_channel_st in channels.values_mut() {
-            while pump_channel(st, conn_channel_st, cx)?.is_progress() { progress = Pump::Progress }
-        }
-
-        channels.retain(|_, conn_channel_st| {
-            !matches!(conn_channel_st, ConnChannelState::Closed)
-        });
-
-        return Ok(progress)
+    for conn_channel_st in channels.values_mut() {
+        while pump_channel(st, conn_channel_st, cx)?.is_progress() { progress = Pump::Progress }
     }
 
-    Ok(Pump::Pending)
+    channels.retain(|_, conn_channel_st| {
+        !matches!(conn_channel_st, ConnChannelState::Closed)
+    });
+
+    Ok(progress)
 }
 
 fn pump_channel(
@@ -343,37 +329,4 @@ fn recv_channel_packet<F>(
     }};
 
     callback(st, channel_st, payload)
-}
-
-
-
-fn send_service_request(st: &mut ClientState) -> Result<u32> {
-    let mut payload = PacketEncode::new();
-    payload.put_u8(msg::SERVICE_REQUEST);
-    payload.put_str("ssh-connection");
-    let seq = st.codec.send_pipe.feed_packet(&payload.finish())?;
-    log::debug!("sending SSH_MSG_SERVICE_REQUEST for 'ssh-connection'");
-    Ok(seq)
-}
-
-pub(super) fn recv_service_accept(st: &mut ClientState) -> ResultRecvState {
-    log::debug!("received SSH_MSG_SERVICE_ACCEPT for 'ssh-connection'");
-    st.conn_st.service_accepted = true;
-    st.conn_st.service_request_seq = None;
-    Ok(None)
-}
-
-
-pub(super) fn recv_unimplemented(st: &mut ClientState, packet_seq: u32) -> Result<bool> {
-    if st.conn_st.service_request_seq == Some(packet_seq) {
-        log::debug!("received SSH_MSG_UNIMPLEMENTED in reply to \
-            SSH_MSG_SERVICE_REQUEST for 'ssh-connection'");
-        // OpenSSH does not understand or require SSH_MSG_SERVICE_REQUEST for 'ssh-connection', so
-        // we just assume that the service request was accepted
-        st.conn_st.service_accepted = true;
-        st.conn_st.service_request_seq = None;
-        Ok(true)
-    } else {
-        Ok(false)
-    }
 }

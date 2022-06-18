@@ -4,12 +4,12 @@ use std::pin::Pin;
 use std::task::Context;
 use tokio::sync::oneshot;
 use crate::error::{Error, Result, AlgoNegotiateError};
-use crate::cipher::{self, CipherAlgo};
+use crate::cipher::CipherAlgo;
 use crate::codec::{PacketEncode, PacketDecode};
 use crate::codes::msg;
-use crate::kex::{self, Kex, KexAlgo, KexInput, KexOutput};
-use crate::mac::{self, MacAlgo};
-use crate::pubkey::{self, PubkeyAlgo, SignatureVerified};
+use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
+use crate::mac::MacAlgo;
+use crate::pubkey::{PubkeyAlgo, SignatureVerified};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::ClientState;
 use super::pump::Pump;
@@ -195,11 +195,6 @@ pub(super) fn recv_kex_packet(
 }
 
 fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
-    let kex_algos = vec![&kex::CURVE25519_SHA256];
-    let server_pubkey_algos = vec![&pubkey::SSH_ED25519, &pubkey::SSH_RSA];
-    let cipher_algos = vec![&cipher::AES128_CTR];
-    let mac_algos = vec![&mac::HMAC_SHA2_256];
-
     let mut cookie = [0; 16];
     st.rng.fill(&mut cookie).map_err(|_| Error::Random("could not generate random cookie"))?;
 
@@ -211,12 +206,12 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::KEXINIT);
     payload.put_raw(&cookie);
-    payload.put_name_list(&get_algo_names(&kex_algos));
-    payload.put_name_list(&get_algo_names(&server_pubkey_algos));
-    payload.put_name_list(&get_algo_names(&cipher_algos));
-    payload.put_name_list(&get_algo_names(&cipher_algos));
-    payload.put_name_list(&get_algo_names(&mac_algos));
-    payload.put_name_list(&get_algo_names(&mac_algos));
+    payload.put_name_list(&get_algo_names(&st.config.kex_algos));
+    payload.put_name_list(&get_algo_names(&st.config.server_pubkey_algos));
+    payload.put_name_list(&get_algo_names(&st.config.cipher_algos));
+    payload.put_name_list(&get_algo_names(&st.config.cipher_algos));
+    payload.put_name_list(&get_algo_names(&st.config.mac_algos));
+    payload.put_name_list(&get_algo_names(&st.config.mac_algos));
     payload.put_name_list(&["none"]);
     payload.put_name_list(&["none"]);
     payload.put_name_list(&[]);
@@ -230,12 +225,12 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
 
     Ok(OurKexInit {
         payload,
-        kex_algos,
-        server_pubkey_algos,
-        cipher_algos_cts: cipher_algos.clone(),
-        cipher_algos_stc: cipher_algos,
-        mac_algos_cts: mac_algos.clone(),
-        mac_algos_stc: mac_algos,
+        kex_algos: st.config.kex_algos.clone(),
+        server_pubkey_algos: st.config.server_pubkey_algos.clone(),
+        cipher_algos_cts: st.config.cipher_algos.clone(),
+        cipher_algos_stc: st.config.cipher_algos.clone(),
+        mac_algos_cts: st.config.mac_algos.clone(),
+        mac_algos_stc: st.config.mac_algos.clone(),
     })
 }
 

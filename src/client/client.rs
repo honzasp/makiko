@@ -9,6 +9,10 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
 use crate::{Error, Result, DisconnectError};
+use crate::cipher::{self, CipherAlgo};
+use crate::kex::{self, KexAlgo};
+use crate::mac::{self, MacAlgo};
+use crate::pubkey::{self, PubkeyAlgo};
 use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
@@ -52,12 +56,12 @@ impl Client {
     /// timely manner, otherwise the client will stall.
     /// - [`ClientFuture`] is a future that you must poll to drive the connection state machine
     /// forward. You will usually spawn a task for this future.
-    pub fn open<IO>(stream: IO) -> Result<(Client, ClientReceiver, ClientFuture<IO>)>
+    pub fn open<IO>(stream: IO, config: ClientConfig) -> Result<(Client, ClientReceiver, ClientFuture<IO>)>
         where IO: AsyncRead + AsyncWrite
     {
         let rng = Box::new(SystemRandom::new());
         let (event_tx, event_rx) = mpsc::channel(1);
-        let client_st = client_state::new_client(rng, event_tx)?;
+        let client_st = client_state::new_client(config, rng, event_tx)?;
         let client_st = Arc::new(Mutex::new(client_st));
 
         let client = Client { client_st: Arc::downgrade(&client_st) };
@@ -220,8 +224,6 @@ impl ClientReceiver {
     }
 }
 
-
-
 /// Future that drives the connection state machine.
 ///
 /// This future performs the reads and writes on `IO` and stores the state of the connection. You
@@ -248,5 +250,64 @@ impl<IO> Future for ClientFuture<IO>
         let this = self.project();
         let mut client_st = this.client_st.lock();
         client_state::poll_client(&mut client_st, this.stream, cx)
+    }
+}
+
+/// Configuration of a [`Client`].
+///
+/// You should start from the [default][Default] instance, which has reasonable default
+/// configuration, and modify it according to your needs. You may also find the method
+/// [`ClientConfig::default_with()`] syntactically convenient.
+///
+/// This struct is `#[non_exhaustive]`, so we may add more fields without breaking backward
+/// compatibility.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct ClientConfig {
+    /// Supported [key exchange algorithms][crate::kex].
+    ///
+    /// We will use the first algorithm that is also supported by the server. If there is no
+    /// overlap, the connnection will abort.
+    pub kex_algos: Vec<&'static KexAlgo>,
+
+    /// Supported [server public key algorithms][crate::pubkey].
+    ///
+    /// We will use the first algorithm that is also supported by the server. If there is no
+    /// overlap, the connnection will abort.
+    pub server_pubkey_algos: Vec<&'static PubkeyAlgo>,
+
+    /// Supported [encryption algorithms][crate::cipher].
+    ///
+    /// We will use the first algorithm that is also supported by the server. If there is no
+    /// overlap, the connnection will abort.
+    pub cipher_algos: Vec<&'static CipherAlgo>,
+
+    /// Supported [message authentication algorithms][crate::mac].
+    ///
+    /// We will use the first algorithm that is also supported by the server. If there is no
+    /// overlap, the connnection will abort.
+    pub mac_algos: Vec<&'static MacAlgo>,
+}
+
+impl Default for ClientConfig {
+    fn default() -> Self {
+        ClientConfig {
+            kex_algos: vec![&kex::CURVE25519_SHA256, &kex::CURVE25519_SHA256_LIBSSH],
+            server_pubkey_algos: vec![&pubkey::SSH_ED25519],
+            cipher_algos: vec![&cipher::AES128_CTR],
+            mac_algos: vec![&mac::HMAC_SHA2_256],
+        }
+    }
+}
+
+impl ClientConfig {
+    /// Conveniently create a configuration by modifying the default instance.
+    ///
+    /// This method creates a default `ClientConfig`, applies your closure `f`, and returns the
+    /// modified configuration.
+    pub fn default_with<F: FnOnce(&mut ClientConfig)>(f: F) -> ClientConfig {
+        let mut config = Self::default();
+        f(&mut config);
+        config
     }
 }

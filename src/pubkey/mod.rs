@@ -8,6 +8,7 @@
 //! - "ssh-ed25519" ([`SSH_ED25519`], [`Ed25519Pubkey`])
 //! - "ssh-rsa" ([`SSH_RSA`], [`RsaPubkey`])
 use bytes::Bytes;
+use derivative::Derivative;
 use std::fmt;
 use crate::Result;
 pub use self::ed25519::{SSH_ED25519, Ed25519Pubkey};
@@ -19,9 +20,12 @@ mod rsa;
 /// Algorithm for public key cryptography.
 ///
 /// See the [module documentation][self] for details.
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct PubkeyAlgo {
     /// Name of the algorithm.
     pub name: &'static str,
+    #[derivative(Debug = "ignore")]
     pub(crate) decode_pubkey: fn(pubkey: Bytes) -> Result<Pubkey>,
 }
 

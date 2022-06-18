@@ -1,167 +1,134 @@
-use anyhow::{Result, Context as _, ensure};
-use bytes::{BytesMut, BufMut as _};
+use anyhow::{Result, Context as _};
 use bollard::Docker;
-use bollard::container::{CreateContainerOptions, RemoveContainerOptions, Config};
-use enclose::enclose;
-use std::collections::HashMap;
-use std::mem::drop;
-use std::net::SocketAddr;
-use std::time::Duration;
+use colored::Colorize as _;
+use derivative::Derivative;
+use std::collections::HashSet;
+use std::future::Future;
+use std::pin::Pin;
+use std::process::ExitCode;
 use tokio::net::TcpStream;
-use tokio::sync::oneshot;
-use crate::nursery::Nursery;
+use crate::ssh_server::SshServer;
 
 mod nursery;
+mod smoke_test;
+mod ssh_server;
 
 #[derive(Debug)]
-struct SshServer {
-    name: String,
-    container_id: String,
-    addr: SocketAddr,
+pub struct TestSuite {
+    pub cases: Vec<TestCase>,
+}
+
+impl TestSuite {
+    pub fn new() -> TestSuite {
+        TestSuite { cases: Vec::new() }
+    }
+
+    pub fn add(&mut self, case: TestCase) {
+        self.cases.push(case);
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct TestCase {
+    pub name: String,
+    #[derivative(Debug = "ignore")]
+    pub f: Box<dyn Fn(TcpStream) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>>,
+    pub servers: Option<HashSet<String>>,
+}
+
+impl TestCase {
+    pub fn new<F, Fut>(name: &str, f: F) -> TestCase
+        where F: Fn(TcpStream) -> Fut,
+              F: 'static,
+              Fut: Future<Output = Result<()>>,
+              Fut: Send + Sync + 'static
+    {
+        TestCase {
+            name: name.into(),
+            f: Box::new(move |sock| Box::pin(f(sock))),
+            servers: None,
+        }
+    }
+
+    pub fn with_servers(self, servers: Vec<&str>) -> TestCase {
+        Self { servers: Some(servers.into_iter().map(|x| x.into()).collect()), .. self }
+    }
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
     env_logger::init();
+
+    match run_all_tests().await {
+        Ok((pass_count, 0)) => {
+            println!("{}, {} passed", "no problems were found".blue(), pass_count);
+            ExitCode::SUCCESS
+        },
+        Ok((pass_count, fail_count)) => {
+            println!("{}, {} passed, {} failed", "problems were found".red(), pass_count, fail_count);
+            ExitCode::FAILURE
+        },
+        Err(err) => {
+            println!("{:?}", err);
+            println!("{}", "test failed due to an error".red());
+            ExitCode::FAILURE
+        },
+    }
+}
+
+async fn run_all_tests() -> Result<(u32, u32)> {
+    let server_names = vec![
+        "openssh",
+        "dropbear",
+        "lsh",
+        "paramiko",
+    ];
 
     let docker = Docker::connect_with_local_defaults()
         .context("could not connect to docker daemon")?;
 
-    let openssh = start_server(&docker, "openssh").await
-        .context("could not start OpenSSH server in docker")?;
-    smoke_test(&openssh).await
-        .context("smoke test failed")?;
-    stop_server(&docker, &openssh).await
-        .context("could not stop OpenSSH server in docker")?;
-    
-    Ok(())
-}
+    let mut test_suite = TestSuite::new();
+    smoke_test::collect(&mut test_suite);
 
-async fn start_server(docker: &Docker, name: &str) -> Result<SshServer> {
-    let container_name = format!("makiko-test-{}", name);
-    let image_name = format!("makiko-test/{}", name);
-
-    // if the container already exists, force-remove it
-    let first_inspect_res = docker.inspect_container(&container_name, None).await;
-    if let Ok(_inspect_res) = first_inspect_res {
-        log::info!("removing a running container {:?}", container_name);
-        let remove_opts = RemoveContainerOptions {
-            force: true,
-            .. RemoveContainerOptions::default()
-        };
-        docker.remove_container(&container_name, Some(remove_opts)).await
-            .context("could not force-remove running container")?;
+    let (mut all_pass_count, mut all_fail_count) = (0, 0);
+    for server_name in server_names.into_iter() {
+        let (pass_count, fail_count) = run_server_tests(&docker, server_name, &test_suite).await?;
+        all_pass_count += pass_count;
+        all_fail_count += fail_count;
     }
-
-    // create and start a new container
-    let create_opts = CreateContainerOptions { name: container_name.as_str() };
-    let create_config = Config {
-        exposed_ports: Some(vec![("22/tcp", HashMap::new())].into_iter().collect()),
-        image: Some(image_name.as_str()),
-        .. Config::default()
-    };
-    let create_res = docker.create_container(Some(create_opts), create_config).await
-        .context("could not create container")?;
-
-    docker.start_container::<String>(&create_res.id, None).await
-        .context("could not start container")?;
-
-    // inspect the container to get its IP address
-    let inspect_res = docker.inspect_container(&create_res.id, None).await
-        .context("could not inspect started container")?;
-    let ip_addr = inspect_res
-        .network_settings.context("expected 'network_settings' key")?
-        .ip_address.context("expected 'ip_address' key")?
-        .parse().context("could not parse 'ip_address'")?;
-
-    log::info!("started SSH server {:?} at {:?} in container {:?}", name, ip_addr, create_res.id);
-
-    // give the SSH server some time to start up and start accept()-ing
-    tokio::time::sleep(Duration::from_millis(500)).await;
-
-    Ok(SshServer {
-        name: name.into(),
-        container_id: create_res.id,
-        addr: SocketAddr::new(ip_addr, 22),
-    })
+    Ok((all_pass_count, all_fail_count))
 }
 
-async fn stop_server(docker: &Docker, server: &SshServer) -> Result<()> {
-    let remove_opts = RemoveContainerOptions {
-        force: true,
-        .. RemoveContainerOptions::default()
-    };
-    docker.remove_container(&server.container_id, Some(remove_opts)).await
-        .context("could not force-remove container")?;
-    log::info!("stopped SSH server {:?}", server.name);
+async fn run_server_tests(docker: &Docker, server_name: &str, test_suite: &TestSuite) -> Result<(u32, u32)> {
+    let server = SshServer::start(&docker, server_name).await
+        .context("could not start SSH server in docker")?;
 
-    Ok(())
-}
-
-async fn connect_to_server(server: &SshServer) -> Result<TcpStream> {
-    TcpStream::connect(server.addr).await
-        .context("could not connect to SSH server")
-}
-
-async fn smoke_test(server: &SshServer) -> Result<()> {
-    log::info!("running a smoke test on {:?}", server.name);
-    let socket = connect_to_server(server).await?;
-    let (nursery, mut nursery_stream) = Nursery::new();
-    let (client, mut client_rx, client_fut) = makiko::Client::open(socket)?;
-
-    nursery.spawn(async move {
-        client_fut.await.context("error while handling SSH connection")?;
-        log::debug!("client future finished");
-        Ok(())
-    });
-
-    nursery.spawn(async move {
-        while let Some(event) = client_rx.recv().await {
-            log::debug!("received {:?}", event);
-            if let makiko::ClientEvent::ServerPubkey(_pubkey, accept_tx) = event {
-                accept_tx.accept();
+    println!("testing server {}", server_name.bold());
+    let (mut pass_count, mut fail_count) = (0, 0);
+    for case in test_suite.cases.iter() {
+        if let Some(servers) = case.servers.as_ref() {
+            if !servers.contains(server_name) {
+                continue
             }
         }
-        log::debug!("client was closed");
-        Ok(())
-    });
 
-    nursery.spawn(enclose!{(nursery) async move {
-        client.auth_password("alice".into(), "alicealice".into(), None).await
-            .and_then(|res| res.success_or_error())
-            .context("could not authenticate")?;
+        print!("  test {} ... ", case.name);
+        let socket = server.connect().await?;
+        match (case.f)(socket).await {
+            Ok(()) =>  {
+                println!("{}", "ok".green());
+                pass_count += 1;
+            },
+            Err(err) => {
+                println!("{}", "error".red());
+                println!("{:?}", err);
+                fail_count += 1;
+            },
+        }
+    }
 
-        let (session, mut session_rx) = client.open_session().await?;
-
-        let (stdout_tx, stdout_rx) = oneshot::channel();
-        nursery.spawn(async move {
-            let mut stdout = BytesMut::new();
-            while let Some(event) = session_rx.recv().await? {
-                if let makiko::SessionEvent::StdoutData(chunk) = event {
-                    stdout.put(chunk);
-                } else if let makiko::SessionEvent::Eof = event {
-                    break;
-                }
-            }
-            let _ = stdout_tx.send(stdout.freeze());
-            log::debug!("session was closed");
-            Ok(())
-        });
-
-        session.exec("whoami".as_bytes())
-            .context("could not send exec request")?
-            .want_reply().await
-            .context("could not execute command")?;
-
-        let stdout = stdout_rx.await
-            .context("could not get stdout")?;
-        log::debug!("received stdout {:?}", stdout);
-        ensure!(stdout.as_ref() == "alice\n".as_bytes(), "received stdout: {:?}", stdout);
-
-        client.disconnect(makiko::DisconnectError::by_app())?;
-        Ok(())
-    }});
-
-    drop(nursery);
-    nursery_stream.try_run().await
+    server.stop(&docker).await
+        .context("could not stop SSH server in docker")?;
+    Ok((pass_count, fail_count))
 }

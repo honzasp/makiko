@@ -10,6 +10,7 @@ use crate::codec::{Codec, RecvPipe, SendPipe, PacketEncode};
 use crate::codes::msg;
 use crate::error::{Error, Result, DisconnectError};
 use super::auth::{self, AuthState};
+use super::client::ClientConfig;
 use super::client_event::ClientEvent;
 use super::conn::{self, ConnState};
 use super::negotiate::{self, NegotiateState};
@@ -20,22 +21,27 @@ pub(super) trait AsyncReadWrite: AsyncRead + AsyncWrite {}
 impl<T: AsyncRead + AsyncWrite> AsyncReadWrite for T {}
 
 pub(super) struct ClientState {
-    pub rng: Box<dyn SecureRandom + Send>,
-    pub event_tx: PollSender<ClientEvent>,
+    pub config: ClientConfig,
+
     pub codec: Codec,
-    pub our_ident: Bytes,
-    pub their_ident: Option<Bytes>,
-    our_disconnect: Option<DisconnectError>,
-    disconnect_sent: bool,
     pub recv_st: Option<Box<dyn RecvState + Send>>,
     pub negotiate_st: Box<NegotiateState>,
     pub auth_st: Box<AuthState>,
     pub conn_st: Box<ConnState>,
-    pub session_id: Option<Vec<u8>>,
+    pub rng: Box<dyn SecureRandom + Send>,
+
+    pub event_tx: PollSender<ClientEvent>,
     waker: Option<Waker>,
+
+    pub our_ident: Bytes,
+    pub their_ident: Option<Bytes>,
+    our_disconnect: Option<DisconnectError>,
+    disconnect_sent: bool,
+    pub session_id: Option<Vec<u8>>,
 }
 
 pub(super) fn new_client(
+    config: ClientConfig,
     rng: Box<dyn SecureRandom + Send + Sync>,
     event_tx: mpsc::Sender<ClientEvent>,
 ) -> Result<ClientState> {
@@ -44,22 +50,23 @@ pub(super) fn new_client(
     send_pipe.feed_ident(&our_ident);
 
     Ok(ClientState {
-        rng,
-        event_tx: PollSender::new(event_tx),
+        config,
         codec: Codec {
             recv_pipe: RecvPipe::new(),
             send_pipe,
         },
-        our_ident,
-        their_ident: None,
-        our_disconnect: None,
-        disconnect_sent: false,
         recv_st: None,
         negotiate_st: Box::new(negotiate::init_negotiate()),
         auth_st: Box::new(auth::init_auth()),
         conn_st: Box::new(conn::init_conn()),
-        session_id: None,
+        rng,
+        event_tx: PollSender::new(event_tx),
         waker: None,
+        our_ident,
+        their_ident: None,
+        our_disconnect: None,
+        disconnect_sent: false,
+        session_id: None,
     })
 }
 

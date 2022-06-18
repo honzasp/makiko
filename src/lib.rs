@@ -12,7 +12,7 @@ pub use crate::client::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
-pub use crate::client::{Client, ClientReceiver, ClientFuture};
+pub use crate::client::{Client, ClientReceiver, ClientFuture, ClientConfig};
 pub use crate::client::{ClientEvent, AcceptPubkeySender};
 pub use crate::client::{Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal};
 pub use crate::codec::{PacketEncode, PacketDecode};

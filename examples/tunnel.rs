@@ -4,7 +4,7 @@ async fn main() -> anyhow::Result<()> {
 
     let sock = tokio::net::TcpStream::connect("127.0.0.1:2222").await?;
 
-    let (client, mut client_rx, client_fut) = makiko::Client::open(sock)?;
+    let (client, mut client_rx, client_fut) = makiko::Client::open(sock, makiko::ClientConfig::default())?;
 
     let client_fut_task = tokio::task::spawn(async move {
         match client_fut.await {
@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
     channel.send_data("a few bytes\nand some more\n".into(), makiko::DATA_STANDARD).await?;
     channel.send_eof().await?;
     log::info!("sent data to channel");
-    channel.close();
+    channel.close()?;
 
     client_fut_task.await?;
     client_task.await?;

@@ -12,6 +12,7 @@
 //! - "aes128-ctr" ([`AES128_CTR`])
 //! - "none" ([`NONE`])
 use crate::Result;
+use derivative::Derivative;
 pub use self::aes::AES128_CTR;
 pub use self::none::NONE;
 pub(crate) use self::none::Identity;
@@ -22,13 +23,17 @@ mod none;
 /// Algorithm for encrypting and decrypting messages.
 ///
 /// See the [module documentation][self] for details.
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct CipherAlgo {
     /// Name of the algorithm.
     pub name: &'static str,
     pub(crate) block_len: usize,
     pub(crate) key_len: usize,
     pub(crate) iv_len: usize,
+    #[derivative(Debug = "ignore")]
     pub(crate) make_encrypt: fn(key: &[u8], iv: &[u8]) -> Box<dyn Encrypt + Send>,
+    #[derivative(Debug = "ignore")]
     pub(crate) make_decrypt: fn(key: &[u8], iv: &[u8]) -> Box<dyn Decrypt + Send>,
 }
 

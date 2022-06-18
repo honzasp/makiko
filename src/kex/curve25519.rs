@@ -17,6 +17,17 @@ pub static CURVE25519_SHA256: KexAlgo = KexAlgo {
     make_kex: |rng| Ok(Box::new(init_kex(rng)?)),
 };
 
+/// "curve25519-sha256@libssh.org" key exchange (same as ["curve25519-sha256"][CURVE25519_SHA256]).
+///
+/// The Curve25519 key exchange method was first introduced as a libssh extension (hence the
+/// "@libssh.org"). Only later was it standardized in RFC 8731 as "curve25519-sha256" (without the
+/// "@" suffix).
+pub static CURVE25519_SHA256_LIBSSH: KexAlgo = KexAlgo {
+    name: "curve25519-sha256@libssh.org",
+    make_kex: |rng| Ok(Box::new(init_kex(rng)?)),
+};
+
+
 #[derive(Debug)]
 struct Curve25519Kex {
     our_eph_privkey: Option<EphemeralPrivateKey>,
