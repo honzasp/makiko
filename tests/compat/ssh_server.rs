@@ -1,9 +1,9 @@
-use anyhow::{Result, Context as _};
+use anyhow::{Result, Context as _, ensure};
 use bollard::Docker;
 use bollard::container::{CreateContainerOptions, RemoveContainerOptions, Config};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 
 #[derive(Debug)]
@@ -53,13 +53,15 @@ impl SshServer {
 
         log::info!("started SSH server {:?} at {:?} in container {:?}", name, ip_addr, create_res.id);
 
-        // give the SSH server some time to start up and start accept()-ing
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        let addr = SocketAddr::new(ip_addr, 22);
+
+        // poll the server until it starts accept()-ing
+        wait_for_socket(addr).await?;
 
         Ok(SshServer {
             name: name.into(),
             container_id: create_res.id,
-            addr: SocketAddr::new(ip_addr, 22),
+            addr,
         })
     }
 
@@ -81,3 +83,14 @@ impl SshServer {
     }
 }
 
+async fn wait_for_socket(addr: SocketAddr) -> Result<()> {
+    let start_time = Instant::now();
+    loop {
+        ensure!(Instant::now() - start_time < Duration::from_millis(500),
+            "SSH server on {} did not start in time", addr);
+        match TcpStream::connect(addr).await {
+            Ok(_) => return Ok(()),
+            Err(_) => tokio::time::sleep(Duration::from_millis(10)).await,
+        }
+    }
+}

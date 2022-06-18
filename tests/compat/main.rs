@@ -56,18 +56,60 @@ impl TestCase {
     }
 }
 
+#[derive(Debug)]
+struct TestSelector {
+    servers: Option<HashSet<String>>,
+    test_cases: Option<regex::RegexSet>,
+}
+
+#[derive(Debug, Default)]
+struct TestResult {
+    pass_count: u32,
+    fail_count: u32,
+    skip_count: u32,
+}
+
+#[derive(Debug)]
+struct TestCtx {
+    docker: Docker,
+    selector: TestSelector,
+    suite: TestSuite,
+    result: TestResult,
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     env_logger::init();
 
-    match run_all_tests().await {
-        Ok((pass_count, 0)) => {
-            println!("{}, {} passed", "no problems were found".blue(), pass_count);
-            ExitCode::SUCCESS
-        },
-        Ok((pass_count, fail_count)) => {
-            println!("{}, {} passed, {} failed", "problems were found".red(), pass_count, fail_count);
-            ExitCode::FAILURE
+    let args = clap::Command::new("test-compat")
+        .arg(clap::Arg::new("server").short('s')
+            .takes_value(true)
+            .action(clap::ArgAction::Append)
+            .multiple_values(true)
+            .use_value_delimiter(true)
+            .require_value_delimiter(true))
+        .arg(clap::Arg::new("case").short('c')
+            .takes_value(true)
+            .action(clap::ArgAction::Append))
+        .get_matches();
+
+    let servers = args.get_many::<String>("server").map(|xs| xs.cloned().collect());
+    let test_cases = args.get_many::<String>("case").map(|xs| regex::RegexSet::new(xs).unwrap());
+    let selector = TestSelector { servers, test_cases };
+
+    match run_all_tests(selector).await {
+        Ok(result) => {
+            let (exit, outcome) = 
+                if result.fail_count > 0 {
+                    (ExitCode::FAILURE, "problems were found".red())
+                } else if result.pass_count > 0 {
+                    (ExitCode::SUCCESS, "no problems were found".blue())
+                } else {
+                    (ExitCode::FAILURE, "no tests were run".magenta())
+                };
+            println!("{}: {} passed, {} failed, {} skipped",
+                outcome, result.pass_count, result.fail_count, result.skip_count);
+            exit
         },
         Err(err) => {
             println!("{:?}", err);
@@ -77,7 +119,7 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn run_all_tests() -> Result<(u32, u32)> {
+async fn run_all_tests(selector: TestSelector) -> Result<TestResult> {
     let server_names = vec![
         "openssh",
         "dropbear",
@@ -88,27 +130,37 @@ async fn run_all_tests() -> Result<(u32, u32)> {
     let docker = Docker::connect_with_local_defaults()
         .context("could not connect to docker daemon")?;
 
-    let mut test_suite = TestSuite::new();
-    smoke_test::collect(&mut test_suite);
+    let mut suite = TestSuite::new();
+    smoke_test::collect(&mut suite);
 
-    let (mut all_pass_count, mut all_fail_count) = (0, 0);
+    let mut ctx = TestCtx { docker, selector, suite, result: TestResult::default() };
     for server_name in server_names.into_iter() {
-        let (pass_count, fail_count) = run_server_tests(&docker, server_name, &test_suite).await?;
-        all_pass_count += pass_count;
-        all_fail_count += fail_count;
+        run_server_tests(&mut ctx, server_name).await?;
     }
-    Ok((all_pass_count, all_fail_count))
+    Ok(ctx.result)
 }
 
-async fn run_server_tests(docker: &Docker, server_name: &str, test_suite: &TestSuite) -> Result<(u32, u32)> {
-    let server = SshServer::start(&docker, server_name).await
+async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
+    if let Some(servers) = ctx.selector.servers.as_ref() {
+        if !servers.contains(server_name) {
+            return Ok(())
+        }
+    }
+
+    let server = SshServer::start(&ctx.docker, server_name).await
         .context("could not start SSH server in docker")?;
 
     println!("testing server {}", server_name.bold());
-    let (mut pass_count, mut fail_count) = (0, 0);
-    for case in test_suite.cases.iter() {
+    for case in ctx.suite.cases.iter() {
         if let Some(servers) = case.servers.as_ref() {
             if !servers.contains(server_name) {
+                continue
+            }
+        }
+
+        if let Some(case_re) = ctx.selector.test_cases.as_ref() {
+            if !case_re.is_match(&case.name) {
+                ctx.result.skip_count += 1;
                 continue
             }
         }
@@ -118,17 +170,17 @@ async fn run_server_tests(docker: &Docker, server_name: &str, test_suite: &TestS
         match (case.f)(socket).await {
             Ok(()) =>  {
                 println!("{}", "ok".green());
-                pass_count += 1;
+                ctx.result.pass_count += 1;
             },
             Err(err) => {
-                println!("{}", "error".red());
-                println!("{:?}", err);
-                fail_count += 1;
+                log::error!("test {:?} for server {:?} failed:\n{:?}", case.name, server_name, err);
+                println!("{}: {:#}", "error".red(), err);
+                ctx.result.fail_count += 1;
             },
         }
     }
 
-    server.stop(&docker).await
+    server.stop(&ctx.docker).await
         .context("could not stop SSH server in docker")?;
-    Ok((pass_count, fail_count))
+    Ok(())
 }
