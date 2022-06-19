@@ -2,13 +2,14 @@ use anyhow::{Result, Context as _};
 use bollard::Docker;
 use colored::Colorize as _;
 use derivative::Derivative;
+use futures::future::BoxFuture;
 use std::collections::HashSet;
 use std::future::Future;
-use std::pin::Pin;
 use std::process::ExitCode;
 use tokio::net::TcpStream;
 use crate::ssh_server::SshServer;
 
+mod auth_test;
 mod nursery;
 mod smoke_test;
 mod ssh_server;
@@ -33,7 +34,7 @@ impl TestSuite {
 pub struct TestCase {
     pub name: String,
     #[derivative(Debug = "ignore")]
-    pub f: Box<dyn Fn(TcpStream) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>>,
+    pub f: Box<dyn Fn(TcpStream) -> BoxFuture<'static, Result<()>>>,
     pub servers: Option<HashSet<String>>,
 }
 
@@ -132,6 +133,7 @@ async fn run_all_tests(selector: TestSelector) -> Result<TestResult> {
 
     let mut suite = TestSuite::new();
     smoke_test::collect(&mut suite);
+    auth_test::collect(&mut suite);
 
     let mut ctx = TestCtx { docker, selector, suite, result: TestResult::default() };
     for server_name in server_names.into_iter() {

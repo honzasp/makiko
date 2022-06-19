@@ -98,7 +98,7 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
     });
 
     nursery.spawn(enclose!{(nursery) async move {
-        client.auth_password("alice".into(), "alicealice".into(), None).await
+        client.auth_password("alice".into(), "alicealice".into()).await
             .and_then(|res| res.success_or_error())
             .context("could not authenticate")?;
 

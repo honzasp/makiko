@@ -18,10 +18,9 @@ pub enum AuthPasswordResult {
 
     /// The server asks you to change your password.
     ///
-    /// You will have to change your password using the `new_password` argument to
-    /// [`Client::auth_password`][crate::Client::auth_password]. If you in fact requested a change
-    /// of password, this response means that the password was not changed, because the new
-    /// password was not acceptable.
+    /// The SSH protocol contains a mechanism to change the user password, but nobody seems to
+    /// implement it (neither servers nor clients), so you will probably never encounter this in
+    /// the wild.
     ChangePassword(AuthPasswordPrompt),
 
     /// The authentication was rejected.
@@ -45,7 +44,6 @@ pub struct AuthPasswordPrompt {
 pub struct AuthPassword {
     username: String,
     password: String,
-    new_password: Option<String>,
     request_sent: bool,
     result_tx: Option<oneshot::Sender<AuthPasswordResult>>,
 }
@@ -54,10 +52,9 @@ impl AuthPassword {
     pub fn new(
         username: String,
         password: String,
-        new_password: Option<String>,
         result_tx: oneshot::Sender<AuthPasswordResult>,
     ) -> AuthPassword {
-        AuthPassword { username, password, new_password, request_sent: false, result_tx: Some(result_tx) }
+        AuthPassword { username, password, request_sent: false, result_tx: Some(result_tx) }
     }
 }
 
@@ -97,11 +94,8 @@ impl AuthMethod for AuthPassword {
             payload.put_str(&self.username);
             payload.put_str("ssh-connection");
             payload.put_str("password");
-            payload.put_bool(self.new_password.is_some());
+            payload.put_bool(false);
             payload.put_str(&self.password);
-            if let Some(new_password) = self.new_password.as_ref() {
-                payload.put_str(new_password);
-            }
             log::debug!("sending SSH_MSG_USERAUTH_REQUEST for method 'password'");
             self.request_sent = true;
             return Ok(Some(payload.finish()))

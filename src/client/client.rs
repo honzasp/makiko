@@ -96,22 +96,16 @@ impl Client {
 
     /// Try to authenticate using the "password" method.
     ///
-    /// The "password" method (RFC 4252, section 8) allows you to authorize using a password, but
-    /// you can also use it to change the password at the same time. Indeed, the server might
-    /// prompt you to change the password, in which case you will get an
-    /// [`AuthPasswordResult::ChangePassword`].
+    /// Technically, the "password" method (RFC 4252, section 8) allows you change the password
+    /// during authentication, but nobody seems to implement it (neither servers nor client), so we
+    /// don't support that.
     ///
-    /// If a previous authentication attempt was successful, this call immediately succeeds
-    /// (without changing the password). If you start another authentication attempt before this
-    /// attempt is resolved, it will fail with [`Error::AuthAborted`].
-    pub async fn auth_password(
-        &self,
-        username: String,
-        password: String,
-        new_password: Option<String>,
-    ) -> Result<AuthPasswordResult> {
+    /// If a previous authentication attempt was successful, this call immediately succeeds. If you
+    /// start another authentication attempt before this attempt is resolved, it will fail with
+    /// [`Error::AuthAborted`].
+    pub async fn auth_password(&self, username: String, password: String) -> Result<AuthPasswordResult> {
         let (result_tx, result_rx) = oneshot::channel();
-        let method = AuthPassword::new(username, password, new_password, result_tx);
+        let method = AuthPassword::new(username, password, result_tx);
         auth::start_method(&mut self.upgrade()?.lock(), Box::new(method))?;
         result_rx.await.map_err(|_| Error::AuthAborted)
     }
