@@ -1,4 +1,5 @@
 use bytes::{BufMut as _, Bytes, BytesMut};
+use num_bigint::BigUint;
 
 /// Encoding of SSH packets and other payloads (low level API).
 ///
@@ -60,25 +61,22 @@ impl PacketEncode {
         }
     }
 
-    /// Encode a `mpint`.
-    ///
-    /// The integer `value` is represented as unsigned, big-endian slice of bytes.
-    pub fn put_mpint_uint_be(&mut self, mut value: &[u8]) {
-        // NOTE: this code is not constant time, so we leak some information about `value` via
-        // timing. However, the length of the encoded representation is not constant either, so
-        // timing is not our main problem!
+    /// Encode a `mpint` from a [`BigUint`].
+    pub fn put_biguint(&mut self, value: &BigUint) {
+        let bytes_vec = value.to_bytes_be();
+        let mut bytes = bytes_vec.as_slice();
 
-        while !value.is_empty() && value[0] == 0 {
-            value = &value[1..];
+        while !bytes.is_empty() && bytes[0] == 0 {
+            bytes = &bytes[1..];
         }
 
-        if !value.is_empty() && value[0] >= 0x80 {
-            self.buf.put_u32(value.len() as u32 + 1);
+        if !bytes.is_empty() && bytes[0] >= 0x80 {
+            self.buf.put_u32(bytes.len() as u32 + 1);
             self.buf.put_u8(0);
-            self.buf.put_slice(value);
+            self.buf.put_slice(bytes);
         } else {
-            self.buf.put_u32(value.len() as u32);
-            self.buf.put_slice(value);
+            self.buf.put_u32(bytes.len() as u32);
+            self.buf.put_slice(bytes);
         }
     }
 
@@ -142,10 +140,10 @@ mod tests {
     }
 
     #[test]
-    fn test_put_mpint_uint_be() {
-        fn check(value: &[u8], expected_bytes: &[u8]) {
+    fn test_put_biguint() {
+        fn check(value_be: &[u8], expected_bytes: &[u8]) {
             let mut e = PacketEncode::new();
-            e.put_mpint_uint_be(value);
+            e.put_biguint(&BigUint::from_bytes_be(value_be));
             assert_eq!(e.finish().as_ref(), expected_bytes);
         }
 

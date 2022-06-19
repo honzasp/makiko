@@ -1,4 +1,5 @@
 use bytes::{Buf as _, Bytes};
+use num_bigint::BigUint;
 use std::str;
 use crate::{Error, Result};
 
@@ -66,6 +67,11 @@ impl PacketDecode {
             return Ok(Vec::new())
         }
         Ok(list.split(|x| x == ',').map(|x| x.into()).collect())
+    }
+
+    /// Decode a `mpint` as [`BigUint`]
+    pub fn get_biguint(&mut self) -> Result<BigUint> {
+        self.get_bytes().map(|x| BigUint::from_bytes_be(&x))
     }
 
     /// Skip `len` bytes.

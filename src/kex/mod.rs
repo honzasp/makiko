@@ -11,15 +11,19 @@
 //!
 //! - "curve25519-sha256" / "curve25519-sha256@libssh.com" ([`CURVE25519_SHA256`] /
 //! [`CURVE25519_SHA256_LIBSSH`])
+//! - "diffie-hellman-group14-sha1" ([`DIFFIE_HELLMAN_GROUP14_SHA1`])
 use bytes::Bytes;
 use derivative::Derivative;
+use num_bigint::BigUint;
 use std::task::Poll;
 use crate::Result;
 use crate::codec::PacketDecode;
 use crate::util::CryptoRngCore;
 pub use self::curve25519::{CURVE25519_SHA256, CURVE25519_SHA256_LIBSSH};
+pub use self::dh::DIFFIE_HELLMAN_GROUP14_SHA1;
 
 mod curve25519;
+mod dh;
 
 /// Algorithm for key exchange.
 ///
@@ -42,7 +46,7 @@ pub(crate) struct KexInput<'a> {
 }
 
 pub(crate) struct KexOutput {
-    pub shared_secret_be: Vec<u8>,
+    pub shared_secret: BigUint,
     pub exchange_hash: Vec<u8>,
     pub server_pubkey: Bytes,
     pub server_exchange_hash_sign: Bytes,

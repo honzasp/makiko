@@ -45,7 +45,5 @@ pub trait CryptoRngCore: CryptoRng + RngCore {
 }
 
 impl<T: CryptoRng + RngCore> CryptoRngCore for T {
-    fn as_rngcore(&mut self) -> &mut dyn RngCore {
-        self
-    }
+    fn as_rngcore(&mut self) -> &mut dyn RngCore { self }
 }

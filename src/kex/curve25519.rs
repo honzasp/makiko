@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use digest::Digest as _;
+use num_bigint::BigUint;
 use sha2::Sha256;
 use std::task::Poll;
 use x25519_dalek as x25519;
@@ -115,7 +116,7 @@ fn exchange(kex: &mut Curve25519Kex, input: KexInput) -> Result<KexOutput> {
     let EcdhReply { server_pubkey, server_eph_pubkey, server_exchange_hash_sign } = ecdh_reply;
 
     let shared_secret = our_eph_privkey.diffie_hellman(&server_eph_pubkey);
-    let shared_secret_be = shared_secret.as_bytes().to_vec();
+    let shared_secret = BigUint::from_bytes_be(shared_secret.as_bytes());
 
     let mut exchange_data = PacketEncode::new();
     exchange_data.put_bytes(input.client_ident);
@@ -125,10 +126,10 @@ fn exchange(kex: &mut Curve25519Kex, input: KexInput) -> Result<KexOutput> {
     exchange_data.put_bytes(&server_pubkey);
     exchange_data.put_bytes(kex.our_eph_pubkey.as_bytes());
     exchange_data.put_bytes(server_eph_pubkey.as_bytes());
-    exchange_data.put_mpint_uint_be(&shared_secret_be);
+    exchange_data.put_biguint(&shared_secret);
     let exchange_hash = compute_hash(&exchange_data.finish());
 
-    Ok(KexOutput { shared_secret_be, exchange_hash, server_pubkey, server_exchange_hash_sign })
+    Ok(KexOutput { shared_secret, exchange_hash, server_pubkey, server_exchange_hash_sign })
 }
 
 fn compute_hash(data: &[u8]) -> Vec<u8> {

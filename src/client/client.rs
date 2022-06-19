@@ -257,7 +257,10 @@ impl<IO> Future for ClientFuture<IO>
 ///
 /// You should start from the [default][Default] instance, which has reasonable default
 /// configuration, and modify it according to your needs. You may also find the method
-/// [`ClientConfig::default_with()`] syntactically convenient.
+/// [`ClientConfig::with()`] syntactically convenient.
+///
+/// If you need compatibility with old SSH servers that use outdated crypto, you may use
+/// [`ClientConfig::default_compatible_insecure()`]. However, this configuration is less secure.
 ///
 /// This struct is `#[non_exhaustive]`, so we may add more fields without breaking backward
 /// compatibility.
@@ -301,13 +304,22 @@ impl Default for ClientConfig {
 }
 
 impl ClientConfig {
-    /// Conveniently create a configuration by modifying the default instance.
+    /// Default configuration with higher compatibility and low security.
     ///
-    /// This method creates a default `ClientConfig`, applies your closure `f`, and returns the
-    /// modified configuration.
-    pub fn default_with<F: FnOnce(&mut ClientConfig)>(f: F) -> ClientConfig {
-        let mut config = Self::default();
-        f(&mut config);
-        config
+    /// Returns a configuration that includes support for outdated and potentially insecure crypto.
+    /// **Use at your own risk!**.
+    pub fn default_compatible_insecure() -> ClientConfig {
+        Self::default().with(|c| {
+            c.kex_algos.push(&kex::DIFFIE_HELLMAN_GROUP14_SHA1);
+            c.server_pubkey_algos.push(&pubkey::SSH_RSA);
+        })
+    }
+
+    /// Mutate `self` in a closure.
+    ///
+    /// This method applies your closure to `self` and returns the mutated configuration.
+    pub fn with<F: FnOnce(&mut ClientConfig)>(mut self, f: F) -> ClientConfig {
+        f(&mut self);
+        self
     }
 }

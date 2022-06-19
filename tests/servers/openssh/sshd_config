@@ -2,4 +2,5 @@ HostKey /etc/ssh/ssh_host_rsa_key
 HostKey /etc/ssh/ssh_host_ecdsa_key
 HostKey /etc/ssh/ssh_host_ed25519_key
 
+KexAlgorithms=+diffie-hellman-group14-sha1
 HostKeyAlgorithms=+ssh-rsa

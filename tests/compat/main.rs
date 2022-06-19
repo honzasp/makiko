@@ -173,8 +173,8 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
                 ctx.result.pass_count += 1;
             },
             Err(err) => {
-                log::error!("test {:?} for server {:?} failed:\n{:?}", case.name, server_name, err);
                 println!("{}: {:#}", "error".red(), err);
+                log::error!("test {:?} for server {:?} failed:\n{:?}", case.name, server_name, err);
                 ctx.result.fail_count += 1;
             },
         }

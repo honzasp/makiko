@@ -380,7 +380,7 @@ fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>>
     let session_id = st.session_id.as_ref().unwrap();
 
     let mut to_hash_prefix = PacketEncode::new();
-    to_hash_prefix.put_mpint_uint_be(&kex_output.shared_secret_be);
+    to_hash_prefix.put_biguint(&kex_output.shared_secret);
     to_hash_prefix.put_raw(&kex_output.exchange_hash);
     
     let mut key = {
