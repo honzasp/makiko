@@ -9,14 +9,17 @@ use crate::nursery::Nursery;
 
 pub fn collect(suite: &mut TestSuite) {
     let default_servers = vec!["openssh", "dropbear", "paramiko"];
-    let default_compatible_servers = vec!["openssh", "dropbear", "paramiko", "lsh"];
 
     let cipher_algos = vec![
         (&makiko::cipher::AES128_CTR, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::cipher::AES192_CTR, vec!["openssh", "paramiko"]),
+        (&makiko::cipher::AES256_CTR, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::cipher::AES256_CBC, vec!["openssh", "paramiko", "lsh"]),
     ];
 
     let mac_algos = vec![
         (&makiko::mac::HMAC_SHA2_256, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::mac::HMAC_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
     ];
 
     let kex_algos = vec![
@@ -27,17 +30,17 @@ pub fn collect(suite: &mut TestSuite) {
 
     let pubkey_algos = vec![
         (&makiko::pubkey::SSH_ED25519, vec!["openssh", "dropbear", "paramiko"]),
-        (&makiko::pubkey::SSH_RSA, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::pubkey::SSH_RSA, vec!["openssh", "dropbear", "paramiko", "lsh"]),
     ];
 
+
+    suite.add(TestCase::new("smoke_default_compatible", |socket| {
+        smoke_test(socket, makiko::ClientConfig::default_compatible_insecure())
+    }));
 
     suite.add(TestCase::new("smoke_default", |socket| {
         smoke_test(socket, makiko::ClientConfig::default())
     }).with_servers(default_servers));
-
-    suite.add(TestCase::new("smoke_default_compatible", |socket| {
-        smoke_test(socket, makiko::ClientConfig::default_compatible_insecure())
-    }).with_servers(default_compatible_servers));
 
     for (algo, servers) in cipher_algos.into_iter() {
         suite.add(TestCase::new(&format!("smoke_cipher_{}", algo.name), |socket| {

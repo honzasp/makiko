@@ -10,15 +10,20 @@
 //! # Supported algorithms
 //!
 //! - "aes128-ctr" ([`AES128_CTR`])
+//! - "aes192-ctr" ([`AES192_CTR`])
+//! - "aes256-ctr" ([`AES256_CTR`])
+//! - "aes256-cbc" ([`AES256_CBC`])
 //! - "none" ([`NONE`])
 use crate::Result;
 use derivative::Derivative;
-pub use self::aes::AES128_CTR;
+pub use self::block::AES256_CBC;
 pub use self::none::NONE;
+pub use self::stream::{AES128_CTR, AES192_CTR, AES256_CTR};
 pub(crate) use self::none::Identity;
 
-mod aes;
+mod block;
 mod none;
+mod stream;
 
 /// Algorithm for encrypting and decrypting messages.
 ///

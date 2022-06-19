@@ -1,8 +1,8 @@
-use digest::{CtOutput, Mac as _};
-use generic_array::GenericArray;
-use hmac::Hmac;
+use cipher::{KeySizeUser, KeyInit};
+use hmac::{digest, Hmac};
+use sha1::Sha1;
 use sha2::Sha256;
-use subtle::ConstantTimeEq as _;
+use std::marker::PhantomData;
 use crate::error::{Result, Error};
 use super::{MacAlgo, Mac, MacVerified};
 
@@ -11,37 +11,46 @@ pub static HMAC_SHA2_256: MacAlgo = MacAlgo {
     name: "hmac-sha2-256",
     tag_len: 32,
     key_len: 32,
-    make_mac: |key| Box::new(HmacSha256Mac { key: key.to_vec() }),
+    make_mac: |key| Box::new(HmacMac::<Hmac<Sha256>>::new(key)),
 };
 
+/// "hmac-sha1" MAC from RFC 4253.
+pub static HMAC_SHA1: MacAlgo = MacAlgo {
+    name: "hmac-sha1",
+    tag_len: 20,
+    key_len: 20,
+    make_mac: |key| Box::new(HmacMac::<Hmac<Sha1>>::new(key)),
+};
+
+
 #[derive(Debug)]
-struct HmacSha256Mac {
+struct HmacMac<M> {
     key: Vec<u8>,
+    _phantom: PhantomData<M>,
 }
 
-impl Mac for HmacSha256Mac {
+impl<M: digest::Mac + KeySizeUser> HmacMac<M> {
+    fn new(key: &[u8]) -> HmacMac<M> {
+        HmacMac { key: key.into(), _phantom: PhantomData }
+    }
+}
+
+impl<M: digest::Mac + KeySizeUser + KeyInit> Mac for HmacMac<M> {
     fn sign(&mut self, packet_seq: u32, plaintext: &[u8], tag: &mut [u8]) -> Result<()> {
-        let computed_tag = compute_hmac_sha256_tag(&self.key, packet_seq, plaintext);
-        tag.copy_from_slice(&computed_tag.into_bytes());
+        let mut digest = <M as digest::Mac>::new_from_slice(&self.key).unwrap();
+        digest.update(&packet_seq.to_be_bytes());
+        digest.update(plaintext);
+        tag.copy_from_slice(&digest.finalize().into_bytes());
         Ok(())
     }
 
     fn verify(&mut self, packet_seq: u32, plaintext: &[u8], tag: &[u8]) -> Result<MacVerified> {
-        let computed_tag = compute_hmac_sha256_tag(&self.key, packet_seq, plaintext);
-        let expected_tag = GenericArray::clone_from_slice(tag).into();
-        if computed_tag.ct_eq(&expected_tag).into() {
-            Ok(MacVerified::assertion())
-        } else {
-            Err(Error::Mac)
+        let mut digest = <M as digest::Mac>::new_from_slice(&self.key).unwrap();
+        digest.update(&packet_seq.to_be_bytes());
+        digest.update(plaintext);
+        match digest.verify_slice(tag) {
+            Ok(_) => Ok(MacVerified::assertion()),
+            Err(_) => Err(Error::Mac),
         }
     }
-}
-
-type HmacSha256 = Hmac<Sha256>;
-
-fn compute_hmac_sha256_tag(key: &[u8], packet_seq: u32, plaintext: &[u8]) -> CtOutput<HmacSha256> {
-    let mut mac = HmacSha256::new_from_slice(key).expect("bad hmac key size");
-    mac.update(&packet_seq.to_be_bytes());
-    mac.update(plaintext);
-    mac.finalize()
 }

@@ -22,6 +22,7 @@ harness = false
 [dependencies]
 aes = "0.8"
 bytes = "1.1"
+cbc = "0.1"
 cipher = "0.4"
 ctr = "0.9"
 derivative = "2.2"
@@ -44,6 +45,7 @@ subtle = "2.4"
 thiserror = "1.0"
 tokio = {version = "1", features = ["sync"]}
 tokio-util = {version = "0.7", features = []}
+typenum = "1.15"
 x25519-dalek = "1.1" # due to issue #89
 
 [dev-dependencies]

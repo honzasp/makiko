@@ -9,10 +9,11 @@
 //! # Supported algorithms
 //!
 //! - "hmac-sha2-256" ([`HMAC_SHA2_256`])
+//! - "hmac-sha1" ([`HMAC_SHA1`])
 //! - "none" ([`NONE`])
 use crate::Result;
 use derivative::Derivative;
-pub use self::hmac::HMAC_SHA2_256;
+pub use self::hmac::{HMAC_SHA2_256, HMAC_SHA1};
 pub use self::none::NONE;
 pub(crate) use self::none::Empty;
 
