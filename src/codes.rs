@@ -104,17 +104,17 @@ pub mod open {
 ///
 /// The constants are the same as the codes, so for example [`ABRT`][signal::ABRT] is `"ABRT"`.
 pub mod signal {
-    pub static ABRT: &'static str = "ABRT";
-    pub static ALRM: &'static str = "ALRM";
-    pub static FPE: &'static str = "FPE";
-    pub static HUP: &'static str = "HUP";
-    pub static ILL: &'static str = "ILL";
-    pub static INT: &'static str = "INT";
-    pub static KILL: &'static str = "KILL";
-    pub static PIPE: &'static str = "PIPE";
-    pub static QUIT: &'static str = "QUIT";
-    pub static SEGV: &'static str = "SEGV";
-    pub static TERM: &'static str = "TERM";
-    pub static USR1: &'static str = "USR1";
-    pub static USR2: &'static str = "USR2";
+    pub static ABRT: &str = "ABRT";
+    pub static ALRM: &str = "ALRM";
+    pub static FPE: &str = "FPE";
+    pub static HUP: &str = "HUP";
+    pub static ILL: &str = "ILL";
+    pub static INT: &str = "INT";
+    pub static KILL: &str = "KILL";
+    pub static PIPE: &str = "PIPE";
+    pub static QUIT: &str = "QUIT";
+    pub static SEGV: &str = "SEGV";
+    pub static TERM: &str = "TERM";
+    pub static USR1: &str = "USR1";
+    pub static USR2: &str = "USR2";
 }
