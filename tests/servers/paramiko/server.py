@@ -63,6 +63,10 @@ def run_channel(server, channel):
         logger.info(f"received eof after processing {data_len} bytes")
         channel.shutdown(1)
         channel.send_exit_status(0)
+    elif command == b"true":
+        channel.send_exit_status(0)
+    elif command == b"false":
+        channel.send_exit_status(1)
     else:
         channel.send_stderr(b"unknown command!\n")
         channel.send_exit_status(127)

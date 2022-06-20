@@ -9,8 +9,8 @@ use tokio::net::TcpStream;
 #[derive(Debug)]
 pub struct SshServer {
     pub name: String,
-    container_id: String,
-    addr: SocketAddr,
+    pub container_id: String,
+    pub addr: SocketAddr,
 }
 
 impl SshServer {

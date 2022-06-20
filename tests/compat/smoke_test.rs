@@ -14,7 +14,7 @@ pub fn collect(suite: &mut TestSuite) {
 
     suite.add(TestCase::new("smoke_default", |socket| {
         smoke_test(socket, makiko::ClientConfig::default())
-    }).with_servers(vec!["openssh", "dropbear", "paramiko"]));
+    }).except_servers(vec!["lsh"]));
 
 
     let cipher_algos = vec![
@@ -45,7 +45,7 @@ pub fn collect(suite: &mut TestSuite) {
             smoke_test(socket, makiko::ClientConfig::default_compatible_insecure().with(|c| {
                 c.cipher_algos = vec![algo];
             }))
-        }).with_servers(servers));
+        }).only_servers(servers));
     }
 
     for (algo, servers) in mac_algos.into_iter() {
@@ -53,7 +53,7 @@ pub fn collect(suite: &mut TestSuite) {
             smoke_test(socket, makiko::ClientConfig::default_compatible_insecure().with(|c| {
                 c.mac_algos = vec![algo];
             }))
-        }).with_servers(servers));
+        }).only_servers(servers));
     }
 
     for (algo, servers) in kex_algos.into_iter() {
@@ -61,7 +61,7 @@ pub fn collect(suite: &mut TestSuite) {
             smoke_test(socket, makiko::ClientConfig::default_compatible_insecure().with(|c| {
                 c.kex_algos = vec![algo];
             }))
-        }).with_servers(servers));
+        }).only_servers(servers));
     }
 
     for (algo, servers) in pubkey_algos.into_iter() {
@@ -69,7 +69,7 @@ pub fn collect(suite: &mut TestSuite) {
             smoke_test(socket, makiko::ClientConfig::default_compatible_insecure().with(|c| {
                 c.server_pubkey_algos = vec![algo];
             }))
-        }).with_servers(servers));
+        }).only_servers(servers));
     }
 }
 

@@ -13,16 +13,22 @@ use crate::{TestSuite, TestCase};
 use crate::nursery::Nursery;
 
 pub fn collect(suite: &mut TestSuite) {
-    suite.add(TestCase::new("session_exec_cat", test_exec_cat));
+    suite.add(TestCase::new("session_cat", test_cat));
+    suite.add(TestCase::new("session_exit_status_0", |socket| test_exit_status(socket, "true", 0)));
+    suite.add(TestCase::new("session_exit_status_1", |socket| test_exit_status(socket, "false", 1)));
+    suite.add(TestCase::new("session_exit_signal_kill", |socket| test_exit_signal(socket, "KILL"))
+        .except_servers(vec!["paramiko"]));
+    suite.add(TestCase::new("session_exit_signal_term", |socket| test_exit_signal(socket, "TERM"))
+        .except_servers(vec!["paramiko"]));
 }
 
 
-async fn test_exec_cat(socket: TcpStream) -> Result<()> {
+async fn test_cat(socket: TcpStream) -> Result<()> {
     test_session(socket, |session, mut session_rx| async move {
         let (nursery, mut nursery_stream) = Nursery::new();
 
         // receive stdout data from the session
-        let (stdout_tx, mut stdout_rx) = mpsc::unbounded_channel();
+        let (stdout_tx, mut stdout_rx) = mpsc::channel(8);
         nursery.spawn(async move {
             let mut stdout_tx = Some(stdout_tx);
             let mut stdout_len = 0;
@@ -31,7 +37,7 @@ async fn test_exec_cat(socket: TcpStream) -> Result<()> {
                     makiko::SessionEvent::StdoutData(chunk) => {
                         log::debug!("received {} bytes of stdout", chunk.len());
                         stdout_len += chunk.len();
-                        let _ = stdout_tx.as_ref().context("received stdout after eof")?.send(chunk);
+                        stdout_tx.as_ref().context("received stdout after eof")?.send(chunk).await?;
                     },
                     makiko::SessionEvent::StderrData(_) =>
                         bail!("received stderr data"),
@@ -53,7 +59,7 @@ async fn test_exec_cat(socket: TcpStream) -> Result<()> {
         });
 
         // send stdin data to the session
-        let (stdin_tx, mut stdin_rx) = mpsc::unbounded_channel();
+        let (stdin_tx, mut stdin_rx) = mpsc::channel(8);
         nursery.spawn(enclose!{(session) async move {
             session.exec("cat".as_bytes())?.want_reply().await?;
 
@@ -68,7 +74,7 @@ async fn test_exec_cat(socket: TcpStream) -> Result<()> {
                 log::debug!("sending {} bytes to stdin", chunk.len());
                 stdin_len += chunk.len();
                 session.send_stdin(chunk.clone()).await?;
-                stdin_tx.send(chunk)?;
+                stdin_tx.send(chunk).await?;
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
 
@@ -118,6 +124,58 @@ async fn test_exec_cat(socket: TcpStream) -> Result<()> {
     }).await
 }
 
+async fn test_exit_status(socket: TcpStream, command: &'static str, expected_status: u32) -> Result<()> {
+    test_session(socket, move |session, mut session_rx| async move {
+        let (nursery, mut nursery_stream) = Nursery::new();
+
+        nursery.spawn(async move {
+            let mut exit_recvd = 0;
+            while let Some(event) = session_rx.recv().await? {
+                if let makiko::SessionEvent::ExitStatus(status) = event {
+                    ensure!(status == expected_status, "received status {}, expected {}",
+                        status, expected_status);
+                    exit_recvd += 1;
+                } else if let makiko::SessionEvent::ExitSignal(signal) = event {
+                    bail!("unexpected signal {:?}", signal);
+                }
+            }
+            ensure!(exit_recvd == 1, "received exit status {} times", exit_recvd);
+            Ok(())
+        });
+
+        session.exec(command.as_bytes())?.want_reply().await?;
+
+        drop(nursery);
+        nursery_stream.try_run().await
+    }).await
+}
+
+async fn test_exit_signal(socket: TcpStream, expected_signal: &'static str) -> Result<()> {
+    test_session(socket, move |session, mut session_rx| async move {
+        let (nursery, mut nursery_stream) = Nursery::new();
+
+        nursery.spawn(async move {
+            let mut signal_recvd = 0;
+            while let Some(event) = session_rx.recv().await? {
+                if let makiko::SessionEvent::ExitSignal(signal) = event {
+                    ensure!(signal.signal_name.as_str() == expected_signal,
+                        "expected signal {:?}, got {:?}", expected_signal, signal.signal_name.as_str());
+                    signal_recvd += 1;
+                } else if let makiko::SessionEvent::ExitStatus(status) = event {
+                    bail!("unexpected exit status {}", status);
+                }
+            }
+            ensure!(signal_recvd == 1, "received signal {} times", signal_recvd);
+            Ok(())
+        });
+
+        let command = format!("kill -{} $$", expected_signal);
+        session.exec(command.as_bytes())?.want_reply().await?;
+
+        drop(nursery);
+        nursery_stream.try_run().await
+    }).await
+}
 
 
 async fn test_session<F, Fut>(socket: TcpStream, f: F) -> Result<()>

@@ -15,7 +15,7 @@ pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("auth_password_already_authenticated", test_password_already_authenticated));
 
     suite.add(TestCase::new("auth_none_success", test_none_success)
-        .with_servers(vec!["openssh", "dropbear", "paramiko"]));
+        .except_servers(vec!["lsh"]));
     suite.add(TestCase::new("auth_none_failure", test_none_failure));
 }
 

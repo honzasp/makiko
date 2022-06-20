@@ -5,6 +5,7 @@ use derivative::Derivative;
 use futures::future::BoxFuture;
 use std::collections::HashSet;
 use std::future::Future;
+use std::io::{Write as _, stdout};
 use std::process::ExitCode;
 use tokio::net::TcpStream;
 use crate::ssh_server::SshServer;
@@ -36,7 +37,8 @@ pub struct TestCase {
     pub name: String,
     #[derivative(Debug = "ignore")]
     pub f: Box<dyn Fn(TcpStream) -> BoxFuture<'static, Result<()>>>,
-    pub servers: Option<HashSet<String>>,
+    pub only_servers: Option<HashSet<String>>,
+    pub except_servers: Option<HashSet<String>>,
 }
 
 impl TestCase {
@@ -49,12 +51,17 @@ impl TestCase {
         TestCase {
             name: name.into(),
             f: Box::new(move |sock| Box::pin(f(sock))),
-            servers: None,
+            only_servers: None,
+            except_servers: None,
         }
     }
 
-    pub fn with_servers(self, servers: Vec<&str>) -> TestCase {
-        Self { servers: Some(servers.into_iter().map(|x| x.into()).collect()), .. self }
+    pub fn only_servers(self, servers: Vec<&str>) -> TestCase {
+        Self { only_servers: Some(servers.into_iter().map(|x| x.into()).collect()), .. self }
+    }
+
+    pub fn except_servers(self, servers: Vec<&str>) -> TestCase {
+        Self { except_servers: Some(servers.into_iter().map(|x| x.into()).collect()), .. self }
     }
 }
 
@@ -157,8 +164,14 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
 
     println!("testing server {}", server_name.bold());
     for case in ctx.suite.cases.iter() {
-        if let Some(servers) = case.servers.as_ref() {
+        if let Some(servers) = case.only_servers.as_ref() {
             if !servers.contains(server_name) {
+                continue
+            }
+        }
+
+        if let Some(servers) = case.except_servers.as_ref() {
+            if servers.contains(server_name) {
                 continue
             }
         }
@@ -171,6 +184,7 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
         }
 
         print!("  test {} ... ", case.name);
+        stdout().flush()?;
         let socket = server.connect().await?;
         log::debug!("opened socket for test case {:?}, local {}, peer {}",
             case.name, socket.local_addr()?, socket.peer_addr()?);
@@ -193,7 +207,7 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
         server.stop(&ctx.docker).await
             .context("could not stop SSH server in docker")?;
     } else {
-        println!("{}", format!("  we keep {} server running", server_name).bold());
+        println!("{}", format!("  we keep {} server running on {}", server_name, server.addr).bold());
     }
     Ok(())
 }
