@@ -8,7 +8,7 @@ use std::cmp::min;
 use std::future::Future;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use crate::{TestSuite, TestCase};
 use crate::nursery::Nursery;
 
@@ -16,10 +16,20 @@ pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("session_cat", test_cat));
     suite.add(TestCase::new("session_exit_status_0", |socket| test_exit_status(socket, "true", 0)));
     suite.add(TestCase::new("session_exit_status_1", |socket| test_exit_status(socket, "false", 1)));
-    suite.add(TestCase::new("session_exit_signal_kill", |socket| test_exit_signal(socket, "KILL"))
+    suite.add(TestCase::new("session_exit_signal_kill",
+        |socket| test_signal(socket, "KILL", TestSignal::Exit))
         .except_servers(vec!["paramiko"]));
-    suite.add(TestCase::new("session_exit_signal_term", |socket| test_exit_signal(socket, "TERM"))
+    suite.add(TestCase::new("session_exit_signal_term",
+        |socket| test_signal(socket, "TERM", TestSignal::Exit))
         .except_servers(vec!["paramiko"]));
+    suite.add(TestCase::new("session_send_signal_kill",
+        |socket| test_signal(socket, "KILL", TestSignal::Send))
+        .except_servers(vec!["paramiko", "lsh"]));
+    suite.add(TestCase::new("session_send_signal_int",
+        |socket| test_signal(socket, "INT", TestSignal::Send))
+        .except_servers(vec!["paramiko", "dropbear", "lsh"]));
+    suite.add(TestCase::new("session_env", test_env).only_servers(vec!["openssh"]));
+    suite.add(TestCase::new("session_close", test_close));
 }
 
 
@@ -150,7 +160,12 @@ async fn test_exit_status(socket: TcpStream, command: &'static str, expected_sta
     }).await
 }
 
-async fn test_exit_signal(socket: TcpStream, expected_signal: &'static str) -> Result<()> {
+enum TestSignal {
+    Exit,
+    Send,
+}
+
+async fn test_signal(socket: TcpStream, expected_signal: &'static str, test: TestSignal) -> Result<()> {
     test_session(socket, move |session, mut session_rx| async move {
         let (nursery, mut nursery_stream) = Nursery::new();
 
@@ -169,8 +184,85 @@ async fn test_exit_signal(socket: TcpStream, expected_signal: &'static str) -> R
             Ok(())
         });
 
-        let command = format!("kill -{} $$", expected_signal);
-        session.exec(command.as_bytes())?.want_reply().await?;
+        match test {
+            TestSignal::Exit => {
+                let command = format!("kill -{} $$", expected_signal);
+                session.exec(command.as_bytes())?.want_reply().await?;
+            },
+            TestSignal::Send => {
+                session.exec("sleep 2".as_bytes())?.want_reply().await?;
+                session.signal(expected_signal)?;
+            },
+        }
+
+        drop(nursery);
+        nursery_stream.try_run().await
+    }).await
+}
+
+async fn test_env(socket: TcpStream) -> Result<()> {
+    test_session(socket, |session, mut session_rx| async move {
+        let (nursery, mut nursery_stream) = Nursery::new();
+
+        let (stdout_tx, stdout_rx) = oneshot::channel();
+        nursery.spawn(async move {
+            let mut stdout = BytesMut::new();
+            while let Some(event) = session_rx.recv().await? {
+                if let makiko::SessionEvent::StdoutData(chunk) = event {
+                    stdout.put(chunk);
+                } else if let makiko::SessionEvent::Eof = event {
+                    break;
+                }
+            }
+            let _ = stdout_tx.send(stdout.freeze());
+            log::debug!("session was closed");
+            Ok(())
+        });
+
+        nursery.spawn(async move {
+            // accepted env
+            session.env("TEST_1".as_bytes(), "foo".as_bytes())?.want_reply().await?;
+            session.env("TEST_2".as_bytes(), "bar".as_bytes())?.no_reply();
+
+            // rejected env
+            match session.env("SPAM".as_bytes(), "eggs".as_bytes())?.want_reply().await {
+                Ok(_) => bail!("expected a failure while setting env SPAM"),
+                Err(makiko::Error::ChannelReq) => {},
+                Err(err) => bail!("unexpected error while setting env SPAM: {}", err),
+            }
+
+            session.exec("echo $TEST_1 $TEST_2 $SPAM".as_bytes())?.want_reply().await?;
+
+            let stdout = stdout_rx.await?;
+            ensure!(stdout.as_ref() == "foo bar\n".as_bytes(), "received unexpected stdout {:?}", stdout);
+            Ok(())
+        });
+
+        drop(nursery);
+        nursery_stream.try_run().await
+    }).await
+}
+
+async fn test_close(socket: TcpStream) -> Result<()> {
+    test_session(socket, |session, mut session_rx| async move {
+        let (nursery, mut nursery_stream) = Nursery::new();
+
+        nursery.spawn(async move {
+            while let Some(event) = session_rx.recv().await? {
+                ensure!(!matches!(event,
+                    makiko::SessionEvent::StdoutData(_) |
+                    makiko::SessionEvent::StderrData(_) |
+                    makiko::SessionEvent::ExitSignal(_)
+                ), "received unexpected event {:?}", event);
+            }
+            Ok(())
+        });
+
+        nursery.spawn(async move {
+            session.exec("cat".as_bytes())?.want_reply().await?;
+            session.close()?;
+            Ok(())
+        });
 
         drop(nursery);
         nursery_stream.try_run().await

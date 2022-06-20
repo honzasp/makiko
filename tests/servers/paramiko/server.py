@@ -61,8 +61,8 @@ def run_channel(server, channel):
                 data = data[sent_len:]
             data_len += len(data)
         logger.info(f"received eof after processing {data_len} bytes")
-        channel.shutdown(1)
-        channel.send_exit_status(0)
+        if not channel.closed:
+            channel.send_exit_status(0)
     elif command == b"true":
         channel.send_exit_status(0)
     elif command == b"false":

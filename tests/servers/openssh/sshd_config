@@ -7,3 +7,5 @@ HostKeyAlgorithms=+ssh-rsa
 Ciphers=+aes128-cbc,aes192-cbc,aes256-cbc
 
 PermitEmptyPasswords=yes
+
+AcceptEnv TEST_*
