@@ -1,7 +1,27 @@
-use cipher::{BlockEncryptMut, BlockDecryptMut, KeyInit as _, InnerIvInit as _};
+use cipher::{BlockEncryptMut, BlockDecryptMut, BlockCipher, KeyInit, InnerIvInit as _};
 use cipher::inout::InOutBuf;
 use crate::Result;
 use super::{CipherAlgo, Encrypt, Decrypt};
+
+/// "aes128-cbc" cipher from RFC 4253.
+pub static AES128_CBC: CipherAlgo = CipherAlgo {
+    name: "aes128-cbc",
+    block_len: 16,
+    key_len: 16,
+    iv_len: 16,
+    make_encrypt: |key, iv| Box::new(new_cbc_enc::<aes::Aes128>(key, iv)),
+    make_decrypt: |key, iv| Box::new(new_cbc_dec::<aes::Aes128>(key, iv)),
+};
+
+/// "aes192-cbc" cipher from RFC 4253.
+pub static AES192_CBC: CipherAlgo = CipherAlgo {
+    name: "aes192-cbc",
+    block_len: 16,
+    key_len: 24,
+    iv_len: 16,
+    make_encrypt: |key, iv| Box::new(new_cbc_enc::<aes::Aes192>(key, iv)),
+    make_decrypt: |key, iv| Box::new(new_cbc_dec::<aes::Aes192>(key, iv)),
+};
 
 /// "aes256-cbc" cipher from RFC 4253.
 pub static AES256_CBC: CipherAlgo = CipherAlgo {
@@ -9,8 +29,8 @@ pub static AES256_CBC: CipherAlgo = CipherAlgo {
     block_len: 16,
     key_len: 32,
     iv_len: 16,
-    make_encrypt: |key, iv| Box::new(new_aes256_cbc_enc(key, iv)),
-    make_decrypt: |key, iv| Box::new(new_aes256_cbc_dec(key, iv)),
+    make_encrypt: |key, iv| Box::new(new_cbc_enc::<aes::Aes256>(key, iv)),
+    make_decrypt: |key, iv| Box::new(new_cbc_dec::<aes::Aes256>(key, iv)),
 };
 
 struct BlockEncrypt<T> {
@@ -21,15 +41,19 @@ struct BlockDecrypt<T> {
     decrypt: T,
 }
 
-fn new_aes256_cbc_enc(key: &[u8], iv: &[u8]) -> BlockEncrypt<cbc::Encryptor<aes::Aes256>> {
-    let aes = aes::Aes256::new_from_slice(key).expect("invalid key length for aes256-cbc");
-    let encrypt = cbc::Encryptor::inner_iv_slice_init(aes, iv).expect("invalid iv length for aes256-cbc");
+fn new_cbc_enc<C>(key: &[u8], iv: &[u8]) -> BlockEncrypt<cbc::Encryptor<C>> 
+    where C: BlockCipher + cipher::BlockEncrypt + KeyInit
+{
+    let cipher = C::new_from_slice(key).expect("invalid key length for block cipher");
+    let encrypt = cbc::Encryptor::inner_iv_slice_init(cipher, iv).expect("invalid iv length for cbc");
     BlockEncrypt { encrypt }
 }
 
-fn new_aes256_cbc_dec(key: &[u8], iv: &[u8]) -> BlockDecrypt<cbc::Decryptor<aes::Aes256>> {
-    let aes = aes::Aes256::new_from_slice(key).expect("invalid key length for aes256-cbc");
-    let decrypt = cbc::Decryptor::inner_iv_slice_init(aes, iv).expect("invalid iv length for aes256-cbc");
+fn new_cbc_dec<C>(key: &[u8], iv: &[u8]) -> BlockDecrypt<cbc::Decryptor<C>>
+    where C: BlockCipher + cipher::BlockDecrypt + KeyInit
+{
+    let cipher = C::new_from_slice(key).expect("invalid key length for block cipher");
+    let decrypt = cbc::Decryptor::inner_iv_slice_init(cipher, iv).expect("invalid iv length for cbc");
     BlockDecrypt { decrypt }
 }
 

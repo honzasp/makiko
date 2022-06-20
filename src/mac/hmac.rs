@@ -1,7 +1,5 @@
 use cipher::{KeySizeUser, KeyInit};
 use hmac::{digest, Hmac};
-use sha1::Sha1;
-use sha2::Sha256;
 use std::marker::PhantomData;
 use crate::error::{Result, Error};
 use super::{MacAlgo, Mac, MacVerified};
@@ -11,7 +9,15 @@ pub static HMAC_SHA2_256: MacAlgo = MacAlgo {
     name: "hmac-sha2-256",
     tag_len: 32,
     key_len: 32,
-    make_mac: |key| Box::new(HmacMac::<Hmac<Sha256>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<Hmac<sha2::Sha256>>::new(key)),
+};
+
+/// "hmac-sha2-512" MAC from RFC 6668.
+pub static HMAC_SHA2_512: MacAlgo = MacAlgo {
+    name: "hmac-sha2-512",
+    tag_len: 64,
+    key_len: 64,
+    make_mac: |key| Box::new(HmacMac::<Hmac<sha2::Sha512>>::new(key)),
 };
 
 /// "hmac-sha1" MAC from RFC 4253.
@@ -19,7 +25,7 @@ pub static HMAC_SHA1: MacAlgo = MacAlgo {
     name: "hmac-sha1",
     tag_len: 20,
     key_len: 20,
-    make_mac: |key| Box::new(HmacMac::<Hmac<Sha1>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<Hmac<sha1::Sha1>>::new(key)),
 };
 
 

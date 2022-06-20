@@ -292,7 +292,7 @@ impl Default for ClientConfig {
             kex_algos: vec![&kex::CURVE25519_SHA256, &kex::CURVE25519_SHA256_LIBSSH],
             server_pubkey_algos: vec![&pubkey::SSH_ED25519],
             cipher_algos: vec![&cipher::AES128_CTR, &cipher::AES192_CTR, &cipher::AES256_CTR],
-            mac_algos: vec![&mac::HMAC_SHA2_256],
+            mac_algos: vec![&mac::HMAC_SHA2_256, &mac::HMAC_SHA2_512],
         }
     }
 }
@@ -306,7 +306,9 @@ impl ClientConfig {
         Self::default().with(|c| {
             c.kex_algos.push(&kex::DIFFIE_HELLMAN_GROUP14_SHA1);
             c.server_pubkey_algos.push(&pubkey::SSH_RSA);
-            c.cipher_algos.push(&cipher::AES256_CBC);
+            c.cipher_algos.extend_from_slice(&[
+                &cipher::AES128_CBC, &cipher::AES192_CBC, &cipher::AES256_CBC
+            ]);
             c.mac_algos.push(&mac::HMAC_SHA1);
         })
     }

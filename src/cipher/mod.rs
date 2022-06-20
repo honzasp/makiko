@@ -12,11 +12,13 @@
 //! - "aes128-ctr" ([`AES128_CTR`])
 //! - "aes192-ctr" ([`AES192_CTR`])
 //! - "aes256-ctr" ([`AES256_CTR`])
+//! - "aes128-cbc" ([`AES128_CBC`])
+//! - "aes192-cbc" ([`AES192_CBC`])
 //! - "aes256-cbc" ([`AES256_CBC`])
 //! - "none" ([`NONE`])
 use crate::Result;
 use derivative::Derivative;
-pub use self::block::AES256_CBC;
+pub use self::block::{AES128_CBC, AES192_CBC, AES256_CBC};
 pub use self::none::NONE;
 pub use self::stream::{AES128_CTR, AES192_CTR, AES256_CTR};
 pub(crate) use self::none::Identity;

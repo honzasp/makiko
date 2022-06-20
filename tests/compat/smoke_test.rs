@@ -21,11 +21,14 @@ pub fn collect(suite: &mut TestSuite) {
         (&makiko::cipher::AES128_CTR, vec!["openssh", "dropbear", "paramiko"]),
         (&makiko::cipher::AES192_CTR, vec!["openssh", "paramiko"]),
         (&makiko::cipher::AES256_CTR, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::cipher::AES128_CBC, vec!["openssh", "paramiko"]),
+        (&makiko::cipher::AES192_CBC, vec!["openssh", "paramiko"]),
         (&makiko::cipher::AES256_CBC, vec!["openssh", "paramiko", "lsh"]),
     ];
 
     let mac_algos = vec![
         (&makiko::mac::HMAC_SHA2_256, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::mac::HMAC_SHA2_512, vec!["openssh", "paramiko"]),
         (&makiko::mac::HMAC_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
     ];
 
