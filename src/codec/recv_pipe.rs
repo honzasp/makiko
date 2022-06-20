@@ -124,6 +124,7 @@ impl RecvPipe {
 
                 log::trace!("decrypted packet len {}", packet_len);
                 self.state = State::DecryptedFirst { packet_len };
+
                 packet_len
             },
             State::DecryptedFirst { packet_len } =>
@@ -132,12 +133,14 @@ impl RecvPipe {
                 panic!("called consume_packet() after consume_ident() returned None"),
         };
 
-        if self.buf.len() < 4 + packet_len + self.tag_len {
+        let total_packet_len = 4 + packet_len + self.tag_len;
+        if self.buf.len() < total_packet_len {
             log::trace!("received only {} bytes", self.buf.len());
+            self.buf.reserve(total_packet_len - self.buf.len());
             return Ok(None)
         }
 
-        let mut packet = self.buf.split_to(4 + packet_len + self.tag_len);
+        let mut packet = self.buf.split_to(total_packet_len);
         self.decrypt.decrypt(&mut packet[self.block_len..(4 + packet_len)])?;
         let packet = packet.freeze();
 

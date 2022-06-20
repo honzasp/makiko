@@ -51,6 +51,18 @@ def run_channel(server, channel):
     if command == b"whoami":
         channel.send(b"alice\n")
         channel.send_exit_status(0)
+    elif command == b"cat":
+        data_len = 0
+        while data := channel.recv(1024):
+            logger.info(f"received {len(data)} bytes")
+            while data:
+                sent_len = channel.send(data)
+                logger.info(f"sent {len(data)} bytes")
+                data = data[sent_len:]
+            data_len += len(data)
+        logger.info(f"received eof after processing {data_len} bytes")
+        channel.shutdown(1)
+        channel.send_exit_status(0)
     else:
         channel.send_stderr(b"unknown command!\n")
         channel.send_exit_status(127)
@@ -97,5 +109,5 @@ def run_server():
         threading.Thread(target=run_client, args=(server_keys, client_sock, client_addr)).start()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     run_server()

@@ -11,6 +11,7 @@ use crate::ssh_server::SshServer;
 
 mod auth_test;
 mod nursery;
+mod session_test;
 mod smoke_test;
 mod ssh_server;
 
@@ -134,6 +135,7 @@ async fn run_all_tests(selector: TestSelector) -> Result<TestResult> {
     let mut suite = TestSuite::new();
     smoke_test::collect(&mut suite);
     auth_test::collect(&mut suite);
+    session_test::collect(&mut suite);
 
     let mut ctx = TestCtx { docker, selector, suite, result: TestResult::default() };
     for server_name in server_names.into_iter() {
@@ -151,6 +153,7 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
 
     let server = SshServer::start(&ctx.docker, server_name).await
         .context("could not start SSH server in docker")?;
+    let mut any_fail = false;
 
     println!("testing server {}", server_name.bold());
     for case in ctx.suite.cases.iter() {
@@ -169,6 +172,9 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
 
         print!("  test {} ... ", case.name);
         let socket = server.connect().await?;
+        log::debug!("opened socket for test case {:?}, local {}, peer {}",
+            case.name, socket.local_addr()?, socket.peer_addr()?);
+
         match (case.f)(socket).await {
             Ok(()) =>  {
                 println!("{}", "ok".green());
@@ -177,12 +183,17 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
             Err(err) => {
                 println!("{}: {:#}", "error".red(), err);
                 log::error!("test {:?} for server {:?} failed:\n{:?}", case.name, server_name, err);
+                any_fail = true;
                 ctx.result.fail_count += 1;
             },
         }
     }
 
-    server.stop(&ctx.docker).await
-        .context("could not stop SSH server in docker")?;
+    if !any_fail {
+        server.stop(&ctx.docker).await
+            .context("could not stop SSH server in docker")?;
+    } else {
+        println!("{}", format!("  we keep {} server running", server_name).bold());
+    }
     Ok(())
 }

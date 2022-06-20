@@ -1,4 +1,4 @@
-use bytes::{BufMut as _, BytesMut};
+use bytes::{Buf as _, BufMut as _, BytesMut};
 use rand::{RngCore as _, SeedableRng as _};
 use rand_chacha::ChaCha8Rng;
 use crate::{Error, Result};
@@ -95,7 +95,7 @@ impl SendPipe {
     }
 
     pub fn consume_bytes(&mut self, len: usize) {
-        let _ = self.buf.split_to(len);
+        self.buf.advance(len);
     }
 }
 

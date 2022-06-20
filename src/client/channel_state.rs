@@ -311,7 +311,10 @@ pub(super) fn recv_channel_data(
     let data = payload.get_bytes()?;
     if data.len() > channel_st.recv_window {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_DATA that exceeds window size"))
+    } else if payload.remaining_len() != 0 {
+        return Err(Error::Protocol("trailing data in SSH_MSG_CHANNEL_DATA"));
     }
+    channel_st.recv_window -= data.len();
 
     log::trace!("received SSH_MSG_CHANNEL_DATA for our channel {} with {} bytes",
         channel_st.our_id, data.len());
@@ -327,7 +330,10 @@ pub(super) fn recv_channel_extended_data(
     let data = payload.get_bytes()?;
     if data.len() > channel_st.recv_window {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_EXTENDED_DATA that exceeds window size"))
+    } else if payload.remaining_len() != 0 {
+        return Err(Error::Protocol("trailing data in SSH_MSG_CHANNEL_EXTENDED_DATA"));
     }
+    channel_st.recv_window -= data.len();
 
     log::trace!("received SSH_MSG_CHANNEL_EXTENDED_DATA for our channel {}, code {}, with {} bytes",
         channel_st.our_id, code, data.len());

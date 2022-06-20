@@ -215,6 +215,7 @@ impl SessionReply {
 /// This enum is marked as `#[non_exhaustive]`, so that we can add new variants without breaking
 /// backwards compatibility. It should always be safe to ignore any events that you don't intend to
 /// handle.
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum SessionEvent {
     /// Data from the standard output of the running process.
@@ -305,12 +306,12 @@ fn translate_event(event: ChannelEvent) -> Result<Option<SessionEvent>> {
             Some(SessionEvent::StdoutData(data)),
         ChannelEvent::Data(data, DATA_STDERR) =>
             Some(SessionEvent::StderrData(data)),
+        ChannelEvent::Data(_data, _) =>
+            None,
         ChannelEvent::Eof =>
             Some(SessionEvent::Eof),
         ChannelEvent::Request(req) =>
             translate_request(req)?,
-        _ =>
-            None,
     })
 }
 
