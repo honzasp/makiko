@@ -29,7 +29,6 @@ pub static HMAC_SHA1: MacAlgo = MacAlgo {
 };
 
 
-#[derive(Debug)]
 struct HmacMac<M> {
     key: Vec<u8>,
     _phantom: PhantomData<M>,
@@ -42,12 +41,11 @@ impl<M: digest::Mac + KeySizeUser> HmacMac<M> {
 }
 
 impl<M: digest::Mac + KeySizeUser + KeyInit> Mac for HmacMac<M> {
-    fn sign(&mut self, packet_seq: u32, plaintext: &[u8], tag: &mut [u8]) -> Result<()> {
+    fn sign(&mut self, packet_seq: u32, plaintext: &[u8], tag: &mut [u8]) {
         let mut digest = <M as digest::Mac>::new_from_slice(&self.key).unwrap();
         digest.update(&packet_seq.to_be_bytes());
         digest.update(plaintext);
         tag.copy_from_slice(&digest.finalize().into_bytes());
-        Ok(())
     }
 
     fn verify(&mut self, packet_seq: u32, plaintext: &[u8], tag: &[u8]) -> Result<MacVerified> {

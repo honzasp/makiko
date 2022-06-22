@@ -5,11 +5,11 @@ use std::pin::Pin;
 use std::task::Context;
 use tokio::sync::oneshot;
 use crate::error::{Error, Result, AlgoNegotiateError};
-use crate::cipher::CipherAlgo;
+use crate::cipher::{CipherAlgo, CipherAlgoVariant, PacketEncrypt, PacketDecrypt};
 use crate::codec::{PacketEncode, PacketDecode};
 use crate::codes::msg;
 use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
-use crate::mac::MacAlgo;
+use crate::mac::{self, MacAlgo};
 use crate::pubkey::{PubkeyAlgo, SignatureVerified};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::ClientState;
@@ -297,20 +297,35 @@ fn negotiate_algos(st: &ClientState) -> Result<Algos> {
         }))
     }
 
+    fn negotiate_mac_algo(
+        cipher_algo: &CipherAlgo,
+        our_algos: &[&'static MacAlgo],
+        their_algos: &[String],
+        name: &'static str,
+    ) -> Result<&'static MacAlgo> {
+        if cipher_algo.variant.is_aead() {
+            Ok(&mac::INVALID)
+        } else {
+            negotiate_algo(our_algos, their_algos, name)
+        }
+    }
+
     let our = st.negotiate_st.our_kex_init.as_ref().unwrap();
     let their = st.negotiate_st.their_kex_init.as_ref().unwrap();
 
     let kex = negotiate_algo(&our.kex_algos, &their.kex_algos, "key exchange")?;
     let server_pubkey = negotiate_algo(
         &our.server_pubkey_algos, &their.server_pubkey_algos, "server public key")?;
+
     let cipher_cts = negotiate_algo(
         &our.cipher_algos_cts, &their.cipher_algos_cts, "cipher client-to-server")?;
     let cipher_stc = negotiate_algo(
         &our.cipher_algos_stc, &their.cipher_algos_stc, "cipher server-to-client")?;
-    let mac_cts = negotiate_algo(
-        &our.mac_algos_cts, &their.mac_algos_cts, "mac client-to-server")?;
-    let mac_stc = negotiate_algo(
-        &our.mac_algos_stc, &their.mac_algos_stc, "mac server-to-client")?;
+
+    let mac_cts = negotiate_mac_algo(
+        cipher_cts, &our.mac_algos_cts, &their.mac_algos_cts, "mac client-to-server")?;
+    let mac_stc = negotiate_mac_algo(
+        cipher_stc, &our.mac_algos_stc, &their.mac_algos_stc, "mac server-to-client")?;
 
     Ok(Algos { kex, server_pubkey, cipher_cts, cipher_stc, mac_cts, mac_stc })
 }
@@ -336,13 +351,24 @@ fn recv_new_keys(st: &mut ClientState, _payload: &mut PacketDecode) -> ResultRec
     let cipher_algo = algos.cipher_stc;
     let cipher_key = derive_key(st, b'D', cipher_algo.key_len)?;
     let cipher_iv = derive_key(st, b'B', cipher_algo.iv_len)?;
-    let decrypt = (cipher_algo.make_decrypt)(&cipher_key, &cipher_iv);
-    st.codec.recv_pipe.set_cipher(decrypt, cipher_algo.block_len);
 
-    let mac_algo = algos.mac_stc;
-    let mac_key = derive_key(st, b'F', mac_algo.key_len)?;
-    let mac = (mac_algo.make_mac)(&mac_key);
-    st.codec.recv_pipe.set_mac(mac, mac_algo.tag_len);
+    let (packet_decrypt, tag_len) = match cipher_algo.variant {
+        CipherAlgoVariant::Standard(ref standard_algo) => {
+            let decrypt = (standard_algo.make_decrypt)(&cipher_key, &cipher_iv);
+
+            let mac_algo = algos.mac_stc;
+            let mac_key = derive_key(st, b'F', mac_algo.key_len)?;
+            let mac = (mac_algo.make_mac)(&mac_key);
+
+            (PacketDecrypt::EncryptAndMac(decrypt, mac), mac_algo.tag_len)
+        },
+        CipherAlgoVariant::Aead(ref aead_algo) => {
+            let decrypt = (aead_algo.make_decrypt)(&cipher_key, &cipher_iv);
+            (PacketDecrypt::Aead(decrypt), aead_algo.tag_len)
+        },
+    };
+
+    st.codec.recv_pipe.set_decrypt(packet_decrypt, cipher_algo.block_len, tag_len);
 
     log::debug!("received SSH_MSG_NEWKEYS and applied new keys");
     st.negotiate_st.new_keys_recvd = true;
@@ -355,18 +381,28 @@ fn send_new_keys(st: &mut ClientState) -> Result<()> {
     let cipher_algo = algos.cipher_cts;
     let cipher_key = derive_key(st, b'C', cipher_algo.key_len)?;
     let cipher_iv = derive_key(st, b'A', cipher_algo.iv_len)?;
-    let encrypt = (cipher_algo.make_encrypt)(&cipher_key, &cipher_iv);
 
-    let mac_algo = algos.mac_cts;
-    let mac_key = derive_key(st, b'E', mac_algo.key_len)?;
-    let mac = (mac_algo.make_mac)(&mac_key);
+    let (packet_encrypt, tag_len) = match cipher_algo.variant {
+        CipherAlgoVariant::Standard(ref standard_algo) => {
+            let encrypt = (standard_algo.make_encrypt)(&cipher_key, &cipher_iv);
+
+            let mac_algo = algos.mac_cts;
+            let mac_key = derive_key(st, b'E', mac_algo.key_len)?;
+            let mac = (mac_algo.make_mac)(&mac_key);
+
+            (PacketEncrypt::EncryptAndMac(encrypt, mac), mac_algo.tag_len)
+        },
+        CipherAlgoVariant::Aead(ref aead_algo) => {
+            let encrypt = (aead_algo.make_encrypt)(&cipher_key, &cipher_iv);
+            (PacketEncrypt::Aead(encrypt), aead_algo.tag_len)
+        },
+    };
 
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::NEWKEYS);
     st.codec.send_pipe.feed_packet(&payload.finish())?;
 
-    st.codec.send_pipe.set_cipher(encrypt, cipher_algo.block_len);
-    st.codec.send_pipe.set_mac(mac, mac_algo.tag_len);
+    st.codec.send_pipe.set_encrypt(packet_encrypt, cipher_algo.block_len, tag_len);
     log::debug!("sent SSH_MSG_NEWKEYS and applied new keys");
 
     Ok(())

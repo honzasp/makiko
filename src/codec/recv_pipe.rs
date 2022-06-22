@@ -1,23 +1,22 @@
 use bytes::{Bytes, BytesMut};
 use crate::{Error, Result};
-use crate::cipher::{self, Decrypt};
-use crate::mac::{self, Mac, MacVerified};
+use crate::cipher::{self, PacketDecrypt};
+use crate::mac::{self, MacVerified};
 
 pub(crate) struct RecvPipe {
     buf: BytesMut,
     state: State,
-    decrypt: Box<dyn Decrypt + Send>,
+    decrypt: PacketDecrypt,
     block_len: usize,
-    mac: Box<dyn Mac + Send>,
     tag_len: usize,
-    packet_seq: u32,
+    packet_seq: u64,
 }
 
 #[derive(Debug, Copy, Clone)]
 enum State {
     Ready,
     ScanningLine { pos: usize },
-    DecryptedFirst { packet_len: usize },
+    DecryptedLen { packet_len: usize },
 }
 
 #[derive(Debug)]
@@ -31,9 +30,8 @@ impl RecvPipe {
         RecvPipe {
             buf: BytesMut::new(),
             state: State::Ready,
-            decrypt: Box::new(cipher::Identity),
+            decrypt: PacketDecrypt::EncryptAndMac(Box::new(cipher::Identity), Box::new(mac::Empty)),
             block_len: 8,
-            mac: Box::new(mac::Empty),
             tag_len: 0,
             packet_seq: 0,
         }
@@ -64,7 +62,7 @@ impl RecvPipe {
         let mut pos = match self.state {
             State::Ready => 0,
             State::ScanningLine { pos } => pos,
-            State::DecryptedFirst { .. } =>
+            State::DecryptedLen { .. } =>
                 panic!("called consume_ident() after consume_packet() returned None"),
         };
 
@@ -101,33 +99,29 @@ impl RecvPipe {
     }
 
     pub fn consume_packet(&mut self) -> Result<Option<RecvPacket>> {
-        // RFC 4253, section 6
-        if self.buf.len() < self.block_len {
-            return Ok(None)
-        }
-
         let packet_len = match self.state {
             State::Ready => {
-                self.decrypt.decrypt(&mut self.buf[..self.block_len])?;
+                let packet_len = match self.decrypt_packet_len()? {
+                    Some(packet_len) => packet_len as usize,
+                    None => return Ok(None),
+                };
 
-                let packet_len = u32::from_be_bytes(self.buf[..4].try_into().unwrap()) as usize;
-                let padding_len = self.buf[4] as usize;
                 if packet_len > 1024*1024 {
                     return Err(Error::Protocol("invalid packet length (too long, probably invalid)"));
                 } else if packet_len < 5 {
                     return Err(Error::Protocol("invalid packet length (too short)"));
-                } else if packet_len < 1 + padding_len {
-                    return Err(Error::Protocol("invalid packet length (too short for given padding)"));
-                } else if (packet_len + 4) % self.block_len != 0 {
+                }
+
+                let aligned_len = if self.decrypt.is_aead() { packet_len } else { packet_len + 4 };
+                if aligned_len % self.block_len != 0 {
                     return Err(Error::Protocol("invalid packet length (not aligned to cipher block length)"));
                 }
 
                 log::trace!("decrypted packet len {}", packet_len);
-                self.state = State::DecryptedFirst { packet_len };
-
+                self.state = State::DecryptedLen { packet_len };
                 packet_len
             },
-            State::DecryptedFirst { packet_len } =>
+            State::DecryptedLen { packet_len } =>
                 packet_len,
             State::ScanningLine { .. } =>
                 panic!("called consume_packet() after consume_ident() returned None"),
@@ -141,33 +135,59 @@ impl RecvPipe {
         }
 
         let mut packet = self.buf.split_to(total_packet_len);
-        self.decrypt.decrypt(&mut packet[self.block_len..(4 + packet_len)])?;
-        let packet = packet.freeze();
-
-        let _verified: MacVerified = {
-            let plaintext = &packet[..(4 + packet_len)];
-            let tag = &packet[(4 + packet_len)..][..self.tag_len];
-            self.mac.verify(self.packet_seq, plaintext, tag)?
-        };
-
-        let packet_seq = self.packet_seq;
-        self.packet_seq = packet_seq.wrapping_add(1);
+        let _verified: MacVerified = self.decrypt_packet_body(&mut packet, packet_len)?;
 
         let padding_len = packet[4] as usize;
-        let payload_len = packet_len - padding_len - 1;
-        let payload = packet.slice(5..(5 + payload_len));
+        if packet_len < 1 + padding_len {
+            return Err(Error::Protocol("invalid packet length (too short for given padding)"));
+        }
 
+        let payload_len = packet_len - padding_len - 1;
+        let payload = packet.freeze().slice(5..(5 + payload_len));
+        let packet_seq = self.packet_seq as u32;
+
+        self.packet_seq += 1;
         self.state = State::Ready;
         Ok(Some(RecvPacket { payload, packet_seq }))
     }
 
-    pub fn set_cipher(&mut self, decrypt: Box<dyn Decrypt + Send>, block_len: usize) {
-        self.decrypt = decrypt;
-        self.block_len = block_len;
+    fn decrypt_packet_len(&mut self) -> Result<Option<u32>> {
+        Ok(Some(match self.decrypt {
+            PacketDecrypt::EncryptAndMac(ref mut decrypt, _) => {
+                if self.buf.len() < self.block_len { return Ok(None) }
+                decrypt.decrypt(&mut self.buf[..self.block_len]);
+                u32::from_be_bytes(self.buf[..4].try_into().unwrap())
+            },
+            PacketDecrypt::Aead(ref mut aead) => {
+                if self.buf.len() < 4 { return Ok(None) }
+                let mut len_data = [0; 4];
+                aead.decrypt_packet_len(self.packet_seq, &self.buf[..4], &mut len_data);
+                u32::from_be_bytes(len_data)
+            },
+        }))
     }
 
-    pub fn set_mac(&mut self, mac: Box<dyn Mac + Send>, tag_len: usize) {
-        self.mac = mac;
+    fn decrypt_packet_body(&mut self, packet: &mut [u8], packet_len: usize) -> Result<MacVerified> {
+        match self.decrypt {
+            PacketDecrypt::EncryptAndMac(ref mut decrypt, ref mut mac) => {
+                decrypt.decrypt(&mut packet[self.block_len..(4 + packet_len)]);
+
+                let plaintext = &packet[..(4 + packet_len)];
+                let tag = &packet[(4 + packet_len)..][..self.tag_len];
+                let verified = mac.verify(self.packet_seq as u32, plaintext, tag)?;
+
+                Ok(verified)
+            },
+            PacketDecrypt::Aead(ref mut aead) => {
+                let (packet, tag) = packet.split_at_mut(4 + packet_len);
+                aead.decrypt_and_verify(self.packet_seq, packet, tag)
+            },
+        }
+    }
+
+    pub fn set_decrypt(&mut self, decrypt: PacketDecrypt, block_len: usize, tag_len: usize) {
+        self.decrypt = decrypt;
+        self.block_len = block_len;
         self.tag_len = tag_len;
     }
 }
@@ -175,6 +195,7 @@ impl RecvPipe {
 #[cfg(test)]
 mod tests {
     use rand::{Rng as _, RngCore, SeedableRng as _};
+    use crate::mac::Mac;
     use super::*;
 
     #[test]
@@ -302,7 +323,7 @@ mod tests {
 
         // packet that is too short for given padding length of 32
         check_packet_err(
-            b"\x00\x00\x00\x0c\x20zzz",
+            b"\x00\x00\x00\x0c\x20zzzxxxxyyyy",
             "too short for given padding",
         );
 
@@ -322,8 +343,8 @@ mod tests {
         }
 
         impl Mac for DummyMac {
-            fn sign(&mut self, _: u32, _: &[u8], _: &mut [u8]) -> Result<()> {
-                panic!("called Mac::sign()")
+            fn sign(&mut self, _: u32, _: &[u8], _: &mut [u8]) {
+                panic!("called DummyMac::sign()")
             }
 
             fn verify(&mut self, packet_seq: u32, plaintext: &[u8], tag: &[u8]) -> Result<MacVerified> {
@@ -349,7 +370,8 @@ mod tests {
                         expected_tag: tag.clone(),
                         verify,
                     };
-                    pipe.set_mac(Box::new(mac), tag.len());
+                    let decrypt = PacketDecrypt::EncryptAndMac(Box::new(cipher::Identity), Box::new(mac));
+                    pipe.set_decrypt(decrypt, 8, tag.len());
                 },
                 |pipe| {
                     assert!(pipe.consume_packet().unwrap().is_none());

@@ -16,7 +16,7 @@ use crate::Result;
 use derivative::Derivative;
 pub use self::hmac::{HMAC_SHA2_256, HMAC_SHA2_512, HMAC_SHA1};
 pub use self::none::NONE;
-pub(crate) use self::none::Empty;
+pub(crate) use self::none::{INVALID, Empty};
 
 mod none;
 mod hmac;
@@ -36,7 +36,7 @@ pub struct MacAlgo {
 }
 
 pub(crate) trait Mac {
-    fn sign(&mut self, packet_seq: u32, plaintext: &[u8], tag: &mut [u8]) -> Result<()>;
+    fn sign(&mut self, packet_seq: u32, plaintext: &[u8], tag: &mut [u8]);
     fn verify(&mut self, packet_seq: u32, plaintext: &[u8], tag: &[u8]) -> Result<MacVerified>;
 }
 

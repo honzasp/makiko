@@ -69,6 +69,7 @@ impl TestCase {
 struct TestSelector {
     servers: Option<HashSet<String>>,
     test_cases: Option<regex::RegexSet>,
+    force_addr: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -100,11 +101,14 @@ async fn main() -> ExitCode {
         .arg(clap::Arg::new("case").short('c')
             .takes_value(true)
             .action(clap::ArgAction::Append))
+        .arg(clap::Arg::new("force-addr").short('f')
+            .takes_value(true))
         .get_matches();
 
     let servers = args.get_many::<String>("server").map(|xs| xs.cloned().collect());
     let test_cases = args.get_many::<String>("case").map(|xs| regex::RegexSet::new(xs).unwrap());
-    let selector = TestSelector { servers, test_cases };
+    let force_addr = args.get_one::<String>("force-addr").cloned();
+    let selector = TestSelector { servers, test_cases, force_addr };
 
     match run_all_tests(selector).await {
         Ok(result) => {
@@ -185,7 +189,10 @@ async fn run_server_tests(ctx: &mut TestCtx, server_name: &str) -> Result<()> {
 
         print!("  test {} ... ", case.name);
         stdout().flush()?;
-        let socket = server.connect().await?;
+        let socket = match ctx.selector.force_addr.as_ref() {
+            None => server.connect().await?,
+            Some(addr) => TcpStream::connect(addr).await?,
+        };
         log::debug!("opened socket for test case {:?}, local {}, peer {}",
             case.name, socket.local_addr()?, socket.peer_addr()?);
 

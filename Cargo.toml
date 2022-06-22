@@ -23,6 +23,7 @@ harness = false
 aes = "0.8"
 bytes = "1.1"
 cbc = "0.1"
+chacha20 = "0.9"
 cipher = "0.4"
 ctr = "0.9"
 derivative = "2.2"
@@ -36,6 +37,7 @@ log = "0.4"
 num-bigint = {version = "0.3", features = ["rand"]}
 parking_lot = "0.12"
 pin-project = "1.0"
+poly1305 = "0.7"
 rand = {version = "0.7", features = ["getrandom"]} # older version because of x25519-dalek
 rand_chacha = "0.2"
 rsa = {version = "0.6", default-features = false}

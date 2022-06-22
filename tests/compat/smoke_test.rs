@@ -24,6 +24,7 @@ pub fn collect(suite: &mut TestSuite) {
         (&makiko::cipher::AES128_CBC, vec!["openssh", "paramiko"]),
         (&makiko::cipher::AES192_CBC, vec!["openssh", "paramiko"]),
         (&makiko::cipher::AES256_CBC, vec!["openssh", "paramiko", "lsh"]),
+        (&makiko::cipher::CHACHA20_POLY1305, vec!["openssh", "dropbear"]),
     ];
 
     let mac_algos = vec![

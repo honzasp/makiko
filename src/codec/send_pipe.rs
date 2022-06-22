@@ -2,17 +2,16 @@ use bytes::{Buf as _, BufMut as _, BytesMut};
 use rand::{RngCore as _, SeedableRng as _};
 use rand_chacha::ChaCha8Rng;
 use crate::{Error, Result};
-use crate::cipher::{self, Encrypt};
-use crate::mac::{self, Mac};
+use crate::cipher::{self, PacketEncrypt};
+use crate::mac;
 use crate::util::CryptoRngCore;
 
 pub(crate) struct SendPipe {
     buf: BytesMut,
-    encrypt: Box<dyn Encrypt + Send>,
+    encrypt: PacketEncrypt,
     block_len: usize,
-    mac: Box<dyn Mac + Send>,
     tag_len: usize,
-    packet_seq: u32,
+    packet_seq: u64,
     padding_rng: ChaCha8Rng,
 }
 
@@ -22,9 +21,8 @@ impl SendPipe {
             .map_err(|_| Error::Random("could not generate seed for padding generator"))?;
         Ok(SendPipe {
             buf: BytesMut::new(),
-            encrypt: Box::new(cipher::Identity),
+            encrypt: PacketEncrypt::EncryptAndMac(Box::new(cipher::Identity), Box::new(mac::Empty)),
             block_len: 8,
-            mac: Box::new(mac::Empty),
             tag_len: 0,
             packet_seq: 0,
             padding_rng,
@@ -39,11 +37,10 @@ impl SendPipe {
     }
 
     pub fn feed_packet(&mut self, payload: &[u8]) -> Result<u32> {
-        let packet_seq = self.packet_seq;
         log::trace!("feed packet {}, len {}, seq {}",
             payload.get(0).cloned().unwrap_or(0), payload.len(), self.packet_seq);
 
-        let padding_len = calculate_padding_len(payload.len(), self.block_len);
+        let padding_len = calculate_padding_len(payload.len(), self.block_len, self.encrypt.is_aead());
 
         // RFC 4253, section 6
         //
@@ -61,28 +58,28 @@ impl SendPipe {
         self.buf.put_slice(payload);
         self.buf.put_bytes(0, padding_len + self.tag_len);
 
-        {
-            let packet = &mut self.buf[packet_begin..];
-            self.padding_rng.fill_bytes(&mut packet[5 + payload.len()..][..padding_len]);
+        let packet = &mut self.buf[packet_begin..];
+        self.padding_rng.fill_bytes(&mut packet[5 + payload.len()..][..padding_len]);
 
-            let (plaintext, tag) = packet.split_at_mut(5 + payload.len() + padding_len);
-            self.mac.sign(packet_seq, plaintext, tag)?;
-
-            self.encrypt.encrypt(plaintext)?;
+        let (plaintext, tag) = packet.split_at_mut(5 + payload.len() + padding_len);
+        match self.encrypt {
+            PacketEncrypt::EncryptAndMac(ref mut encrypt, ref mut mac) => {
+                mac.sign(self.packet_seq as u32, plaintext, tag);
+                encrypt.encrypt(plaintext);
+            },
+            PacketEncrypt::Aead(ref mut aead) => {
+                aead.encrypt_and_sign(self.packet_seq, plaintext, tag);
+            },
         }
 
-        self.packet_seq = self.packet_seq.wrapping_add(1);
-
+        let packet_seq = self.packet_seq as u32;
+        self.packet_seq += 1;
         Ok(packet_seq)
     }
 
-    pub fn set_cipher(&mut self, encrypt: Box<dyn Encrypt + Send>, block_len: usize) {
+    pub fn set_encrypt(&mut self, encrypt: PacketEncrypt, block_len: usize, tag_len: usize) {
         self.encrypt = encrypt;
         self.block_len = block_len;
-    }
-
-    pub fn set_mac(&mut self, mac: Box<dyn Mac + Send>, tag_len: usize) {
-        self.mac = mac;
         self.tag_len = tag_len;
     }
 
@@ -99,9 +96,9 @@ impl SendPipe {
     }
 }
 
-fn calculate_padding_len(payload_len: usize, block_len: usize) -> usize {
+fn calculate_padding_len(payload_len: usize, block_len: usize, is_aead: bool) -> usize {
     // RFC 4253, section 6
-    let header_len = 5;
+    let header_len = if is_aead { 1 } else { 5 };
     let min_padded_len = header_len + payload_len + 4;
     let padded_len = (min_padded_len + block_len - 1) / block_len * block_len;
     padded_len - payload_len - header_len
@@ -121,8 +118,12 @@ mod tests {
     fn test_calculate_padding_len() {
         for &block_len in &[1, 2, 4, 8, 16, 32] {
             for payload_len in 0..100 {
-                let padding_len = calculate_padding_len(payload_len, block_len);
+                let padding_len = calculate_padding_len(payload_len, block_len, false);
                 assert_eq!((5 + payload_len + padding_len) % block_len, 0);
+                assert!(padding_len >= 4);
+
+                let padding_len = calculate_padding_len(payload_len, block_len, true);
+                assert_eq!((1 + payload_len + padding_len) % block_len, 0);
                 assert!(padding_len >= 4);
             }
         }
