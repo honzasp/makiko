@@ -21,6 +21,7 @@ harness = false
 
 [dependencies]
 aes = "0.8"
+aes-gcm = "^0.10.0-pre"
 bytes = "1.1"
 cbc = "0.1"
 chacha20 = "0.9"
@@ -30,7 +31,6 @@ derivative = "2.2"
 digest = "0.10"
 ed25519-dalek = "1.0"
 futures-core = "0.3"
-generic-array = "0.14"
 guard = "0.5"
 hmac = "0.12"
 log = "0.4"

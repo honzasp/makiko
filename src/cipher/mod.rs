@@ -10,6 +10,8 @@
 //! # Supported algorithms
 //!
 //! - "chacha20-poly1305" ([`CHACHA20_POLY1305`])
+//! - "aes128-gcm" ([`AES128_GCM`])
+//! - "aes256-gcm" ([`AES256_GCM`])
 //! - "aes128-ctr" ([`AES128_CTR`])
 //! - "aes192-ctr" ([`AES192_CTR`])
 //! - "aes256-ctr" ([`AES256_CTR`])
@@ -19,6 +21,7 @@
 //! - "none" ([`NONE`])
 use crate::Result;
 use derivative::Derivative;
+pub use self::aes_gcm::{AES128_GCM, AES256_GCM};
 pub use self::block::{AES128_CBC, AES192_CBC, AES256_CBC};
 pub use self::chacha_poly::CHACHA20_POLY1305;
 pub use self::none::NONE;
@@ -26,6 +29,7 @@ pub use self::stream::{AES128_CTR, AES192_CTR, AES256_CTR};
 pub(crate) use self::none::Identity;
 use crate::mac::{Mac, MacVerified};
 
+mod aes_gcm;
 mod block;
 mod chacha_poly;
 mod none;

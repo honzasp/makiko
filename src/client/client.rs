@@ -293,6 +293,7 @@ impl Default for ClientConfig {
             server_pubkey_algos: vec![&pubkey::SSH_ED25519],
             cipher_algos: vec![
                 &cipher::CHACHA20_POLY1305,
+                &cipher::AES128_GCM, &cipher::AES256_GCM,
                 &cipher::AES128_CTR, &cipher::AES192_CTR, &cipher::AES256_CTR,
             ],
             mac_algos: vec![&mac::HMAC_SHA2_256, &mac::HMAC_SHA2_512],
