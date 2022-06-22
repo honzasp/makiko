@@ -112,7 +112,12 @@ impl RecvPipe {
                     return Err(Error::Protocol("invalid packet length (too short)"));
                 }
 
-                let aligned_len = if self.decrypt.is_aead() { packet_len } else { packet_len + 4 };
+                let include_len = match self.decrypt {
+                    PacketDecrypt::EncryptAndMac(_, _) => true,
+                    PacketDecrypt::EncryptThenMac(_, _) => false,
+                    PacketDecrypt::Aead(_) => false,
+                };
+                let aligned_len = if include_len { packet_len + 4 } else { packet_len };
                 if aligned_len % self.block_len != 0 {
                     return Err(Error::Protocol("invalid packet length (not aligned to cipher block length)"));
                 }
@@ -158,6 +163,10 @@ impl RecvPipe {
                 decrypt.decrypt(&mut self.buf[..self.block_len]);
                 u32::from_be_bytes(self.buf[..4].try_into().unwrap())
             },
+            PacketDecrypt::EncryptThenMac(_, _) => {
+                if self.buf.len() < 4 { return Ok(None) }
+                u32::from_be_bytes(self.buf[..4].try_into().unwrap())
+            },
             PacketDecrypt::Aead(ref mut aead) => {
                 if self.buf.len() < 4 { return Ok(None) }
                 let mut len_data = [0; 4];
@@ -175,6 +184,15 @@ impl RecvPipe {
                 let plaintext = &packet[..(4 + packet_len)];
                 let tag = &packet[(4 + packet_len)..][..self.tag_len];
                 let verified = mac.verify(self.packet_seq as u32, plaintext, tag)?;
+
+                Ok(verified)
+            },
+            PacketDecrypt::EncryptThenMac(ref mut decrypt, ref mut mac) => {
+                let ciphertext = &packet[..(4 + packet_len)];
+                let tag = &packet[(4 + packet_len)..][..self.tag_len];
+                let verified = mac.verify(self.packet_seq as u32, ciphertext, tag)?;
+
+                decrypt.decrypt(&mut packet[4..(4 + packet_len)]);
 
                 Ok(verified)
             },

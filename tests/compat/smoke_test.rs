@@ -33,6 +33,9 @@ pub fn collect(suite: &mut TestSuite) {
         (&makiko::mac::HMAC_SHA2_256, vec!["openssh", "dropbear", "paramiko"]),
         (&makiko::mac::HMAC_SHA2_512, vec!["openssh", "paramiko"]),
         (&makiko::mac::HMAC_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
+        (&makiko::mac::HMAC_SHA2_256_ETM, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::mac::HMAC_SHA2_512_ETM, vec!["openssh", "paramiko"]),
+        (&makiko::mac::HMAC_SHA1_ETM, vec!["openssh", "dropbear"]),
     ];
 
     let kex_algos = vec![

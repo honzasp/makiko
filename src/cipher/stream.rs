@@ -66,6 +66,7 @@ impl<T: BlockSizeUser> Encrypt for StreamCipher<T>
           T: StreamCipherCore,
 {
     fn encrypt(&mut self, data: &mut [u8]) {
+        debug_assert!(data.len() % T::block_size() == 0);
         self.cipher.apply_keystream(data)
     }
 }
@@ -76,6 +77,7 @@ impl<T: BlockSizeUser> Decrypt for StreamCipher<T>
           T: StreamCipherCore,
 {
     fn decrypt(&mut self, data: &mut [u8]) {
+        debug_assert!(data.len() % T::block_size() == 0);
         self.cipher.apply_keystream(data)
     }
 }

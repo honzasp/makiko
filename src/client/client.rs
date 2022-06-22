@@ -296,7 +296,10 @@ impl Default for ClientConfig {
                 &cipher::AES128_GCM, &cipher::AES256_GCM,
                 &cipher::AES128_CTR, &cipher::AES192_CTR, &cipher::AES256_CTR,
             ],
-            mac_algos: vec![&mac::HMAC_SHA2_256, &mac::HMAC_SHA2_512],
+            mac_algos: vec![
+                &mac::HMAC_SHA2_256_ETM, &mac::HMAC_SHA2_512_ETM,
+                &mac::HMAC_SHA2_256, &mac::HMAC_SHA2_512,
+            ],
         }
     }
 }
@@ -313,7 +316,9 @@ impl ClientConfig {
             c.cipher_algos.extend_from_slice(&[
                 &cipher::AES128_CBC, &cipher::AES192_CBC, &cipher::AES256_CBC
             ]);
-            c.mac_algos.push(&mac::HMAC_SHA1);
+            c.mac_algos.extend_from_slice(&[
+                &mac::HMAC_SHA1_ETM, &mac::HMAC_SHA1
+            ]);
         })
     }
 

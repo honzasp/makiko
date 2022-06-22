@@ -40,7 +40,12 @@ impl SendPipe {
         log::trace!("feed packet {}, len {}, seq {}",
             payload.get(0).cloned().unwrap_or(0), payload.len(), self.packet_seq);
 
-        let padding_len = calculate_padding_len(payload.len(), self.block_len, self.encrypt.is_aead());
+        let include_len = match self.encrypt {
+            PacketEncrypt::EncryptAndMac(_, _) => true,
+            PacketEncrypt::EncryptThenMac(_, _) => false,
+            PacketEncrypt::Aead(_) => false,
+        };
+        let padding_len = calculate_padding_len(payload.len(), self.block_len, include_len);
 
         // RFC 4253, section 6
         //
@@ -66,6 +71,11 @@ impl SendPipe {
             PacketEncrypt::EncryptAndMac(ref mut encrypt, ref mut mac) => {
                 mac.sign(self.packet_seq as u32, plaintext, tag);
                 encrypt.encrypt(plaintext);
+            },
+            PacketEncrypt::EncryptThenMac(ref mut encrypt, ref mut mac) => {
+                encrypt.encrypt(&mut plaintext[4..]);
+                let ciphertext = plaintext;
+                mac.sign(self.packet_seq as u32, ciphertext, tag);
             },
             PacketEncrypt::Aead(ref mut aead) => {
                 aead.encrypt_and_sign(self.packet_seq, plaintext, tag);
@@ -96,9 +106,9 @@ impl SendPipe {
     }
 }
 
-fn calculate_padding_len(payload_len: usize, block_len: usize, is_aead: bool) -> usize {
+fn calculate_padding_len(payload_len: usize, block_len: usize, include_len: bool) -> usize {
     // RFC 4253, section 6
-    let header_len = if is_aead { 1 } else { 5 };
+    let header_len = if include_len { 5 } else { 1 };
     let min_padded_len = header_len + payload_len + 4;
     let padded_len = (min_padded_len + block_len - 1) / block_len * block_len;
     padded_len - payload_len - header_len
@@ -118,11 +128,11 @@ mod tests {
     fn test_calculate_padding_len() {
         for &block_len in &[1, 2, 4, 8, 16, 32] {
             for payload_len in 0..100 {
-                let padding_len = calculate_padding_len(payload_len, block_len, false);
+                let padding_len = calculate_padding_len(payload_len, block_len, true);
                 assert_eq!((5 + payload_len + padding_len) % block_len, 0);
                 assert!(padding_len >= 4);
 
-                let padding_len = calculate_padding_len(payload_len, block_len, true);
+                let padding_len = calculate_padding_len(payload_len, block_len, false);
                 assert_eq!((1 + payload_len + padding_len) % block_len, 0);
                 assert!(padding_len >= 4);
             }

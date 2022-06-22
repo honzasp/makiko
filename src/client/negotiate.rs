@@ -9,7 +9,7 @@ use crate::cipher::{CipherAlgo, CipherAlgoVariant, PacketEncrypt, PacketDecrypt}
 use crate::codec::{PacketEncode, PacketDecode};
 use crate::codes::msg;
 use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
-use crate::mac::{self, MacAlgo};
+use crate::mac::{self, MacAlgo, MacAlgoVariant};
 use crate::pubkey::{PubkeyAlgo, SignatureVerified};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::ClientState;
@@ -360,7 +360,11 @@ fn recv_new_keys(st: &mut ClientState, _payload: &mut PacketDecode) -> ResultRec
             let mac_key = derive_key(st, b'F', mac_algo.key_len)?;
             let mac = (mac_algo.make_mac)(&mac_key);
 
-            (PacketDecrypt::EncryptAndMac(decrypt, mac), mac_algo.tag_len)
+            let packet_decrypt = match mac_algo.variant {
+                MacAlgoVariant::EncryptAndMac => PacketDecrypt::EncryptAndMac(decrypt, mac),
+                MacAlgoVariant::EncryptThenMac => PacketDecrypt::EncryptThenMac(decrypt, mac),
+            };
+            (packet_decrypt, mac_algo.tag_len)
         },
         CipherAlgoVariant::Aead(ref aead_algo) => {
             let decrypt = (aead_algo.make_decrypt)(&cipher_key, &cipher_iv);
@@ -390,7 +394,11 @@ fn send_new_keys(st: &mut ClientState) -> Result<()> {
             let mac_key = derive_key(st, b'E', mac_algo.key_len)?;
             let mac = (mac_algo.make_mac)(&mac_key);
 
-            (PacketEncrypt::EncryptAndMac(encrypt, mac), mac_algo.tag_len)
+            let packet_encrypt = match mac_algo.variant {
+                MacAlgoVariant::EncryptAndMac => PacketEncrypt::EncryptAndMac(encrypt, mac),
+                MacAlgoVariant::EncryptThenMac => PacketEncrypt::EncryptThenMac(encrypt, mac),
+            };
+            (packet_encrypt, mac_algo.tag_len)
         },
         CipherAlgoVariant::Aead(ref aead_algo) => {
             let encrypt = (aead_algo.make_encrypt)(&cipher_key, &cipher_iv);

@@ -77,11 +77,13 @@ pub(crate) struct AeadCipherAlgo {
 
 pub(crate) enum PacketEncrypt {
     EncryptAndMac(Box<dyn Encrypt + Send>, Box<dyn Mac + Send>),
+    EncryptThenMac(Box<dyn Encrypt + Send>, Box<dyn Mac + Send>),
     Aead(Box<dyn AeadEncrypt + Send>),
 }
 
 pub(crate) enum PacketDecrypt {
     EncryptAndMac(Box<dyn Decrypt + Send>, Box<dyn Mac + Send>),
+    EncryptThenMac(Box<dyn Decrypt + Send>, Box<dyn Mac + Send>),
     Aead(Box<dyn AeadDecrypt + Send>),
 }
 
@@ -108,17 +110,5 @@ pub(crate) trait AeadDecrypt {
 impl CipherAlgoVariant {
     pub fn is_aead(&self) -> bool {
         matches!(self, CipherAlgoVariant::Aead(_))
-    }
-}
-
-impl PacketEncrypt {
-    pub fn is_aead(&self) -> bool {
-        matches!(self, PacketEncrypt::Aead(_))
-    }
-}
-
-impl PacketDecrypt {
-    pub fn is_aead(&self) -> bool {
-        matches!(self, PacketDecrypt::Aead(_))
     }
 }
