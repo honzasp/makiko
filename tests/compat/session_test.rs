@@ -321,7 +321,7 @@ async fn test_session_inner(
             }
         }
 
-        let (session, session_rx) = client.open_session().await?;
+        let (session, session_rx) = client.open_session(makiko::ChannelConfig::default()).await?;
         f(session, session_rx).await?;
 
         client.disconnect(makiko::DisconnectError::by_app())?;

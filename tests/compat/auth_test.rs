@@ -216,14 +216,15 @@ async fn test_none_failure(socket: TcpStream) -> Result<()> {
 
 async fn check_authenticated(client: makiko::Client) -> Result<()> {
     ensure!(client.is_authenticated()?);
-    let (_session, _session_rx) = client.open_session().await?;
+    let (_session, _session_rx) = client.open_session(makiko::ChannelConfig::default()).await?;
     Ok(())
 }
 
 async fn check_not_authenticated(client: makiko::Client) -> Result<()> {
     ensure!(!client.is_authenticated()?);
     tokio::select! {
-        _ = client.open_session() => bail!("session was opened before authentication"),
+        _ = client.open_session(makiko::ChannelConfig::default()) =>
+            bail!("session was opened before authentication"),
         _ = tokio::time::sleep(Duration::from_millis(10)) => Ok(()),
     }
 }

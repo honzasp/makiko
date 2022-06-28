@@ -114,7 +114,7 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
             }
         }
 
-        let (session, mut session_rx) = client.open_session().await?;
+        let (session, mut session_rx) = client.open_session(makiko::ChannelConfig::default()).await?;
 
         let (stdout_tx, stdout_rx) = oneshot::channel();
         nursery.spawn(async move {

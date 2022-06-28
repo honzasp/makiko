@@ -17,7 +17,7 @@ use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
 use super::auth_method::pubkey::{AuthPubkey, AuthPubkeyResult, CheckPubkey};
-use super::channel::{Channel, ChannelReceiver};
+use super::channel::{Channel, ChannelReceiver, ChannelConfig};
 use super::client_event::ClientEvent;
 use super::client_state::{self, ClientState};
 use super::conn::{self, OpenChannel};
@@ -175,11 +175,11 @@ impl Client {
     /// the underlying connection under the hood.
     ///
     /// This method will wait until you are authenticated before doing anything.
-    pub async fn open_session(&self) -> Result<(Session, SessionReceiver)> {
-        Session::open(self).await
+    pub async fn open_session(&self, config: ChannelConfig) -> Result<(Session, SessionReceiver)> {
+        Session::open(self, config).await
     }
 
-    /// Opens a raw SSH channel.
+    /// Opens a raw SSH channel (low level API).
     ///
     /// Use this to directly open an SSH channel, as described in RFC 4254, section 5.
     /// The bytes in `open_payload` will be appended to the `SSH_MSG_CHANNEL_OPEN` packet as the
@@ -199,14 +199,14 @@ impl Client {
     /// [`Channel`] in an API that hides the details of the SSH protocol.
     ///
     /// This method will wait until you are authenticated before doing anything.
-    pub async fn open_channel(&self, channel_type: String, open_payload: Bytes) 
+    pub async fn open_channel(&self, channel_type: String, config: ChannelConfig, open_payload: Bytes) 
         -> Result<(Channel, ChannelReceiver, Bytes)> 
     {
         let (confirmed_tx, confirmed_rx) = oneshot::channel();
         let open = OpenChannel {
             channel_type,
-            recv_window_max: 100_000,
-            recv_packet_len_max: 1_000_000,
+            recv_window_max: config.recv_window_max.clamp(1000, u32::MAX as usize),
+            recv_packet_len_max: config.recv_packet_len_max.clamp(200, u32::MAX as usize),
             open_payload,
             confirmed_tx,
         };
@@ -373,7 +373,7 @@ impl ClientConfig {
     /// Mutate `self` in a closure.
     ///
     /// This method applies your closure to `self` and returns the mutated configuration.
-    pub fn with<F: FnOnce(&mut ClientConfig)>(mut self, f: F) -> ClientConfig {
+    pub fn with<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
         f(&mut self);
         self
     }

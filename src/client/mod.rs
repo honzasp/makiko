@@ -3,7 +3,7 @@ pub use self::auth_method::none::AuthNoneResult;
 pub use self::auth_method::password::{AuthPasswordResult, AuthPasswordPrompt};
 pub use self::auth_method::pubkey::AuthPubkeyResult;
 pub use self::channel::{
-    Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
+    Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply, ChannelConfig,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
 pub use self::client::{Client, ClientReceiver, ClientFuture, ClientConfig};

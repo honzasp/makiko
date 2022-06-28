@@ -257,3 +257,66 @@ pub const DATA_STANDARD: DataType = DataType::Standard;
 ///
 /// This is part of a **low level [`Channel`] API** that gives you direct access to an SSH channel.
 pub const DATA_STDERR: DataType = DataType::Extended(1);
+
+/// Configuration of a [`Channel`] (or a [`Session`]).
+///
+/// You should start from the [default][Default] instance, which has reasonable default
+/// configuration, and modify it according to your needs. You may also find the method
+/// [`ChannelConfig::with()`] syntactically convenient.
+///
+/// This struct is `#[non_exhaustive]`, so we may add more fields without breaking backward
+/// compatibility.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct ChannelConfig {
+    /// Maximum size of the receive window (in bytes).
+    ///
+    /// SSH channels implement flow control to limit the amount of data in flight. The "window" is
+    /// the maximum number of bytes that the sender can transmit to the receiver. When the window
+    /// is exhausted, the sender must wait until the sender increments the window, allowing the
+    /// sender to continue.
+    ///
+    /// Flow control in the two directions (client to server and server to client) is independent
+    /// and always controlled by the receiver.
+    ///
+    /// If the window size is smaller than the bandwidth-delay product, SSH will not be able to
+    /// fully utilize the link. However, if the window size is too large, the data for this channel
+    /// may overwhelm the connection, increasing latency for other channels and non-data messages.
+    ///
+    /// The SSH protocol limits the window size to 2^32 - 1, and we also impose a sane lower bound
+    /// on this value. If your value exceeds these limits, we will silently clamp it to the allowed
+    /// range.
+    pub recv_window_max: usize,
+
+    /// Maximum size of received packets (in bytes).
+    ///
+    /// Specifies the maximum data packet size that we want to receive from the server. This serves
+    /// as a hint only: if the server sends us a larger packet, we will happily accept it.
+    ///
+    /// The SSH specification says that you may want to make this value smaller for slow
+    /// interactive links, but in most cases, you can keep it at its default value.
+    ///
+    /// The SSH protocol limits the packet size to 2^32 - 1, and we also impose a sane lower bound
+    /// on this value. If your value exceeds these limits, we will silently clamp it to the allowed
+    /// range.
+    pub recv_packet_len_max: usize,
+}
+
+impl Default for ChannelConfig {
+    fn default() -> Self {
+        ChannelConfig {
+            recv_window_max: 500_000,
+            recv_packet_len_max: 100_000,
+        }
+    }
+}
+
+impl ChannelConfig {
+    /// Mutate `self` in a closure.
+    ///
+    /// This method applies your closure to `self` and returns the mutated configuration.
+    pub fn with<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
+        f(&mut self);
+        self
+    }
+}

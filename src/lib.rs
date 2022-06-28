@@ -11,7 +11,7 @@ pub use crate::client::{
     AuthFailure, AuthNoneResult, AuthPasswordResult, AuthPasswordPrompt, AuthPubkeyResult,
 };
 pub use crate::client::{
-    Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
+    Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply, ChannelConfig,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
 pub use crate::client::{Client, ClientReceiver, ClientFuture, ClientConfig};

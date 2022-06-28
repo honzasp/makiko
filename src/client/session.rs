@@ -7,7 +7,7 @@ use tokio::sync::oneshot;
 use crate::codec::{PacketDecode, PacketEncode};
 use crate::error::{Result, Error};
 use super::channel::{
-    Channel, ChannelReceiver, ChannelEvent,
+    Channel, ChannelReceiver, ChannelEvent, ChannelConfig,
     ChannelReq, ChannelReply, DATA_STANDARD, DATA_STDERR
 };
 use super::client::Client;
@@ -38,8 +38,8 @@ pub struct Session {
 }
 
 impl Session {
-    pub(super) async fn open(client: &Client) -> Result<(Session, SessionReceiver)> {
-        let (channel, channel_rx, _) = client.open_channel("session".into(), Bytes::new()).await?;
+    pub(super) async fn open(client: &Client, config: ChannelConfig) -> Result<(Session, SessionReceiver)> {
+        let (channel, channel_rx, _) = client.open_channel("session".into(), config, Bytes::new()).await?;
         Ok((Session { channel }, SessionReceiver { channel_rx }))
     }
 

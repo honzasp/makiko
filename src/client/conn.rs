@@ -189,11 +189,20 @@ fn recv_channel_open_confirmation(
             with 'maximum packet size' that is too small"));
     }
 
+    // the SSH specification is unclear about the exact semantics of the 'maximum packet size'
+    // field. does it limit only the size of the data? size of the data plus the length field? size
+    // of the whole packet payload? size of the packet including padding? including MAC tag?
+    // including the "packet length" field?
+    //
+    // for this reason, we are conservative and limit the size of data chunks that we send to a
+    // lower value than given by the peer.
+    let send_len_max = send_packet_len_max - 100;
+
     let (event_tx, event_rx) = mpsc::channel(1);
     let channel_init = ChannelInit {
         our_id, their_id, event_tx,
         send_window,
-        send_len_max: send_packet_len_max - 100,
+        send_len_max,
         recv_window_max: open_st.open.recv_window_max,
     };
 
