@@ -55,6 +55,26 @@ pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("auth_pubkey_retry", test_pubkey_retry)
         .except_servers(vec!["lsh"]));
 
+    suite.add(TestCase::new("auth_pubkey_check_true_ed25519",
+        |socket| test_pubkey_check(socket,
+            "edward".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519, true))
+        .except_servers(vec!["lsh"]));
+    suite.add(TestCase::new("auth_pubkey_check_true_rsa",
+        |socket| test_pubkey_check(socket,
+            "ruth".into(), keys::ruth_rsa_2048(), &makiko::pubkey::SSH_RSA_SHA1, true))
+        .except_servers(vec!["tinyssh"]));
+    suite.add(TestCase::new("auth_pubkey_check_false_bad_user",
+        |socket| test_pubkey_check(socket,
+            "eve".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519, false))
+        .except_servers(vec!["tinyssh"]));
+    suite.add(TestCase::new("auth_pubkey_check_false_bad_key",
+        |socket| test_pubkey_check(socket,
+            "edward".into(), keys::ruth_rsa_2048(), &makiko::pubkey::SSH_RSA_SHA1, false)));
+    suite.add(TestCase::new("auth_pubkey_check_false_bad_algo",
+        |socket| test_pubkey_check(socket,
+            "edward".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_RSA_SHA1, false))
+        .except_servers(vec!["paramiko"]));
+
     suite.add(TestCase::new("auth_none_success", test_none_success)
         .except_servers(vec!["tinyssh", "lsh"]));
     suite.add(TestCase::new("auth_none_failure", test_none_failure));
@@ -155,6 +175,21 @@ async fn test_pubkey_retry(socket: TcpStream) -> Result<()> {
             "edward".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
         ensure!(matches!(res, makiko::AuthPubkeyResult::Success), "expected success, got {:?}", res);
         check_authenticated(client).await
+    }).await
+}
+
+async fn test_pubkey_check(
+    socket: TcpStream,
+    username: String,
+    privkey: makiko::Privkey,
+    algo: &'static makiko::PubkeyAlgo,
+    expected: bool,
+) -> Result<()> {
+    test_auth(socket, move |client| async move {
+        let pubkey = privkey.pubkey();
+        let res = client.check_pubkey(username, &pubkey, algo).await?;
+        ensure!(res == expected, "expected {}, received {}", expected, res);
+        check_not_authenticated(client).await
     }).await
 }
 

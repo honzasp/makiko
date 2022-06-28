@@ -37,6 +37,7 @@ pub(crate) mod msg {
     pub const KEXDH_REPLY: u8 = 31;
 
     pub const USERAUTH_PASSWD_CHANGEREQ: u8 = 60;
+    pub const USERAUTH_PK_OK: u8 = 60;
 }
 
 /// Reason codes for [`DisconnectError`][crate::DisconnectError].

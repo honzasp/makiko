@@ -12,11 +12,11 @@ use crate::{Error, Result, DisconnectError};
 use crate::cipher::{self, CipherAlgo};
 use crate::kex::{self, KexAlgo};
 use crate::mac::{self, MacAlgo};
-use crate::pubkey::{self, PubkeyAlgo, Privkey};
+use crate::pubkey::{self, PubkeyAlgo, Pubkey, Privkey};
 use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
-use super::auth_method::pubkey::{AuthPubkey, AuthPubkeyResult};
+use super::auth_method::pubkey::{AuthPubkey, AuthPubkeyResult, CheckPubkey};
 use super::channel::{Channel, ChannelReceiver};
 use super::client_event::ClientEvent;
 use super::client_state::{self, ClientState};
@@ -139,6 +139,21 @@ impl Client {
     }
 
     /// Checks whether "publickey" authentication method would be acceptable.
+    ///
+    /// Before attempting the "publickey" authentication method using
+    /// [`auth_pubkey()`][Self::auth_pubkey()], you may ask the server whether authentication using
+    /// the given `username`, `pubkey` and `pubkey_algo` would be acceptable.
+    pub async fn check_pubkey(
+        &self,
+        username: String,
+        pubkey: &Pubkey,
+        pubkey_algo: &'static PubkeyAlgo,
+    ) -> Result<bool> {
+        let (result_tx, result_rx) = oneshot::channel();
+        let method = CheckPubkey::new(username, pubkey, pubkey_algo, result_tx);
+        auth::start_method(&mut self.upgrade()?.lock(), Box::new(method))?;
+        result_rx.await.map_err(|_| Error::AuthAborted)
+    }
 
     /// Returns true if the server has authenticated you.
     ///
