@@ -334,7 +334,9 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
     fn default() -> Self {
         ClientConfig {
-            kex_algos: vec![&kex::CURVE25519_SHA256, &kex::CURVE25519_SHA256_LIBSSH],
+            kex_algos: vec![
+                &kex::CURVE25519_SHA256, &kex::CURVE25519_SHA256_LIBSSH,
+            ],
             server_pubkey_algos: vec![
                 &pubkey::SSH_ED25519,
                 &pubkey::RSA_SHA2_256, &pubkey::RSA_SHA2_512,
@@ -359,7 +361,12 @@ impl ClientConfig {
     /// notably SHA-1. **Use at your own risk!**.
     pub fn default_compatible_less_secure() -> ClientConfig {
         Self::default().with(|c| {
-            c.kex_algos.push(&kex::DIFFIE_HELLMAN_GROUP14_SHA1);
+            c.kex_algos.extend_from_slice(&[
+                &kex::DIFFIE_HELLMAN_GROUP14_SHA256,
+                &kex::DIFFIE_HELLMAN_GROUP16_SHA512,
+                &kex::DIFFIE_HELLMAN_GROUP18_SHA512,
+                &kex::DIFFIE_HELLMAN_GROUP14_SHA1,
+            ]);
             c.server_pubkey_algos.push(&pubkey::SSH_RSA_SHA1);
             c.cipher_algos.extend_from_slice(&[
                 &cipher::AES128_CBC, &cipher::AES192_CBC, &cipher::AES256_CBC
