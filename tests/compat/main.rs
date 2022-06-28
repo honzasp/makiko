@@ -137,6 +137,7 @@ async fn run_all_tests(selector: TestSelector) -> Result<TestResult> {
     let server_names = vec![
         "openssh",
         "dropbear",
+        "tinyssh",
         "lsh",
         "paramiko",
     ];

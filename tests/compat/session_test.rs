@@ -9,7 +9,7 @@ use std::future::Future;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::{mpsc, oneshot};
-use crate::{TestSuite, TestCase};
+use crate::{TestSuite, TestCase, keys};
 use crate::nursery::Nursery;
 
 pub fn collect(suite: &mut TestSuite) {
@@ -24,12 +24,14 @@ pub fn collect(suite: &mut TestSuite) {
         .except_servers(vec!["paramiko"]));
     suite.add(TestCase::new("session_send_signal_kill",
         |socket| test_signal(socket, "KILL", TestSignal::Send))
-        .except_servers(vec!["paramiko", "lsh"]));
+        .except_servers(vec!["paramiko"]));
     suite.add(TestCase::new("session_send_signal_int",
         |socket| test_signal(socket, "INT", TestSignal::Send))
-        .except_servers(vec!["paramiko", "dropbear", "lsh"]));
-    suite.add(TestCase::new("session_env", test_env).only_servers(vec!["openssh"]));
-    suite.add(TestCase::new("session_close", test_close));
+        .except_servers(vec!["paramiko"]));
+    suite.add(TestCase::new("session_env", test_env)
+        .only_servers(vec!["openssh"]));
+    suite.add(TestCase::new("session_close", test_close)
+        .except_servers(vec!["tinyssh"]));
 }
 
 
@@ -160,6 +162,7 @@ async fn test_exit_status(socket: TcpStream, command: &'static str, expected_sta
     }).await
 }
 
+#[derive(Copy, Clone)]
 enum TestSignal {
     Exit,
     Send,
@@ -171,16 +174,24 @@ async fn test_signal(socket: TcpStream, expected_signal: &'static str, test: Tes
 
         nursery.spawn(async move {
             let mut signal_recvd = 0;
+            let mut status_recvd = 0;
             while let Some(event) = session_rx.recv().await? {
                 if let makiko::SessionEvent::ExitSignal(signal) = event {
                     ensure!(signal.signal_name.as_str() == expected_signal,
                         "expected signal {:?}, got {:?}", expected_signal, signal.signal_name.as_str());
                     signal_recvd += 1;
                 } else if let makiko::SessionEvent::ExitStatus(status) = event {
-                    bail!("unexpected exit status {}", status);
+                    if matches!(test, TestSignal::Send) {
+                        // some servers (lsh, tinyssh) return status 0 instead of signal in this case
+                        ensure!(status == 0, "expected status 0, got {}", status);
+                        status_recvd += 1;
+                    } else {
+                        bail!("unexpected exit status {}", status);
+                    }
                 }
             }
-            ensure!(signal_recvd == 1, "received signal {} times", signal_recvd);
+            ensure!(signal_recvd + status_recvd == 1,
+                "received signal {} times and status {} times", signal_recvd, status_recvd);
             Ok(())
         });
 
@@ -301,9 +312,14 @@ async fn test_session_inner(
     });
 
     nursery.spawn(async move {
-        client.auth_password("alice".into(), "alicealice".into()).await
-            .and_then(|res| res.success_or_error())
-            .context("could not authenticate")?;
+        let res = client.auth_password("alice".into(), "alicealice".into()).await?;
+        if !matches!(res, makiko::AuthPasswordResult::Success) {
+            let res = client.auth_pubkey(
+                "alice".into(), keys::alice_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
+            if !matches!(res, makiko::AuthPubkeyResult::Success) {
+                bail!("could not authenticate")
+            }
+        }
 
         let (session, session_rx) = client.open_session().await?;
         f(session, session_rx).await?;

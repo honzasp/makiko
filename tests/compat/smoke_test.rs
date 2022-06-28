@@ -1,10 +1,10 @@
-use anyhow::{Result, Context as _, ensure};
+use anyhow::{Result, Context as _, ensure, bail};
 use bytes::{BytesMut, BufMut as _};
 use enclose::enclose;
 use std::mem::drop;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
-use crate::{TestSuite, TestCase};
+use crate::{TestSuite, TestCase, keys};
 use crate::nursery::Nursery;
 
 pub fn collect(suite: &mut TestSuite) {
@@ -24,7 +24,7 @@ pub fn collect(suite: &mut TestSuite) {
         (&makiko::cipher::AES128_CBC, vec!["openssh", "paramiko"]),
         (&makiko::cipher::AES192_CBC, vec!["openssh", "paramiko"]),
         (&makiko::cipher::AES256_CBC, vec!["openssh", "paramiko", "lsh"]),
-        (&makiko::cipher::CHACHA20_POLY1305, vec!["openssh", "dropbear"]),
+        (&makiko::cipher::CHACHA20_POLY1305, vec!["openssh", "dropbear", "tinyssh"]),
         (&makiko::cipher::AES128_GCM, vec!["openssh"]),
         (&makiko::cipher::AES256_GCM, vec!["openssh"]),
     ];
@@ -39,13 +39,13 @@ pub fn collect(suite: &mut TestSuite) {
     ];
 
     let kex_algos = vec![
-        (&makiko::kex::CURVE25519_SHA256, vec!["openssh", "dropbear"]),
-        (&makiko::kex::CURVE25519_SHA256_LIBSSH, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::kex::CURVE25519_SHA256, vec!["openssh", "dropbear", "tinyssh"]),
+        (&makiko::kex::CURVE25519_SHA256_LIBSSH, vec!["openssh", "dropbear", "tinyssh", "paramiko"]),
         (&makiko::kex::DIFFIE_HELLMAN_GROUP14_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
     ];
 
     let pubkey_algos = vec![
-        (&makiko::pubkey::SSH_ED25519, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::pubkey::SSH_ED25519, vec!["openssh", "dropbear", "tinyssh", "paramiko"]),
         (&makiko::pubkey::SSH_RSA_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
     ];
 
@@ -105,9 +105,14 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
     });
 
     nursery.spawn(enclose!{(nursery) async move {
-        client.auth_password("alice".into(), "alicealice".into()).await
-            .and_then(|res| res.success_or_error())
-            .context("could not authenticate")?;
+        let res = client.auth_password("alice".into(), "alicealice".into()).await?;
+        if !matches!(res, makiko::AuthPasswordResult::Success) {
+            let res = client.auth_pubkey(
+                "alice".into(), keys::alice_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
+            if !matches!(res, makiko::AuthPubkeyResult::Success) {
+                bail!("could not authenticate")
+            }
+        }
 
         let (session, mut session_rx) = client.open_session().await?;
 

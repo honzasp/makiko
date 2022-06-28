@@ -168,6 +168,9 @@ fn recv_channel_open_confirmation(
     let send_packet_len_max = payload.get_u32()? as usize;
     let confirm_payload = payload.remaining();
     
+    log::debug!("received SSH_MSG_CHANNEL_OPEN_CONFIRMATION for our channel {}, \
+        window {}, max packet size {}", our_id, send_window, send_packet_len_max);
+
     let mut channels = st.conn_st.channels.lock();
     guard!{let Some(conn_channel_st) = channels.get_mut(&our_id) else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_OPEN_CONFIRMATION for unknown channel"));
@@ -181,12 +184,10 @@ fn recv_channel_open_confirmation(
         unreachable!()
     }};
 
-    if send_packet_len_max < 32000 {
+    if send_packet_len_max < 200 {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_OPEN_CONFIRMATION \
             with 'maximum packet size' that is too small"));
     }
-
-    log::debug!("received SSH_MSG_CHANNEL_OPEN_CONFIRMATION for our channel {}", our_id);
 
     let (event_tx, event_rx) = mpsc::channel(1);
     let channel_init = ChannelInit {

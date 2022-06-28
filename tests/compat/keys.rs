@@ -2,6 +2,15 @@
 use num_bigint_dig::BigUint;
 use hex_literal::hex;
 
+pub fn alice_ed25519() -> makiko::Privkey {
+    let private_bytes = hex!("e264980178ad0b28ef8b9a7cad8278f4f9001c52e1f2fc61165d7baa36b53175");
+    let public_bytes = hex!("09255d6093be46c9db2f486fd0a946f21f5729127603811e20c2fddbf58592b3");
+    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
+        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
+        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
+    }.into())
+}
+
 pub fn edward_ed25519() -> makiko::Privkey {
     let private_bytes = hex!("3972dfb17dcf6a949e08d8979ef0722b021379e72c66b549af2a98d3eeae905c");
     let public_bytes = hex!("f2549b117e1f8d9a440a8360e1eab3d5a1d890de70be755a0632832d61c6cc25");

@@ -51,7 +51,7 @@ print("use num_bigint_dig::BigUint;")
 print("use hex_literal::hex;")
 print()
 
-for name in ["edward_ed25519", "ruth_rsa_1024", "ruth_rsa_2048", "ruth_rsa_4096"]:
+for name in ["alice_ed25519", "edward_ed25519", "ruth_rsa_1024", "ruth_rsa_2048", "ruth_rsa_4096"]:
     private_file = os.path.join(base_dir, name)
     public_file = os.path.join(base_dir, f"{name}.pub")
     private_key = serialization.load_ssh_private_key(open(private_file, "rb").read(), None)

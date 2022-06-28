@@ -9,16 +9,20 @@ use crate::nursery::Nursery;
 pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("auth_no_authentication", test_no_authentication));
 
-    suite.add(TestCase::new("auth_password_success", test_password_success));
-    suite.add(TestCase::new("auth_password_failure", test_password_failure));
-    suite.add(TestCase::new("auth_password_retry", test_password_retry));
-    suite.add(TestCase::new("auth_password_already_authenticated", test_password_already_authenticated));
+    suite.add(TestCase::new("auth_password_success", test_password_success)
+        .except_servers(vec!["tinyssh"]));
+    suite.add(TestCase::new("auth_password_failure", test_password_failure)
+        .except_servers(vec!["tinyssh"]));
+    suite.add(TestCase::new("auth_password_retry", test_password_retry)
+        .except_servers(vec!["tinyssh"]));
+    suite.add(TestCase::new("auth_password_already_authenticated", test_password_already_authenticated)
+        .except_servers(vec!["tinyssh"]));
 
     let pubkey_variants = vec![
         (
             "edward",
             vec![("ed25519", keys::edward_ed25519())],
-            vec![(&makiko::pubkey::SSH_ED25519, vec!["openssh", "dropbear", "paramiko"])],
+            vec![(&makiko::pubkey::SSH_ED25519, vec!["openssh", "dropbear", "tinyssh", "paramiko"])],
         ),
         (
             "ruth",
@@ -48,10 +52,11 @@ pub fn collect(suite: &mut TestSuite) {
     }
 
     suite.add(TestCase::new("auth_pubkey_failure", test_pubkey_failure));
-    suite.add(TestCase::new("auth_pubkey_retry", test_pubkey_retry));
+    suite.add(TestCase::new("auth_pubkey_retry", test_pubkey_retry)
+        .except_servers(vec!["lsh"]));
 
     suite.add(TestCase::new("auth_none_success", test_none_success)
-        .except_servers(vec!["lsh"]));
+        .except_servers(vec!["tinyssh", "lsh"]));
     suite.add(TestCase::new("auth_none_failure", test_none_failure));
 }
 
@@ -143,11 +148,11 @@ async fn test_pubkey_failure(socket: TcpStream) -> Result<()> {
 async fn test_pubkey_retry(socket: TcpStream) -> Result<()> {
     test_auth(socket, |client| async move {
         let res = client.auth_pubkey(
-            "ruth".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
+            "edward".into(), keys::ruth_rsa_2048(), &makiko::pubkey::SSH_RSA_SHA1).await?;
         ensure!(matches!(res, makiko::AuthPubkeyResult::Failure(_)), "expected failure, got {:?}", res);
 
         let res = client.auth_pubkey(
-            "ruth".into(), keys::ruth_rsa_2048(), &makiko::pubkey::SSH_RSA_SHA1).await?;
+            "edward".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
         ensure!(matches!(res, makiko::AuthPubkeyResult::Success), "expected success, got {:?}", res);
         check_authenticated(client).await
     }).await
