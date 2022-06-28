@@ -50,7 +50,7 @@ impl AuthMethod for AuthNone {
         Err(Error::PacketNotImplemented(msg_id))
     }
 
-    fn send_packet(&mut self) -> Result<Option<Bytes>> {
+    fn send_packet(&mut self, _session_id: &[u8]) -> Result<Option<Bytes>> {
         if !self.request_sent {
             let mut payload = PacketEncode::new();
             payload.put_u8(msg::USERAUTH_REQUEST);

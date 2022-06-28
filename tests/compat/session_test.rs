@@ -76,7 +76,7 @@ async fn test_cat(socket: TcpStream) -> Result<()> {
             let mut rng = ChaCha8Rng::seed_from_u64(42);
             let mut stdin_len = 0;
             for _ in 0..100 {
-                let chunk_len = rng.gen_range(0.0f64, 16.).exp2() as usize;
+                let chunk_len = rng.gen_range(0.0f64..16.).exp2() as usize;
                 let mut chunk = vec![0u8; chunk_len];
                 rng.fill_bytes(&mut chunk);
                 let chunk = Bytes::from(chunk);
@@ -283,7 +283,7 @@ async fn test_session_inner(
         -> BoxFuture<'static, Result<()>> + Sync + Send>,
 ) -> Result<()> {
     let (nursery, mut nursery_stream) = Nursery::new();
-    let config = makiko::ClientConfig::default_compatible_insecure();
+    let config = makiko::ClientConfig::default_compatible_less_secure();
     let (client, mut client_rx, client_fut) = makiko::Client::open(socket, config)?;
 
     nursery.spawn(async move {

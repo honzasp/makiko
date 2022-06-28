@@ -45,7 +45,7 @@ pub(super) fn start_method(st: &mut ClientState, method: Box<dyn AuthMethod + Se
         client_state::wakeup_client(st);
         Ok(())
     } else {
-        Err(Error::AuthMethodPending)
+        Err(Error::AuthPending)
     }
 }
 
@@ -62,7 +62,8 @@ pub(super) fn pump_auth(st: &mut ClientState, _cx: &mut Context) -> Result<Pump>
         }
 
         if negotiate::is_ready(st) {
-            if let Some(payload) = st.auth_st.method.as_mut().unwrap().send_packet()? {
+            let session_id = st.session_id.as_ref().unwrap();
+            if let Some(payload) = st.auth_st.method.as_mut().unwrap().send_packet(session_id)? {
                 st.codec.send_pipe.feed_packet(&payload)?;
                 return Ok(Pump::Progress)
             }

@@ -1,6 +1,6 @@
 [package]
 name = "makiko"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 authors = ["Jan Špaček <patek.mail@gmail.com>"]
@@ -32,14 +32,16 @@ digest = "0.10"
 ed25519-dalek = "1.0"
 futures-core = "0.3"
 guard = "0.5"
+hex-literal = "0.3"
 hmac = "0.12"
 log = "0.4"
-num-bigint = {version = "0.3", features = ["rand"]}
+num-bigint-dig = {version = "0.8", features = ["rand"]}
 parking_lot = "0.12"
 pin-project = "1.0"
 poly1305 = "0.7"
-rand = {version = "0.7", features = ["getrandom"]} # older version because of x25519-dalek
-rand_chacha = "0.2"
+rand = {version = "0.8", features = ["getrandom"]}
+rand_0_7 = {version = "0.7", package = "rand"} # because of x25519-dalek
+rand_chacha = "0.3"
 rsa = {version = "0.6", default-features = false}
 sha-1 = {version = "0.10", default-features = false}
 sha2 = "0.10"

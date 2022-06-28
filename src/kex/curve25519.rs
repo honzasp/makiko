@@ -1,9 +1,8 @@
 use bytes::Bytes;
 use digest::Digest as _;
-use num_bigint::BigUint;
+use num_bigint_dig::BigUint;
 use sha2::Sha256;
 use std::task::Poll;
-use x25519_dalek as x25519;
 use crate::codec::{PacketDecode, PacketEncode};
 use crate::codes::msg;
 use crate::error::{Error, Result};
@@ -28,8 +27,8 @@ pub static CURVE25519_SHA256_LIBSSH: KexAlgo = KexAlgo {
 
 
 struct Curve25519Kex {
-    our_eph_privkey: Option<x25519::EphemeralSecret>,
-    our_eph_pubkey: x25519::PublicKey,
+    our_eph_privkey: Option<x25519_dalek::EphemeralSecret>,
+    our_eph_pubkey: x25519_dalek::PublicKey,
     ecdh_init_sent: bool,
     ecdh_reply: Option<EcdhReply>,
 }
@@ -37,13 +36,15 @@ struct Curve25519Kex {
 #[derive(Debug)]
 struct EcdhReply {
     server_pubkey: Bytes,
-    server_eph_pubkey: x25519::PublicKey,
+    server_eph_pubkey: x25519_dalek::PublicKey,
     server_exchange_hash_sign: Bytes,
 }
 
-fn init_kex(rng: &mut dyn CryptoRngCore) -> Result<Curve25519Kex> {
-    let our_eph_privkey = x25519::EphemeralSecret::new(rng);
-    let our_eph_pubkey = x25519::PublicKey::from(&our_eph_privkey);
+fn init_kex(_rng: &mut dyn CryptoRngCore) -> Result<Curve25519Kex> {
+    // x25519-dalek depends on rand 0.7 and also requires an owned rng, so there is no way that we
+    // could pass `&mut dyn CryptoRngCore` to `EphemeralSecret::new()`
+    let our_eph_privkey = x25519_dalek::EphemeralSecret::new(rand_0_7::rngs::OsRng);
+    let our_eph_pubkey = x25519_dalek::PublicKey::from(&our_eph_privkey);
     log::debug!("initialized curve25519 kex");
     Ok(Curve25519Kex {
         our_eph_privkey: Some(our_eph_privkey),
@@ -102,7 +103,7 @@ fn recv_ecdh_reply(kex: &mut Curve25519Kex, payload: &mut PacketDecode) -> Resul
     let server_exchange_hash_sign = payload.get_bytes()?;
 
     let server_pubkey = Bytes::copy_from_slice(&server_pubkey);
-    let server_eph_pubkey = x25519::PublicKey::from(server_eph_pubkey);
+    let server_eph_pubkey = x25519_dalek::PublicKey::from(server_eph_pubkey);
     let server_exchange_hash_sign = Bytes::copy_from_slice(&server_exchange_hash_sign);
     kex.ecdh_reply = Some(EcdhReply { server_pubkey, server_eph_pubkey, server_exchange_hash_sign });
     log::debug!("received SSH_MSG_KEX_ECDH_REPLY");

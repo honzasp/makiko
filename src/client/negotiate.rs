@@ -10,7 +10,7 @@ use crate::codec::{PacketEncode, PacketDecode};
 use crate::codes::msg;
 use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo, MacAlgoVariant};
-use crate::pubkey::{PubkeyAlgo, SignatureVerified};
+use crate::pubkey::{PubkeyAlgo, Pubkey, SignatureVerified};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::ClientState;
 use super::pump::Pump;
@@ -116,11 +116,11 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
             }
 
             let pubkey_algo = st.negotiate_st.algos.as_ref().unwrap().server_pubkey;
-            let pubkey = (pubkey_algo.decode_pubkey)(kex_output.server_pubkey.clone())?;
+            let pubkey = Pubkey::decode(kex_output.server_pubkey.clone())?;
             log::debug!("server pubkey {}", pubkey);
 
-            let signature_verified = pubkey.verify(
-                &kex_output.exchange_hash, kex_output.server_exchange_hash_sign.clone())?;
+            let signature_verified = (pubkey_algo.verify)(
+                &pubkey, &kex_output.exchange_hash, kex_output.server_exchange_hash_sign.clone())?;
             st.negotiate_st.signature_verified = Some(signature_verified);
             st.negotiate_st.kex_output = Some(kex_output);
 

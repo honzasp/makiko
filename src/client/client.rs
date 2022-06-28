@@ -12,10 +12,11 @@ use crate::{Error, Result, DisconnectError};
 use crate::cipher::{self, CipherAlgo};
 use crate::kex::{self, KexAlgo};
 use crate::mac::{self, MacAlgo};
-use crate::pubkey::{self, PubkeyAlgo};
+use crate::pubkey::{self, PubkeyAlgo, Privkey};
 use super::auth;
 use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
+use super::auth_method::pubkey::{AuthPubkey, AuthPubkeyResult};
 use super::channel::{Channel, ChannelReceiver};
 use super::client_event::ClientEvent;
 use super::client_state::{self, ClientState};
@@ -86,7 +87,7 @@ impl Client {
     ///
     /// If a previous authentication attempt was successful, this call immediately succeeds. If you
     /// start another authentication attempt before this attempt is resolved, it will fail with
-    /// [`Error::AuthAborted`].
+    /// [`Error::AuthPending`].
     pub async fn auth_none(&self, username: String) -> Result<AuthNoneResult> {
         let (result_tx, result_rx) = oneshot::channel();
         let method = AuthNone::new(username, result_tx);
@@ -96,19 +97,48 @@ impl Client {
 
     /// Try to authenticate using the "password" method.
     ///
-    /// Technically, the "password" method (RFC 4252, section 8) allows you change the password
+    /// Technically, the "password" method (RFC 4252, section 8) allows you to change the password
     /// during authentication, but nobody seems to implement it (neither servers nor client), so we
     /// don't support that.
     ///
     /// If a previous authentication attempt was successful, this call immediately succeeds. If you
     /// start another authentication attempt before this attempt is resolved, it will fail with
-    /// [`Error::AuthAborted`].
+    /// [`Error::AuthPending`].
     pub async fn auth_password(&self, username: String, password: String) -> Result<AuthPasswordResult> {
         let (result_tx, result_rx) = oneshot::channel();
         let method = AuthPassword::new(username, password, result_tx);
         auth::start_method(&mut self.upgrade()?.lock(), Box::new(method))?;
         result_rx.await.map_err(|_| Error::AuthAborted)
     }
+
+    /// Try to authenticate using the "publickey" method.
+    ///
+    /// With the "publickey" method (RFC 4252, section 7), the server knows your public key and you
+    /// prove that you own the corresponding private key.
+    ///
+    /// You must specify the private key `privkey` and also `pubkey_algo`, the pubkey algorithm
+    /// that is used to prove that you own the private key. You can look up compatible algorithms
+    /// in the documentation of your private key (such as
+    /// [`Ed25519Privkey`][crate::pubkey::Ed25519Privkey] or
+    /// [`RsaPrivkey`][crate::pubkey::RsaPrivkey]); if you supply `pubkey_algo` that is not
+    /// compatible with the `privkey`, you will get an [`Error::PrivkeyFormat`].
+    ///
+    /// If a previous authentication attempt was successful, this call immediately succeeds. If you
+    /// start another authentication attempt before this attempt is resolved, it will fail with
+    /// [`Error::AuthPending`].
+    pub async fn auth_pubkey(
+        &self,
+        username: String,
+        privkey: Privkey,
+        pubkey_algo: &'static PubkeyAlgo,
+    ) -> Result<AuthPubkeyResult> {
+        let (result_tx, result_rx) = oneshot::channel();
+        let method = AuthPubkey::new(username, privkey, pubkey_algo, result_tx);
+        auth::start_method(&mut self.upgrade()?.lock(), Box::new(method))?;
+        result_rx.await.map_err(|_| Error::AuthAborted)?
+    }
+
+    /// Checks whether "publickey" authentication method would be acceptable.
 
     /// Returns true if the server has authenticated you.
     ///
@@ -254,7 +284,7 @@ impl<IO> Future for ClientFuture<IO>
 /// [`ClientConfig::with()`] syntactically convenient.
 ///
 /// If you need compatibility with old SSH servers that use outdated crypto, you may use
-/// [`ClientConfig::default_compatible_insecure()`]. However, this configuration is less secure.
+/// [`ClientConfig::default_compatible_less_secure()`]. However, this configuration is less secure.
 ///
 /// This struct is `#[non_exhaustive]`, so we may add more fields without breaking backward
 /// compatibility.
@@ -290,7 +320,10 @@ impl Default for ClientConfig {
     fn default() -> Self {
         ClientConfig {
             kex_algos: vec![&kex::CURVE25519_SHA256, &kex::CURVE25519_SHA256_LIBSSH],
-            server_pubkey_algos: vec![&pubkey::SSH_ED25519],
+            server_pubkey_algos: vec![
+                &pubkey::SSH_ED25519,
+                &pubkey::RSA_SHA2_256, &pubkey::RSA_SHA2_512,
+            ],
             cipher_algos: vec![
                 &cipher::CHACHA20_POLY1305,
                 &cipher::AES128_GCM, &cipher::AES256_GCM,
@@ -305,14 +338,14 @@ impl Default for ClientConfig {
 }
 
 impl ClientConfig {
-    /// Default configuration with higher compatibility and low security.
+    /// Default configuration with higher compatibility and lower security.
     ///
-    /// Returns a configuration that includes support for outdated and potentially insecure crypto.
-    /// **Use at your own risk!**.
-    pub fn default_compatible_insecure() -> ClientConfig {
+    /// Returns a configuration that includes support for outdated and potentially insecure crypto,
+    /// notably SHA-1. **Use at your own risk!**.
+    pub fn default_compatible_less_secure() -> ClientConfig {
         Self::default().with(|c| {
             c.kex_algos.push(&kex::DIFFIE_HELLMAN_GROUP14_SHA1);
-            c.server_pubkey_algos.push(&pubkey::SSH_RSA);
+            c.server_pubkey_algos.push(&pubkey::SSH_RSA_SHA1);
             c.cipher_algos.extend_from_slice(&[
                 &cipher::AES128_CBC, &cipher::AES192_CBC, &cipher::AES256_CBC
             ]);

@@ -1,6 +1,7 @@
 pub use self::auth::AuthFailure; 
 pub use self::auth_method::none::AuthNoneResult;
 pub use self::auth_method::password::{AuthPasswordResult, AuthPasswordPrompt};
+pub use self::auth_method::pubkey::AuthPubkeyResult;
 pub use self::channel::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
     DataType, DATA_STANDARD, DATA_STDERR,

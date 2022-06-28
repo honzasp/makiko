@@ -1,5 +1,5 @@
 use bytes::{Buf as _, Bytes};
-use num_bigint::BigUint;
+use num_bigint_dig::BigUint;
 use std::str;
 use crate::{Error, Result};
 

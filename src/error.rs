@@ -20,6 +20,10 @@ pub enum Error {
     Mac,
     #[error("signature verification failed")]
     Signature,
+    #[error("algorithm is not compatible with this public key format")]
+    PubkeyFormat,
+    #[error("algorithm is not compatible with this private key format")]
+    PrivkeyFormat,
     #[error("server public key was not accepted")]
     PubkeyAccept(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("protocol error: {0}")]
@@ -30,10 +34,10 @@ pub enum Error {
     AlgoNegotiate(AlgoNegotiateError),
     #[error("packet {0} not implemented")]
     PacketNotImplemented(u8),
-    #[error("another authentication method is pending")]
-    AuthMethodPending,
     #[error("authentication method was aborted")]
     AuthAborted,
+    #[error("another authentication method is pending")]
+    AuthPending,
     #[error("authentication failed")]
     AuthFailed,
     #[error("channel is closed")]

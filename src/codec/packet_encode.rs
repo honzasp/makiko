@@ -1,5 +1,5 @@
 use bytes::{BufMut as _, Bytes, BytesMut};
-use num_bigint::BigUint;
+use num_bigint_dig::BigUint;
 
 /// Encoding of SSH packets and other payloads (low level API).
 ///

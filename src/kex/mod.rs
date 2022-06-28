@@ -14,7 +14,7 @@
 //! - "diffie-hellman-group14-sha1" ([`DIFFIE_HELLMAN_GROUP14_SHA1`])
 use bytes::Bytes;
 use derivative::Derivative;
-use num_bigint::BigUint;
+use num_bigint_dig::BigUint;
 use std::task::Poll;
 use crate::Result;
 use crate::codec::PacketDecode;

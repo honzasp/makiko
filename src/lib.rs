@@ -7,7 +7,9 @@
 #![allow(clippy::module_inception)]
 #![warn(missing_docs)]
 
-pub use crate::client::{AuthFailure, AuthNoneResult, AuthPasswordResult, AuthPasswordPrompt};
+pub use crate::client::{
+    AuthFailure, AuthNoneResult, AuthPasswordResult, AuthPasswordPrompt, AuthPubkeyResult,
+};
 pub use crate::client::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply,
     DataType, DATA_STANDARD, DATA_STDERR,
@@ -21,9 +23,11 @@ pub use crate::error::{Result, Error, AlgoNegotiateError, DisconnectError, Chann
 pub use self::cipher::CipherAlgo;
 pub use self::kex::KexAlgo;
 pub use self::mac::MacAlgo;
-pub use self::pubkey::{PubkeyAlgo, Pubkey};
+pub use self::pubkey::{PubkeyAlgo, Pubkey, Privkey};
 
 pub use bytes;
+pub use ed25519_dalek;
+pub use rsa;
 
 pub mod cipher;
 mod client;

@@ -25,7 +25,7 @@ pub enum AuthPasswordResult {
 
     /// The authentication was rejected.
     ///
-    /// Of you requested a password change and [`AuthFailure::partial_success`] is true,
+    /// If you requested a password change and [`AuthFailure::partial_success`] is true,
     /// then the password has been changed, but more authentications are needed. Otherwise, if
     /// `partial_success` is false, the password has not been changed.
     Failure(AuthFailure),
@@ -87,7 +87,7 @@ impl AuthMethod for AuthPassword {
         }
     }
 
-    fn send_packet(&mut self) -> Result<Option<Bytes>> {
+    fn send_packet(&mut self, _session_id: &[u8]) -> Result<Option<Bytes>> {
         if !self.request_sent {
             let mut payload = PacketEncode::new();
             payload.put_u8(msg::USERAUTH_REQUEST);

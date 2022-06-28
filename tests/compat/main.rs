@@ -11,6 +11,7 @@ use tokio::net::TcpStream;
 use crate::ssh_server::SshServer;
 
 mod auth_test;
+mod keys;
 mod nursery;
 mod session_test;
 mod smoke_test;

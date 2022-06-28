@@ -21,6 +21,22 @@ class Server(paramiko.ServerInterface):
             return paramiko.AUTH_SUCCESSFUL
         return paramiko.AUTH_FAILED
 
+    def check_auth_publickey(self, username, key):
+        edward_fingerprints = ["ad215301215ca80b7083cd49b5f7be54"]
+        ruth_fingerprints = [
+            "ae86f75870515995b6726faacf8a1ac8",
+            "3b18ce162d26a656a47bdd62095139f5",
+            "0c3f4a5b7c25f26e11e93dd8126c6e81",
+        ]
+
+        if username == "edward" and key.get_name() == "ssh-ed25519":
+            if key.get_fingerprint().hex() in edward_fingerprints:
+                return paramiko.AUTH_SUCCESSFUL
+        if username == "ruth" and key.get_name() == "ssh-rsa":
+            if key.get_fingerprint().hex() in ruth_fingerprints:
+                return paramiko.AUTH_SUCCESSFUL
+        return paramiko.AUTH_FAILED
+
     def check_auth_none(self, username):
         if username == "queen":
             return paramiko.AUTH_SUCCESSFUL
@@ -110,7 +126,8 @@ def run_server():
 
     while True:
         client_sock, client_addr = sock.accept()
-        threading.Thread(target=run_client, args=(server_keys, client_sock, client_addr)).start()
+        thread = threading.Thread(target=run_client, args=(server_keys, client_sock, client_addr))
+        thread.start()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

@@ -248,7 +248,7 @@ mod tests {
 
             while !data.is_empty() {
                 check_before(&mut pipe);
-                let feed_len = if iter == 0 { 1 } else { rng.gen_range(0, data.len()) + 1 };
+                let feed_len = if iter == 0 { 1 } else { rng.gen_range(0..data.len()) + 1 };
                 pipe.feed_buf().extend_from_slice(&data[..feed_len]);
                 data = &data[feed_len..];
             }
