@@ -13,7 +13,12 @@ use crate::{TestSuite, TestCase, keys};
 use crate::nursery::Nursery;
 
 pub fn collect(suite: &mut TestSuite) {
-    suite.add(TestCase::new("session_cat", test_cat));
+    suite.add(TestCase::new("session_cat", 
+        |socket| test_cat(socket, makiko::ClientConfig::default_compatible_less_secure())));
+    suite.add(TestCase::new("session_cat_rekey", 
+        |socket| test_cat(socket, makiko::ClientConfig::default_compatible_less_secure().with(|c| {
+            c.rekey_after_bytes = 10000;
+        }))));
     suite.add(TestCase::new("session_exit_status_0", |socket| test_exit_status(socket, "true", 0)));
     suite.add(TestCase::new("session_exit_status_1", |socket| test_exit_status(socket, "false", 1)));
     suite.add(TestCase::new("session_exit_signal_kill",
@@ -35,8 +40,8 @@ pub fn collect(suite: &mut TestSuite) {
 }
 
 
-async fn test_cat(socket: TcpStream) -> Result<()> {
-    test_session(socket, |session, mut session_rx| async move {
+async fn test_cat(socket: TcpStream, config: makiko::ClientConfig) -> Result<()> {
+    test_session_config(socket, config, |session, mut session_rx| async move {
         let (nursery, mut nursery_stream) = Nursery::new();
 
         // receive stdout data from the session
@@ -285,16 +290,24 @@ async fn test_session<F, Fut>(socket: TcpStream, f: F) -> Result<()>
     where F: FnOnce(makiko::Session, makiko::SessionReceiver) -> Fut + Send + Sync + 'static,
           Fut: Future<Output = Result<()>> + Send + Sync + 'static,
 {
-    test_session_inner(socket, Box::new(move |s, rx| Box::pin(f(s, rx)))).await
+    let config = makiko::ClientConfig::default_compatible_less_secure();
+    test_session_inner(socket, config, Box::new(move |s, rx| Box::pin(f(s, rx)))).await
+}
+
+async fn test_session_config<F, Fut>(socket: TcpStream, config: makiko::ClientConfig, f: F) -> Result<()>
+    where F: FnOnce(makiko::Session, makiko::SessionReceiver) -> Fut + Send + Sync + 'static,
+          Fut: Future<Output = Result<()>> + Send + Sync + 'static,
+{
+    test_session_inner(socket, config, Box::new(move |s, rx| Box::pin(f(s, rx)))).await
 }
 
 async fn test_session_inner(
     socket: TcpStream,
+    config: makiko::ClientConfig,
     f: Box<dyn FnOnce(makiko::Session, makiko::SessionReceiver) 
         -> BoxFuture<'static, Result<()>> + Sync + Send>,
 ) -> Result<()> {
     let (nursery, mut nursery_stream) = Nursery::new();
-    let config = makiko::ClientConfig::default_compatible_less_secure();
     let (client, mut client_rx, client_fut) = makiko::Client::open(socket, config)?;
 
     nursery.spawn(async move {

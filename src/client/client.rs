@@ -6,6 +6,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
+use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
 use crate::{Error, Result, DisconnectError};
@@ -13,7 +14,7 @@ use crate::cipher::{self, CipherAlgo};
 use crate::kex::{self, KexAlgo};
 use crate::mac::{self, MacAlgo};
 use crate::pubkey::{self, PubkeyAlgo, Pubkey, Privkey};
-use super::auth;
+use super::{auth, negotiate};
 use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
 use super::auth_method::pubkey::{AuthPubkey, AuthPubkeyResult, CheckPubkey};
@@ -224,6 +225,21 @@ impl Client {
         Ok((channel, channel_rx, confirmed.confirm_payload))
     }
 
+    /// Trigger key exchange (rekeying).
+    ///
+    /// Starts a key re-exchange (RFC 4253, section 9). Normally, we trigger the re-exchange
+    /// automatically as needed (see [`ClientConfig::rekey_after_bytes`] and
+    /// [`ClientConfig::rekey_after_duration`]), but you can use this method to start the exchange
+    /// earlier.
+    ///
+    /// This method returns when the key exchange completes. If an exchange is already in progress,
+    /// we simply wait for it to complete, we don't trigger another one.
+    pub async fn rekey(&self) -> Result<()> {
+        let (done_tx, done_rx) = oneshot::channel();
+        negotiate::start_kex(&mut self.upgrade()?.lock(), Some(done_tx));
+        done_rx.await.map_err(|_| Error::RekeyAborted)
+    }
+
     /// Disconnects from the server and closes the client.
     ///
     /// We send a disconnection message to the server, so that they can be sure that we intended to
@@ -329,6 +345,29 @@ pub struct ClientConfig {
     /// We will use the first algorithm that is also supported by the server. If there is no
     /// overlap, the connnection will abort.
     pub mac_algos: Vec<&'static MacAlgo>,
+
+    /// Start key re-exchange after this many bytes.
+    ///
+    /// The amount of data that symmetric ciphers can securely encrypt is usually limited, so we
+    /// should periodically repeat key exchange to generate new symmetric keys (RFC 4253, section
+    /// 9). We will trigger a key re-exchange after this number of bytes is transmitted or
+    /// received.
+    ///
+    /// By default, this configuration is set to 2^30 bytes (as recommended by the SSH
+    /// specification). To ensure that security is not compromised by a mis-configuration, we only
+    /// allow you to make this value lower: if you try to use a higher value, we ignore it and use
+    /// the default instead.
+    pub rekey_after_bytes: u64,
+
+    /// Start key re-exchange after this amount of time.
+    ///
+    /// It is important to perform a key re-exchange after a certain number of bytes is encrypted
+    /// (see [`Self::rekey_after_bytes`]), but the SSH specification also recommends to trigger the
+    /// re-exchange after a certain amount of time, "just in case".
+    ///
+    /// By default, we perform the re-exchange after one hour (as recommended by the SSH
+    /// specification).
+    pub rekey_after_duration: Duration,
 }
 
 impl Default for ClientConfig {
@@ -350,6 +389,8 @@ impl Default for ClientConfig {
                 &mac::HMAC_SHA2_256_ETM, &mac::HMAC_SHA2_512_ETM,
                 &mac::HMAC_SHA2_256, &mac::HMAC_SHA2_512,
             ],
+            rekey_after_bytes: 1 << 30,
+            rekey_after_duration: Duration::from_secs(60 * 60),
         }
     }
 }

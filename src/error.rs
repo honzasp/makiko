@@ -46,6 +46,8 @@ pub enum Error {
     ChannelOpen(ChannelOpenError),
     #[error("channel request failed")]
     ChannelReq,
+    #[error("rekeying was aborted")]
+    RekeyAborted,
     #[error("IO error when reading")]
     ReadIo(#[source] std::io::Error),
     #[error("IO error when writing")]

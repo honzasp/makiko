@@ -13,6 +13,7 @@ pub(crate) struct SendPipe {
     tag_len: usize,
     packet_seq: u64,
     padding_rng: ChaCha8Rng,
+    sent_bytes: u64,
 }
 
 impl SendPipe {
@@ -26,6 +27,7 @@ impl SendPipe {
             tag_len: 0,
             packet_seq: 0,
             padding_rng,
+            sent_bytes: 0,
         })
     }
 
@@ -82,6 +84,9 @@ impl SendPipe {
             },
         }
 
+        let packet_len = self.buf.len() - packet_begin;
+        self.sent_bytes += packet_len as u64;
+
         let packet_seq = self.packet_seq as u32;
         self.packet_seq += 1;
         Ok(packet_seq)
@@ -103,6 +108,10 @@ impl SendPipe {
 
     pub fn consume_bytes(&mut self, len: usize) {
         self.buf.advance(len);
+    }
+
+    pub fn sent_bytes(&self) -> u64 {
+        self.sent_bytes
     }
 }
 

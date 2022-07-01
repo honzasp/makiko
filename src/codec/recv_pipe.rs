@@ -10,6 +10,7 @@ pub(crate) struct RecvPipe {
     block_len: usize,
     tag_len: usize,
     packet_seq: u64,
+    recvd_bytes: u64,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -34,6 +35,7 @@ impl RecvPipe {
             block_len: 8,
             tag_len: 0,
             packet_seq: 0,
+            recvd_bytes: 0,
         }
     }
 
@@ -149,10 +151,12 @@ impl RecvPipe {
 
         let payload_len = packet_len - padding_len - 1;
         let payload = packet.freeze().slice(5..(5 + payload_len));
-        let packet_seq = self.packet_seq as u32;
 
+        let packet_seq = self.packet_seq as u32;
         self.packet_seq += 1;
+
         self.state = State::Ready;
+        self.recvd_bytes += total_packet_len as u64;
         Ok(Some(RecvPacket { payload, packet_seq }))
     }
 
@@ -207,6 +211,10 @@ impl RecvPipe {
         self.decrypt = decrypt;
         self.block_len = block_len;
         self.tag_len = tag_len;
+    }
+
+    pub fn recvd_bytes(&self) -> u64 {
+        self.recvd_bytes
     }
 }
 

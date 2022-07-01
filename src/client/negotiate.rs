@@ -1,8 +1,10 @@
 use bytes::Bytes;
 use rand::Rng as _;
+use std::cmp::max;
 use std::future::Future as _;
 use std::pin::Pin;
 use std::task::Context;
+use std::time::Instant;
 use tokio::sync::oneshot;
 use crate::error::{Error, Result, AlgoNegotiateError};
 use crate::cipher::{CipherAlgo, CipherAlgoVariant, PacketEncrypt, PacketDecrypt};
@@ -12,7 +14,7 @@ use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo, MacAlgoVariant};
 use crate::pubkey::{PubkeyAlgo, Pubkey, SignatureVerified};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
-use super::client_state::ClientState;
+use super::client_state::{self, ClientState};
 use super::pump::Pump;
 use super::recv::ResultRecvState;
 
@@ -30,6 +32,7 @@ pub(super) struct NegotiateState {
     pubkey_accepted: Option<PubkeyAccepted>,
     new_keys_sent: bool,
     new_keys_recvd: bool,
+    done_txs: Vec<oneshot::Sender<()>>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -72,6 +75,13 @@ struct Algos {
     mac_stc: &'static MacAlgo,
 }
 
+#[derive(Debug)]
+pub(super) struct LastKex {
+    recvd_bytes: u64,
+    sent_bytes: u64,
+    instant: Instant,
+}
+
 pub(super) fn init_negotiate() -> NegotiateState {
     NegotiateState { state: State::KexInit, .. NegotiateState::default() }
 }
@@ -80,9 +90,27 @@ impl Default for State {
     fn default() -> Self { State::Idle }
 }
 
+pub(super) fn init_last_kex() -> LastKex {
+    LastKex {
+        recvd_bytes: 0,
+        sent_bytes: 0,
+        instant: Instant::now(),
+    }
+}
+
 pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<Pump> {
     match st.negotiate_st.state {
-        State::Idle => {},
+        State::Idle => {
+            let recvd_after_kex = st.codec.recv_pipe.recvd_bytes() - st.last_kex.recvd_bytes;
+            let sent_after_kex = st.codec.send_pipe.sent_bytes() - st.last_kex.sent_bytes;
+            let duration_after_kex = Instant::now() - st.last_kex.instant;
+            if max(recvd_after_kex, sent_after_kex) > st.config.rekey_after_bytes ||
+                duration_after_kex > st.config.rekey_after_duration
+            {
+                start_kex(st, None);
+                return Ok(Pump::Progress)
+            }
+        },
         State::KexInit => {
             if st.negotiate_st.our_kex_init.is_none() {
                 st.negotiate_st.our_kex_init = Some(send_kex_init(st)?);
@@ -163,7 +191,15 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
             }
         },
         State::Done => {
+            for done_tx in st.negotiate_st.done_txs.drain(..) {
+                let _ = done_tx.send(());
+            }
             st.negotiate_st = Box::new(NegotiateState::default());
+            st.last_kex = LastKex {
+                recvd_bytes: st.codec.recv_pipe.recvd_bytes(),
+                sent_bytes: st.codec.send_pipe.sent_bytes(),
+                instant: Instant::now(),
+            };
             return Ok(Pump::Progress)
         },
     }
@@ -446,4 +482,14 @@ fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>>
 
 pub(super) fn is_ready(st: &ClientState) -> bool {
     matches!(st.negotiate_st.state, State::Idle)
+}
+
+pub(super) fn start_kex(st: &mut ClientState, done_tx: Option<oneshot::Sender<()>>) {
+    if matches!(st.negotiate_st.state, State::Idle) {
+        st.negotiate_st.state = State::KexInit;
+        client_state::wakeup_client(st);
+    }
+    if let Some(done_tx) = done_tx {
+        st.negotiate_st.done_txs.push(done_tx);
+    }
 }

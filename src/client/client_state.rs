@@ -11,7 +11,7 @@ use super::auth::{self, AuthState};
 use super::client::ClientConfig;
 use super::client_event::ClientEvent;
 use super::conn::{self, ConnState};
-use super::negotiate::{self, NegotiateState};
+use super::negotiate::{self, NegotiateState, LastKex};
 use super::pump::Pump;
 use super::recv::{self, RecvState};
 
@@ -33,13 +33,15 @@ pub(super) struct ClientState {
     our_disconnect: Option<DisconnectError>,
     disconnect_sent: bool,
     pub session_id: Option<Vec<u8>>,
+    pub last_kex: LastKex,
 }
 
 pub(super) fn new_client(
-    config: ClientConfig,
+    mut config: ClientConfig,
     mut rng: Box<dyn CryptoRngCore + Send>,
     event_tx: mpsc::Sender<ClientEvent>,
 ) -> Result<ClientState> {
+    sanitize_config(&mut config);
     let mut send_pipe = SendPipe::new(&mut *rng)?;
     let our_ident: Bytes = "SSH-2.0-makiko".into();
     send_pipe.feed_ident(&our_ident);
@@ -62,6 +64,7 @@ pub(super) fn new_client(
         our_disconnect: None,
         disconnect_sent: false,
         session_id: None,
+        last_kex: negotiate::init_last_kex(),
     })
 }
 
@@ -241,4 +244,8 @@ fn send_disconnect(st: &mut ClientState, error: DisconnectError) -> Result<()> {
     st.codec.send_pipe.feed_packet(&payload.finish())?;
     log::debug!("sending SSH_MSG_DISCONNECT with reason code {}", error.reason_code);
     Ok(())
+}
+
+fn sanitize_config(config: &mut ClientConfig) {
+    config.rekey_after_bytes = config.rekey_after_bytes.min(2 << 30);
 }
