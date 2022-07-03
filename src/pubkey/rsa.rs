@@ -37,7 +37,8 @@ pub static RSA_SHA2_512: PubkeyAlgo = PubkeyAlgo {
 
 /// RSA public key.
 ///
-/// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`].
+/// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`]. You can
+/// convert it to and from [`rsa::RsaPublicKey`] using `from()`/`into()`.
 #[derive(Debug, Clone)]
 pub struct RsaPubkey {
     pub(crate) pubkey: rsa::RsaPublicKey,
@@ -45,7 +46,8 @@ pub struct RsaPubkey {
 
 /// RSA whole key (private and public parts).
 ///
-/// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`].
+/// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`]. You can
+/// convert it to and from [`rsa::RsaPrivateKey`] using `from()`/`into()`.
 #[derive(Clone)]
 pub struct RsaPrivkey {
     pub(crate) privkey: rsa::RsaPrivateKey,
@@ -134,17 +136,20 @@ impl RsaHash for sha2::Sha512 {
 }
 
 impl From<rsa::RsaPublicKey> for RsaPubkey {
-    fn from(pubkey: rsa::RsaPublicKey) -> Self {
-        Self { pubkey }
-    }
+    fn from(pubkey: rsa::RsaPublicKey) -> Self { Self { pubkey } }
+}
+
+impl From<RsaPubkey> for rsa::RsaPublicKey {
+    fn from(pubkey: RsaPubkey) -> Self { pubkey.pubkey }
 }
 
 impl From<rsa::RsaPrivateKey> for RsaPrivkey {
-    fn from(privkey: rsa::RsaPrivateKey) -> Self {
-        Self { privkey }
-    }
+    fn from(privkey: rsa::RsaPrivateKey) -> Self { Self { privkey } }
 }
 
+impl From<RsaPrivkey> for rsa::RsaPrivateKey {
+    fn from(privkey: RsaPrivkey) -> Self { privkey.privkey }
+}
 
 impl fmt::Display for RsaPubkey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

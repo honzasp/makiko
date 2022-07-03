@@ -35,6 +35,9 @@ pub static ECDSA_SHA2_NISTP384: PubkeyAlgo = PubkeyAlgo {
 ///
 /// - `EcdsaPubkey<p256::NistP256>` is compatible with [`ECDSA_SHA2_NISTP256`].
 /// - `EcdsaPubkey<p384::NistP384>` is compatible with [`ECDSA_SHA2_NISTP384`].
+///
+/// You can convert it to and from [`ecdsa::VerifyingKey<C>`] and [`elliptic_curve::PublicKey<C>`]
+/// using `from()`/`into()`.
 #[derive(Debug, Clone)]
 pub struct EcdsaPubkey<C> 
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
@@ -46,6 +49,9 @@ pub struct EcdsaPubkey<C>
 ///
 /// - `EcdsaPrivkey<p256::NistP256>` is compatible with [`ECDSA_SHA2_NISTP256`].
 /// - `EcdsaPrivkey<p384::NistP384>` is compatible with [`ECDSA_SHA2_NISTP384`].
+///
+/// You can convert it to and from [`ecdsa::SigningKey<C>`] and [`elliptic_curve::SecretKey<C>`]
+/// using `from()`/`into()`.
 #[derive(Clone)]
 pub struct EcdsaPrivkey<C>
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
@@ -247,9 +253,25 @@ impl Curve for p384::NistP384 {
 impl<C> From<ecdsa::VerifyingKey<C>> for EcdsaPubkey<C>
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
 {
-    fn from(verifying: ecdsa::VerifyingKey<C>) -> Self {
-        Self { verifying }
-    }
+    fn from(verifying: ecdsa::VerifyingKey<C>) -> Self { Self { verifying } }
+}
+
+impl<C> From<elliptic_curve::PublicKey<C>> for EcdsaPubkey<C>
+    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+{
+    fn from(public: elliptic_curve::PublicKey<C>) -> Self { Self { verifying: public.into() } }
+}
+
+impl<C> From<EcdsaPubkey<C>> for ecdsa::VerifyingKey<C>
+    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+{
+    fn from(pubkey: EcdsaPubkey<C>) -> Self { pubkey.verifying }
+}
+
+impl<C> From<EcdsaPubkey<C>> for elliptic_curve::PublicKey<C>
+    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+{
+    fn from(pubkey: EcdsaPubkey<C>) -> Self { pubkey.verifying.into() }
 }
 
 impl<C> From<ecdsa::SigningKey<C>> for EcdsaPrivkey<C>
@@ -257,17 +279,7 @@ impl<C> From<ecdsa::SigningKey<C>> for EcdsaPrivkey<C>
           <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
-    fn from(signing: ecdsa::SigningKey<C>) -> Self {
-        Self { signing }
-    }
-}
-
-impl<C> From<elliptic_curve::PublicKey<C>> for EcdsaPubkey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-{
-    fn from(public: elliptic_curve::PublicKey<C>) -> Self {
-        Self { verifying: public.into() }
-    }
+    fn from(signing: ecdsa::SigningKey<C>) -> Self { Self { signing } }
 }
 
 impl<C> From<elliptic_curve::SecretKey<C>> for EcdsaPrivkey<C>
@@ -275,9 +287,15 @@ impl<C> From<elliptic_curve::SecretKey<C>> for EcdsaPrivkey<C>
           <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
-    fn from(secret: elliptic_curve::SecretKey<C>) -> Self {
-        Self { signing: secret.into() }
-    }
+    fn from(secret: elliptic_curve::SecretKey<C>) -> Self { Self { signing: secret.into() } }
+}
+
+impl<C> From<EcdsaPrivkey<C>> for ecdsa::SigningKey<C>
+    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
+{
+    fn from(privkey: EcdsaPrivkey<C>) -> Self { privkey.signing }
 }
 
 impl fmt::Display for EcdsaPubkey<p256::NistP256> {

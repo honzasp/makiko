@@ -16,7 +16,8 @@ pub static SSH_ED25519: PubkeyAlgo = PubkeyAlgo {
 
 /// Ed25519 public key from RFC 8032.
 ///
-/// This key is compatible with [`SSH_ED25519`].
+/// This key is compatible with [`SSH_ED25519`]. You can convert it to and from
+/// [`ed25519_dalek::PublicKey`] using `from()`/`into()`.
 #[derive(Debug, Clone)]
 pub struct Ed25519Pubkey {
     pub(crate) pubkey: ed25519_dalek::PublicKey,
@@ -24,7 +25,8 @@ pub struct Ed25519Pubkey {
 
 /// Ed25519 keypair from RFC 8032.
 ///
-/// This key is compatible with [`SSH_ED25519`].
+/// This key is compatible with [`SSH_ED25519`]. You can convert it to and from
+/// [`ed25519_dalek::Keypair`] using `from()`/`into()`.
 pub struct Ed25519Privkey {
     pub(crate) keypair: ed25519_dalek::Keypair,
 }
@@ -80,15 +82,19 @@ pub(super) fn decode(blob: &mut PacketDecode) -> Result<Ed25519Pubkey> {
 
 
 impl From<ed25519_dalek::PublicKey> for Ed25519Pubkey {
-    fn from(pubkey: ed25519_dalek::PublicKey) -> Self {
-        Self { pubkey }
-    }
+    fn from(pubkey: ed25519_dalek::PublicKey) -> Self { Self { pubkey } }
+}
+
+impl From<Ed25519Pubkey> for ed25519_dalek::PublicKey {
+    fn from(pubkey: Ed25519Pubkey) -> Self { pubkey.pubkey }
 }
 
 impl From<ed25519_dalek::Keypair> for Ed25519Privkey {
-    fn from(keypair: ed25519_dalek::Keypair) -> Self {
-        Self { keypair }
-    }
+    fn from(keypair: ed25519_dalek::Keypair) -> Self { Self { keypair } }
+}
+
+impl From<Ed25519Privkey> for ed25519_dalek::Keypair {
+    fn from(privkey: Ed25519Privkey) -> Self { privkey.keypair }
 }
 
 impl fmt::Display for Ed25519Pubkey {
