@@ -69,7 +69,7 @@ impl AuthMethod for AuthPubkey {
     }
 
     fn send_packet(&mut self, session_id: &[u8]) -> Result<Option<Bytes>> {
-        if !self.request_sent {
+        if !self.request_sent && self.result_tx.is_some() {
             let mut signed = PacketEncode::new();
             signed.put_bytes(session_id);
             signed.put_u8(msg::USERAUTH_REQUEST);

@@ -88,7 +88,7 @@ impl AuthMethod for AuthPassword {
     }
 
     fn send_packet(&mut self, _session_id: &[u8]) -> Result<Option<Bytes>> {
-        if !self.request_sent {
+        if !self.request_sent && self.result_tx.is_some() {
             let mut payload = PacketEncode::new();
             payload.put_u8(msg::USERAUTH_REQUEST);
             payload.put_str(&self.username);

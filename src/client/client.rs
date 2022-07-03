@@ -234,10 +234,15 @@ impl Client {
     ///
     /// This method returns when the key exchange completes. If an exchange is already in progress,
     /// we simply wait for it to complete, we don't trigger another one.
+    ///
+    /// Note that according to the SSH specification, you should not trigger a key re-exchange
+    /// before the authentication is complete. Some servers tolerate it, but others reject the
+    /// exchange (OpenSSH) or disconnect (tinyssh). If the server rejects the request, you will get
+    /// [`Error::RekeyRejected`].
     pub async fn rekey(&self) -> Result<()> {
         let (done_tx, done_rx) = oneshot::channel();
         negotiate::start_kex(&mut self.upgrade()?.lock(), Some(done_tx));
-        done_rx.await.map_err(|_| Error::RekeyAborted)
+        done_rx.await.map_err(|_| Error::RekeyAborted)?
     }
 
     /// Disconnects from the server and closes the client.

@@ -32,7 +32,7 @@ pub enum Error {
     Decode(&'static str),
     #[error("could not negotiate algorithm: {0}")]
     AlgoNegotiate(AlgoNegotiateError),
-    #[error("packet {0} not implemented")]
+    #[error("we do not implement packet {0}")]
     PacketNotImplemented(u8),
     #[error("authentication method was aborted")]
     AuthAborted,
@@ -48,10 +48,14 @@ pub enum Error {
     ChannelReq,
     #[error("rekeying was aborted")]
     RekeyAborted,
+    #[error("rekeying was rejected by the peer")]
+    RekeyRejected,
     #[error("IO error when reading")]
     ReadIo(#[source] std::io::Error),
     #[error("IO error when writing")]
     WriteIo(#[source] std::io::Error),
+    #[error("peer did not recognize our packet with seq {0}")]
+    PeerRejectedPacket(u32),
     #[error("connection unexpectedly closed by peer")]
     PeerClosed,
     #[error("peer disconnected: {0}")]

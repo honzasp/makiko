@@ -54,6 +54,10 @@ pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("auth_pubkey_failure", test_pubkey_failure));
     suite.add(TestCase::new("auth_pubkey_retry", test_pubkey_retry)
         .except_servers(vec!["lsh"]));
+    suite.add(TestCase::new("auth_pubkey_already_authenticated", test_pubkey_already_authenticated)
+        .except_servers(vec!["lsh"]));
+    suite.add(TestCase::new("auth_pubkey_rekey", test_pubkey_rekey)
+        .except_servers(vec!["lsh", "tinyssh"]));
 
     suite.add(TestCase::new("auth_pubkey_check_true_ed25519",
         |socket| test_pubkey_check(socket,
@@ -78,6 +82,8 @@ pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("auth_none_success", test_none_success)
         .except_servers(vec!["tinyssh", "lsh"]));
     suite.add(TestCase::new("auth_none_failure", test_none_failure));
+    suite.add(TestCase::new("auth_none_already_authenticated", test_none_already_authenticated)
+        .except_servers(vec!["tinyssh", "lsh"]));
 }
 
 
@@ -133,8 +139,6 @@ async fn test_password_already_authenticated(socket: TcpStream) -> Result<()> {
 
         let res = client.auth_password("alice".into(), "wrong password".into()).await?;
         ensure!(matches!(res, makiko::AuthPasswordResult::Success), "expected success, got {:?}", res);
-        ensure!(client.is_authenticated()?);
-
         check_authenticated(client).await
     }).await
 }
@@ -178,6 +182,41 @@ async fn test_pubkey_retry(socket: TcpStream) -> Result<()> {
     }).await
 }
 
+async fn test_pubkey_already_authenticated(socket: TcpStream) -> Result<()> {
+    test_auth(socket, |client| async move {
+        let res = client.auth_pubkey(
+            "edward".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
+        ensure!(matches!(res, makiko::AuthPubkeyResult::Success), "expected success, got {:?}", res);
+        ensure!(client.is_authenticated()?);
+
+        let res = client.auth_pubkey(
+            "edward".into(), keys::ruth_rsa_2048(), &makiko::pubkey::SSH_RSA_SHA1).await?;
+        ensure!(matches!(res, makiko::AuthPubkeyResult::Success), "expected success, got {:?}", res);
+        check_authenticated(client).await
+    }).await
+}
+
+async fn test_pubkey_rekey(socket: TcpStream) -> Result<()> {
+    test_auth(socket, |client| async move {
+        let rekey_res = client.rekey().await;
+        ensure!(matches!(rekey_res, Ok(_) | Err(makiko::Error::RekeyRejected)),
+            "rekey failed: {:#}", rekey_res.unwrap_err());
+
+        let res = client.auth_pubkey(
+            "edward".into(), keys::ruth_rsa_2048(), &makiko::pubkey::SSH_RSA_SHA1).await?;
+        ensure!(matches!(res, makiko::AuthPubkeyResult::Failure(_)), "expected failure, got {:?}", res);
+
+        let rekey_res = client.rekey().await;
+        ensure!(matches!(rekey_res, Ok(_) | Err(makiko::Error::RekeyRejected)),
+            "rekey failed: {:#}", rekey_res.unwrap_err());
+
+        let res = client.auth_pubkey(
+            "edward".into(), keys::edward_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
+        ensure!(matches!(res, makiko::AuthPubkeyResult::Success), "expected success, got {:?}", res);
+        check_authenticated(client).await
+    }).await
+}
+
 async fn test_pubkey_check(
     socket: TcpStream,
     username: String,
@@ -209,6 +248,18 @@ async fn test_none_failure(socket: TcpStream) -> Result<()> {
         let res = client.auth_none("alice".into()).await?;
         ensure!(matches!(res, makiko::AuthNoneResult::Failure(_)), "expected failure, got {:?}", res);
         check_not_authenticated(client).await
+    }).await
+}
+
+async fn test_none_already_authenticated(socket: TcpStream) -> Result<()> {
+    test_auth(socket, |client| async move {
+        let res = client.auth_none("queen".into()).await?;
+        ensure!(matches!(res, makiko::AuthNoneResult::Success), "expected success, got {:?}", res);
+        ensure!(client.is_authenticated()?);
+
+        let res = client.auth_none("queen".into()).await?;
+        ensure!(matches!(res, makiko::AuthNoneResult::Success), "expected success, got {:?}", res);
+        check_authenticated(client).await
     }).await
 }
 

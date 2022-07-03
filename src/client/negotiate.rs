@@ -13,6 +13,7 @@ use crate::codes::msg;
 use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo, MacAlgoVariant};
 use crate::pubkey::{PubkeyAlgo, Pubkey, SignatureVerified};
+use super::auth;
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::{self, ClientState};
 use super::pump::Pump;
@@ -32,7 +33,7 @@ pub(super) struct NegotiateState {
     pubkey_accepted: Option<PubkeyAccepted>,
     new_keys_sent: bool,
     new_keys_recvd: bool,
-    done_txs: Vec<oneshot::Sender<()>>,
+    done_txs: Vec<oneshot::Sender<Result<()>>>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -53,6 +54,7 @@ struct OurKexInit {
     cipher_algos_stc: Vec<&'static CipherAlgo>,
     mac_algos_cts: Vec<&'static MacAlgo>,
     mac_algos_stc: Vec<&'static MacAlgo>,
+    packet_seq: u32,
 }
 
 #[derive(Debug)]
@@ -101,14 +103,16 @@ pub(super) fn init_last_kex() -> LastKex {
 pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<Pump> {
     match st.negotiate_st.state {
         State::Idle => {
-            let recvd_after_kex = st.codec.recv_pipe.recvd_bytes() - st.last_kex.recvd_bytes;
-            let sent_after_kex = st.codec.send_pipe.sent_bytes() - st.last_kex.sent_bytes;
-            let duration_after_kex = Instant::now() - st.last_kex.instant;
-            if max(recvd_after_kex, sent_after_kex) > st.config.rekey_after_bytes ||
-                duration_after_kex > st.config.rekey_after_duration
-            {
-                start_kex(st, None);
-                return Ok(Pump::Progress)
+            if auth::is_authenticated(st) {
+                let recvd_after_kex = st.codec.recv_pipe.recvd_bytes() - st.last_kex.recvd_bytes;
+                let sent_after_kex = st.codec.send_pipe.sent_bytes() - st.last_kex.sent_bytes;
+                let duration_after_kex = Instant::now() - st.last_kex.instant;
+                if max(recvd_after_kex, sent_after_kex) > st.config.rekey_after_bytes ||
+                    duration_after_kex > st.config.rekey_after_duration
+                {
+                    start_kex(st, None);
+                    return Ok(Pump::Progress)
+                }
             }
         },
         State::KexInit => {
@@ -192,7 +196,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
         },
         State::Done => {
             for done_tx in st.negotiate_st.done_txs.drain(..) {
-                let _ = done_tx.send(());
+                let _ = done_tx.send(Ok(()));
             }
             st.negotiate_st = Box::new(NegotiateState::default());
             st.last_kex = LastKex {
@@ -255,7 +259,7 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
     payload.put_bool(false);
     payload.put_u32(0);
     let payload = payload.finish();
-    st.codec.send_pipe.feed_packet(&payload)?;
+    let packet_seq = st.codec.send_pipe.feed_packet(&payload)?;
 
     log::debug!("sending SSH_MSG_KEXINIT");
 
@@ -267,6 +271,7 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
         cipher_algos_stc: st.config.cipher_algos.clone(),
         mac_algos_cts: st.config.mac_algos.clone(),
         mac_algos_stc: st.config.mac_algos.clone(),
+        packet_seq,
     })
 }
 
@@ -309,6 +314,28 @@ fn recv_kex_init(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecv
         },
         _ => Err(Error::Protocol("received SSH_MSG_KEXINIT during negotiation")),
     }
+}
+
+pub(super) fn recv_unimplemented(st: &mut ClientState, packet_seq: u32) -> Result<bool> {
+    if let Some(our_kex_init) = st.negotiate_st.our_kex_init.as_ref() {
+        if our_kex_init.packet_seq == packet_seq {
+            if st.negotiate_st.their_kex_init.is_some() {
+                return Err(Error::Protocol("peer rejected our SSH_MSG_KEX_INIT, \
+                    but they sent their SSH_MSG_KEX_INIT"))
+            }
+
+            if st.session_id.is_none() {
+                return Err(Error::Protocol("peer rejected our first SSH_MSG_KEX_INIT"))
+            }
+
+            for done_tx in st.negotiate_st.done_txs.drain(..) {
+                let _ = done_tx.send(Err(Error::RekeyRejected));
+            }
+            st.negotiate_st = Box::new(NegotiateState::default());
+            return Ok(true)
+        }
+    }
+    Ok(false)
 }
 
 fn negotiate_algos(st: &ClientState) -> Result<Algos> {
@@ -484,7 +511,7 @@ pub(super) fn is_ready(st: &ClientState) -> bool {
     matches!(st.negotiate_st.state, State::Idle)
 }
 
-pub(super) fn start_kex(st: &mut ClientState, done_tx: Option<oneshot::Sender<()>>) {
+pub(super) fn start_kex(st: &mut ClientState, done_tx: Option<oneshot::Sender<Result<()>>>) {
     if matches!(st.negotiate_st.state, State::Idle) {
         st.negotiate_st.state = State::KexInit;
         client_state::wakeup_client(st);
