@@ -88,7 +88,7 @@ fn pump_channel(
     match replace(conn_channel_st, ConnChannelState::Closed) {
         ConnChannelState::Open(mut open_st) => {
             if !open_st.open_sent && negotiate::is_ready(st) {
-                send_channel_open(st, &open_st)?;
+                send_channel_open(st, &open_st);
                 open_st.open_sent = true;
                 progress = Pump::Progress;
             }
@@ -144,7 +144,7 @@ fn alloc_our_id(channels: &HashMap<u32, ConnChannelState>) -> u32 {
     panic!("no free channel ids")
 }
 
-fn send_channel_open(st: &mut ClientState, open_st: &OpenChannelState) -> Result<()> {
+fn send_channel_open(st: &mut ClientState, open_st: &OpenChannelState) {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::CHANNEL_OPEN);
     payload.put_str(&open_st.open.channel_type);
@@ -152,10 +152,9 @@ fn send_channel_open(st: &mut ClientState, open_st: &OpenChannelState) -> Result
     payload.put_u32(open_st.open.recv_window_max as u32);
     payload.put_u32(open_st.open.recv_packet_len_max as u32);
     payload.put_raw(&open_st.open.open_payload);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_CHANNEL_OPEN {:?} for our channel {}",
         open_st.open.channel_type, open_st.our_id);
-    Ok(())
 }
 
 fn recv_channel_open_confirmation(

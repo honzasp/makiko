@@ -97,7 +97,7 @@ pub(super) fn pump_channel(
 
     if (channel_st.close_recvd || channel_st.want_close) && !channel_st.close_sent {
         if negotiate::is_ready(st) {
-            send_channel_close(st, channel_st)?;
+            send_channel_close(st, channel_st);
             channel_st.close_sent = true;
             return Ok(Pump::Progress)
         }
@@ -114,7 +114,7 @@ pub(super) fn pump_channel(
 
     if negotiate::is_ready(st) && !channel_st.close_sent {
         if let Some(req) = channel_st.send_reqs.pop_front() {
-            send_channel_request(st, channel_st, &req)?;
+            send_channel_request(st, channel_st, &req);
             if let Some(reply_tx) = req.reply_tx {
                 channel_st.recv_replies.push_back(RecvReply { reply_tx });
             }
@@ -128,14 +128,14 @@ pub(super) fn pump_channel(
                     Ok(reply) => reply,
                     Err(_) => ChannelReply::Failure,
                 };
-                send_channel_reply(st, channel_st, reply)?;
+                send_channel_reply(st, channel_st, reply);
                 channel_st.send_replies.pop_front();
                 return Ok(Pump::Progress)
             }
         }
 
         if let Some(mut data) = channel_st.send_datas.pop_front() {
-            if send_channel_data(st, channel_st, &mut data.data)? {
+            if send_channel_data(st, channel_st, &mut data.data) {
                 let _ = data.sent_tx.send(());
                 return Ok(Pump::Progress)
             } else {
@@ -145,7 +145,7 @@ pub(super) fn pump_channel(
 
         let recv_window_delta = channel_st.recv_window_max - channel_st.recv_window;
         if recv_window_delta >= channel_st.recv_window_max / 8 {
-            send_channel_window_adjust(st, channel_st, recv_window_delta)?;
+            send_channel_window_adjust(st, channel_st, recv_window_delta);
             channel_st.recv_window += recv_window_delta;
             return Ok(Pump::Progress)
         }
@@ -169,17 +169,16 @@ pub(super) fn send_request(
     Ok(())
 }
 
-fn send_channel_request(st: &mut ClientState, channel_st: &ChannelState, req: &ChannelReq) -> Result<()> {
+fn send_channel_request(st: &mut ClientState, channel_st: &ChannelState, req: &ChannelReq) {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::CHANNEL_REQUEST);
     payload.put_u32(channel_st.their_id);
     payload.put_str(&req.request_type);
     payload.put_bool(req.reply_tx.is_some());
     payload.put_raw(&req.payload);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_CHANNEL_REQUEST {:?} for our channel {}",
         req.request_type, channel_st.our_id);
-    Ok(())
 }
 
 pub(super) fn recv_channel_success(channel_st: &mut ChannelState) -> ResultRecvState {
@@ -228,7 +227,7 @@ pub(super) fn recv_channel_request(
     send_event(channel_mutex, ChannelEvent::Request(channel_req))
 }
 
-fn send_channel_reply(st: &mut ClientState, channel_st: &ChannelState, reply: ChannelReply) -> Result<()> {
+fn send_channel_reply(st: &mut ClientState, channel_st: &ChannelState, reply: ChannelReply) {
     let mut payload = PacketEncode::new();
     match reply {
         ChannelReply::Success => {
@@ -241,8 +240,7 @@ fn send_channel_reply(st: &mut ClientState, channel_st: &ChannelState, reply: Ch
         },
     }
     payload.put_u32(channel_st.their_id);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
-    Ok(())
+    st.codec.send_pipe.feed_packet(&payload.finish());
 }
 
 
@@ -261,13 +259,13 @@ pub(super) fn send_data(
     Ok(async { sent_rx.await.map_err(|_| Error::ChannelClosed) })
 }
 
-fn send_channel_data(st: &mut ClientState, channel_st: &mut ChannelState, data: &mut ChannelSendData) -> Result<bool> {
+fn send_channel_data(st: &mut ClientState, channel_st: &mut ChannelState, data: &mut ChannelSendData) -> bool {
     match data {
         ChannelSendData::Data(ref mut data, data_type) => {
-            if data.is_empty() { return Ok(true) }
+            if data.is_empty() { return true }
 
             let send_len = min(data.len(), min(channel_st.send_window, channel_st.send_len_max));
-            if send_len == 0 { return Ok(false) }
+            if send_len == 0 { return false }
             let send_data = data.split_to(send_len);
 
             let mut payload = PacketEncode::new();
@@ -287,18 +285,18 @@ fn send_channel_data(st: &mut ClientState, channel_st: &mut ChannelState, data: 
                 },
             }
             payload.put_bytes(&send_data);
-            st.codec.send_pipe.feed_packet(&payload.finish())?;
+            st.codec.send_pipe.feed_packet(&payload.finish());
 
             channel_st.send_window -= send_len;
-            Ok(false)
+            false
         },
         ChannelSendData::Eof => {
             let mut payload = PacketEncode::new();
             payload.put_u8(msg::CHANNEL_EOF);
             payload.put_u32(channel_st.their_id);
-            st.codec.send_pipe.feed_packet(&payload.finish())?;
+            st.codec.send_pipe.feed_packet(&payload.finish());
             log::debug!("sending SSH_MSG_CHANNEL_EOF for our channel {}", channel_st.our_id);
-            Ok(true)
+            true
         },
     }
 }
@@ -352,15 +350,14 @@ fn send_channel_window_adjust(
     st: &mut ClientState,
     channel_st: &mut ChannelState,
     adjust: usize,
-) -> Result<()> {
+) {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::CHANNEL_WINDOW_ADJUST);
     payload.put_u32(channel_st.their_id);
     payload.put_u32(adjust as u32);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::trace!("sending SSH_MSG_CHANNEL_WINDOW_ADJUST for our channel {} with {} bytes",
         channel_st.our_id, adjust);
-    Ok(())
 }
 
 pub(super) fn recv_channel_window_adjust(
@@ -388,13 +385,12 @@ pub(super) fn close(st: &mut ClientState, channel_st: &mut ChannelState) {
     }
 }
 
-fn send_channel_close(st: &mut ClientState, channel_st: &ChannelState) -> Result<()> {
+fn send_channel_close(st: &mut ClientState, channel_st: &ChannelState) {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::CHANNEL_CLOSE);
     payload.put_u32(channel_st.their_id);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_CHANNEL_CLOSE for our channel {}", channel_st.our_id);
-    Ok(())
 }
 
 pub(super) fn recv_channel_close(channel_st: &mut ChannelState) -> ResultRecvState {

@@ -51,7 +51,7 @@ pub(super) fn start_method(st: &mut ClientState, method: Box<dyn AuthMethod + Se
 
 pub(super) fn pump_auth(st: &mut ClientState, _cx: &mut Context) -> Result<Pump> {
     if !st.auth_st.service_requested && negotiate::is_ready(st) {
-        send_service_request(st)?;
+        send_service_request(st);
         st.auth_st.service_requested = true;
         return Ok(Pump::Progress)
     }
@@ -63,8 +63,8 @@ pub(super) fn pump_auth(st: &mut ClientState, _cx: &mut Context) -> Result<Pump>
 
         if negotiate::is_ready(st) {
             let session_id = st.session_id.as_ref().unwrap();
-            if let Some(payload) = st.auth_st.method.as_mut().unwrap().send_packet(session_id)? {
-                st.codec.send_pipe.feed_packet(&payload)?;
+            if let Some(payload) = st.auth_st.method.as_mut().unwrap().send_packet(session_id) {
+                st.codec.send_pipe.feed_packet(&payload);
                 return Ok(Pump::Progress)
             }
         }
@@ -77,13 +77,12 @@ pub(super) fn pump_auth(st: &mut ClientState, _cx: &mut Context) -> Result<Pump>
     Ok(Pump::Pending)
 }
 
-fn send_service_request(st: &mut ClientState) -> Result<()> {
+fn send_service_request(st: &mut ClientState) {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::SERVICE_REQUEST);
     payload.put_str("ssh-userauth");
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_SERVICE_REQUEST for 'ssh-userauth'");
-    Ok(())
 }
 
 pub(super) fn recv_service_accept(st: &mut ClientState) -> ResultRecvState {

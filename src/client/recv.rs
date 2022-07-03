@@ -121,7 +121,7 @@ fn not_implemented(st: &mut ClientState, msg_id: u8, packet: &RecvPacket) -> Res
     let mut reply = PacketEncode::new();
     reply.put_u8(msg::UNIMPLEMENTED);
     reply.put_u32(packet.packet_seq);
-    st.codec.send_pipe.feed_packet(&reply.finish())?;
+    st.codec.send_pipe.feed_packet(&reply.finish());
     Ok(None)
 }
 

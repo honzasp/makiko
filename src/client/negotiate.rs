@@ -119,7 +119,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
         },
         State::KexInit => {
             if st.negotiate_st.our_kex_init.is_none() {
-                st.negotiate_st.our_kex_init = Some(send_kex_init(st)?);
+                st.negotiate_st.our_kex_init = Some(send_kex_init(st));
             }
 
             if st.negotiate_st.our_kex_init.is_some() && st.negotiate_st.their_kex_init.is_some() {
@@ -132,7 +132,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
         },
         State::Kex => {
             if let Some(payload) = st.negotiate_st.kex.as_mut().unwrap().send_packet()? {
-                st.codec.send_pipe.feed_packet(&payload)?;
+                st.codec.send_pipe.feed_packet(&payload);
                 return Ok(Pump::Progress)
             }
 
@@ -186,7 +186,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
             assert!(st.negotiate_st.pubkey_accepted.is_some());
 
             if !st.negotiate_st.new_keys_sent {
-                send_new_keys(st)?;
+                send_new_keys(st);
                 st.negotiate_st.new_keys_sent = true;
                 maybe_send_ext_info(st)?;
                 return Ok(Pump::Progress)
@@ -239,7 +239,7 @@ pub(super) fn recv_kex_packet(
     }
 }
 
-fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
+fn send_kex_init(st: &mut ClientState) -> OurKexInit {
     let cookie: [u8; 16] = st.rng.gen();
 
     fn get_algo_names<A: NamedAlgo>(algos: &[&A]) -> Vec<&'static str> {
@@ -268,11 +268,11 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
     payload.put_bool(false);
     payload.put_u32(0);
     let payload = payload.finish();
-    let packet_seq = st.codec.send_pipe.feed_packet(&payload)?;
+    let packet_seq = st.codec.send_pipe.feed_packet(&payload);
 
     log::debug!("sending SSH_MSG_KEXINIT");
 
-    Ok(OurKexInit {
+    OurKexInit {
         payload,
         kex_algos: st.config.kex_algos.clone(),
         server_pubkey_algos: st.config.server_pubkey_algos.clone(),
@@ -281,7 +281,7 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
         mac_algos_cts: st.config.mac_algos.clone(),
         mac_algos_stc: st.config.mac_algos.clone(),
         packet_seq,
-    })
+    }
 }
 
 fn recv_kex_init(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
@@ -421,15 +421,15 @@ fn recv_new_keys(st: &mut ClientState, _payload: &mut PacketDecode) -> ResultRec
     let algos = st.negotiate_st.algos.as_ref().unwrap();
 
     let cipher_algo = algos.cipher_stc;
-    let cipher_key = derive_key(st, b'D', cipher_algo.key_len)?;
-    let cipher_iv = derive_key(st, b'B', cipher_algo.iv_len)?;
+    let cipher_key = derive_key(st, b'D', cipher_algo.key_len);
+    let cipher_iv = derive_key(st, b'B', cipher_algo.iv_len);
 
     let (packet_decrypt, tag_len) = match cipher_algo.variant {
         CipherAlgoVariant::Standard(ref standard_algo) => {
             let decrypt = (standard_algo.make_decrypt)(&cipher_key, &cipher_iv);
 
             let mac_algo = algos.mac_stc;
-            let mac_key = derive_key(st, b'F', mac_algo.key_len)?;
+            let mac_key = derive_key(st, b'F', mac_algo.key_len);
             let mac = (mac_algo.make_mac)(&mac_key);
 
             let packet_decrypt = match mac_algo.variant {
@@ -451,19 +451,19 @@ fn recv_new_keys(st: &mut ClientState, _payload: &mut PacketDecode) -> ResultRec
     Ok(None)
 }
 
-fn send_new_keys(st: &mut ClientState) -> Result<()> {
+fn send_new_keys(st: &mut ClientState) {
     let algos = st.negotiate_st.algos.as_ref().unwrap();
 
     let cipher_algo = algos.cipher_cts;
-    let cipher_key = derive_key(st, b'C', cipher_algo.key_len)?;
-    let cipher_iv = derive_key(st, b'A', cipher_algo.iv_len)?;
+    let cipher_key = derive_key(st, b'C', cipher_algo.key_len);
+    let cipher_iv = derive_key(st, b'A', cipher_algo.iv_len);
 
     let (packet_encrypt, tag_len) = match cipher_algo.variant {
         CipherAlgoVariant::Standard(ref standard_algo) => {
             let encrypt = (standard_algo.make_encrypt)(&cipher_key, &cipher_iv);
 
             let mac_algo = algos.mac_cts;
-            let mac_key = derive_key(st, b'E', mac_algo.key_len)?;
+            let mac_key = derive_key(st, b'E', mac_algo.key_len);
             let mac = (mac_algo.make_mac)(&mac_key);
 
             let packet_encrypt = match mac_algo.variant {
@@ -480,15 +480,13 @@ fn send_new_keys(st: &mut ClientState) -> Result<()> {
 
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::NEWKEYS);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
 
     st.codec.send_pipe.set_encrypt(packet_encrypt, cipher_algo.block_len, tag_len);
     log::debug!("sending SSH_MSG_NEWKEYS and applied new keys");
-
-    Ok(())
 }
 
-fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>> {
+fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Vec<u8> {
     // RFC 4253, section 7.2
 
     let kex = st.negotiate_st.kex.as_deref().unwrap();
@@ -513,14 +511,14 @@ fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>>
     }
 
     key.truncate(key_len);
-    Ok(key)
+    key
 }
 
 fn maybe_send_ext_info(st: &mut ClientState) -> Result<()> {
     let ext_info_s = st.negotiate_st.their_kex_init.as_ref().unwrap().kex_algos.iter()
         .any(|name| name == "ext-info-s");
     if !st.last_kex.done && ext_info_s {
-        ext::send_ext_info(st)?;
+        ext::send_ext_info(st);
     }
     Ok(())
 }

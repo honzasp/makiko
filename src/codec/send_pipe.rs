@@ -38,7 +38,7 @@ impl SendPipe {
         self.buf.put_slice(&b"\r\n"[..]);
     }
 
-    pub fn feed_packet(&mut self, payload: &[u8]) -> Result<u32> {
+    pub fn feed_packet(&mut self, payload: &[u8]) -> u32 {
         log::trace!("feed packet {}, len {}, seq {}",
             payload.get(0).cloned().unwrap_or(0), payload.len(), self.packet_seq);
 
@@ -89,7 +89,7 @@ impl SendPipe {
 
         let packet_seq = self.packet_seq as u32;
         self.packet_seq += 1;
-        Ok(packet_seq)
+        packet_seq
     }
 
     pub fn set_encrypt(&mut self, encrypt: PacketEncrypt, block_len: usize, tag_len: usize) {

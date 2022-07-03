@@ -78,7 +78,7 @@ pub(super) fn poll_client(
 ) -> Poll<Result<()>> {
     if st.our_disconnect.is_some() && !st.disconnect_sent {
         let error = st.our_disconnect.take().unwrap();
-        send_disconnect(st, error)?;
+        send_disconnect(st, error);
         st.disconnect_sent = true;
     }
 
@@ -238,15 +238,14 @@ pub(super) fn disconnect(st: &mut ClientState, error: DisconnectError) -> Result
     }
 }
 
-fn send_disconnect(st: &mut ClientState, error: DisconnectError) -> Result<()> {
+fn send_disconnect(st: &mut ClientState, error: DisconnectError) {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::DISCONNECT);
     payload.put_u32(error.reason_code);
     payload.put_str(&error.description);
     payload.put_str(&error.description_lang);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_DISCONNECT with reason code {}", error.reason_code);
-    Ok(())
 }
 
 fn sanitize_config(config: &mut ClientConfig) {

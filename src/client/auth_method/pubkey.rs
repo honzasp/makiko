@@ -68,7 +68,7 @@ impl AuthMethod for AuthPubkey {
         Err(Error::PacketNotImplemented(msg_id))
     }
 
-    fn send_packet(&mut self, session_id: &[u8]) -> Result<Option<Bytes>> {
+    fn send_packet(&mut self, session_id: &[u8]) -> Option<Bytes> {
         if !self.request_sent && self.result_tx.is_some() {
             let mut signed = PacketEncode::new();
             signed.put_bytes(session_id);
@@ -91,7 +91,7 @@ impl AuthMethod for AuthPubkey {
                     if let Some(result_tx) = self.result_tx.take() {
                         let _ = result_tx.send(Err(err));
                     }
-                    return Ok(None)
+                    return None
                 },
             };
 
@@ -108,9 +108,9 @@ impl AuthMethod for AuthPubkey {
             log::debug!("sending SSH_MSG_USERAUTH_REQUEST for method 'publickey'");
             self.request_sent = true;
 
-            return Ok(Some(payload.finish()))
+            return Some(payload.finish())
         }
-        Ok(None)
+        None
     }
 
     fn poll(&mut self) -> Poll<Result<()>> {
@@ -178,7 +178,7 @@ impl AuthMethod for CheckPubkey {
         }
     }
 
-    fn send_packet(&mut self, _session_id: &[u8]) -> Result<Option<Bytes>> {
+    fn send_packet(&mut self, _session_id: &[u8]) -> Option<Bytes> {
         if !self.request_sent {
             let mut payload = PacketEncode::new();
             payload.put_u8(msg::USERAUTH_REQUEST);
@@ -192,9 +192,9 @@ impl AuthMethod for CheckPubkey {
             log::debug!("sending SSH_MSG_USERAUTH_REQUEST for querying method 'publickey'");
             self.request_sent = true;
 
-            return Ok(Some(payload.finish()))
+            return Some(payload.finish())
         }
-        Ok(None)
+        None
     }
 
     fn poll(&mut self) -> Poll<Result<()>> {

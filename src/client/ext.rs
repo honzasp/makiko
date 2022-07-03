@@ -1,6 +1,5 @@
 use crate::codec::{PacketEncode, PacketDecode};
 use crate::codes::msg;
-use crate::error::Result;
 use super::client_state::ClientState;
 use super::recv::ResultRecvState;
 
@@ -9,14 +8,13 @@ pub(super) struct TheirExtInfo {
     pub auth_pubkey_algo_names: Option<Vec<String>>,
 }
 
-pub(super) fn send_ext_info(st: &mut ClientState) -> Result<()> {
+pub(super) fn send_ext_info(st: &mut ClientState) {
     // no extensions at the moment!
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::EXT_INFO);
     payload.put_u32(0);
-    st.codec.send_pipe.feed_packet(&payload.finish())?;
+    st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_EXT_INFO");
-    Ok(())
 }
 
 pub(super) fn recv_ext_info(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {

@@ -50,7 +50,7 @@ impl AuthMethod for AuthNone {
         Err(Error::PacketNotImplemented(msg_id))
     }
 
-    fn send_packet(&mut self, _session_id: &[u8]) -> Result<Option<Bytes>> {
+    fn send_packet(&mut self, _session_id: &[u8]) -> Option<Bytes> {
         if !self.request_sent && self.result_tx.is_some() {
             let mut payload = PacketEncode::new();
             payload.put_u8(msg::USERAUTH_REQUEST);
@@ -59,9 +59,9 @@ impl AuthMethod for AuthNone {
             payload.put_str("none");
             log::debug!("sending SSH_MSG_USERAUTH_REQUEST for method 'none'");
             self.request_sent = true;
-            return Ok(Some(payload.finish()))
+            return Some(payload.finish())
         }
-        Ok(None)
+        None
     }
 
     fn poll(&mut self) -> Poll<Result<()>> {
