@@ -156,6 +156,23 @@ impl Client {
         result_rx.await.map_err(|_| Error::AuthAborted)
     }
 
+    /// Get the public key algorithms that the server supports for authentication.
+    ///
+    /// Returns a list of public key algorithm names that the server claims to support for
+    /// "publickey" authentication (see [`Self::auth_pubkey()`]). For example, you can use this
+    /// information to select which algorithm to use in case of a
+    /// [`RsaPrivkey`][crate::pubkey::RsaPrivkey], which supports multiple algorithms.
+    /// 
+    /// The server sends this information using the SSH extension packet (RFC 8308, section
+    /// 3.1). If we haven't received this packet, this method returns `None`. Unfortunately, before
+    /// you start authenticating, `None` might mean that the server sent the packet, but we
+    /// simply haven't received it yet. We suggest that you call [`Self::auth_none()`] and then
+    /// call this method: in this case you can be sure that if the server supports this extension,
+    /// this method returns `Some`.
+    pub fn auth_pubkey_algo_names(&self) -> Result<Option<Vec<String>>> {
+        Ok(self.upgrade()?.lock().their_ext_info.auth_pubkey_algo_names.clone())
+    }
+
     /// Returns true if the server has authenticated you.
     ///
     /// You must use one of the `auth_*` methods to authenticate.

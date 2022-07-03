@@ -3,7 +3,7 @@ use std::task::{Context, Poll};
 use crate::codec::{PacketDecode, PacketEncode, RecvPacket};
 use crate::codes::msg;
 use crate::error::{Error, Result, DisconnectError};
-use super::{auth, conn, negotiate};
+use super::{auth, conn, ext, negotiate};
 use super::client_event::{ClientEvent, DebugMsg};
 use super::client_state::ClientState;
 use super::pump::Pump;
@@ -46,6 +46,7 @@ fn recv_packet_dispatch(st: &mut ClientState, payload: &mut PacketDecode) -> Res
         msg::DEBUG => recv_debug(st, payload),
         msg::UNIMPLEMENTED => recv_unimplemented(st, payload),
         msg::SERVICE_ACCEPT => recv_service_accept(st, payload),
+        msg::EXT_INFO => ext::recv_ext_info(st, payload),
         msg::IGNORE => Ok(None),
         20..=29 => negotiate::recv_negotiate_packet(st, msg_id, payload),
         30..=49 => negotiate::recv_kex_packet(st, msg_id, payload),

@@ -13,7 +13,7 @@ use crate::codes::msg;
 use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo, MacAlgoVariant};
 use crate::pubkey::{PubkeyAlgo, Pubkey, SignatureVerified};
-use super::auth;
+use super::{auth, ext};
 use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
 use super::client_state::{self, ClientState};
 use super::pump::Pump;
@@ -79,6 +79,7 @@ struct Algos {
 
 #[derive(Debug)]
 pub(super) struct LastKex {
+    done: bool,
     recvd_bytes: u64,
     sent_bytes: u64,
     instant: Instant,
@@ -94,6 +95,7 @@ impl Default for State {
 
 pub(super) fn init_last_kex() -> LastKex {
     LastKex {
+        done: false,
         recvd_bytes: 0,
         sent_bytes: 0,
         instant: Instant::now(),
@@ -186,6 +188,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
             if !st.negotiate_st.new_keys_sent {
                 send_new_keys(st)?;
                 st.negotiate_st.new_keys_sent = true;
+                maybe_send_ext_info(st)?;
                 return Ok(Pump::Progress)
             }
 
@@ -200,6 +203,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
             }
             st.negotiate_st = Box::new(NegotiateState::default());
             st.last_kex = LastKex {
+                done: true,
                 recvd_bytes: st.codec.recv_pipe.recvd_bytes(),
                 sent_bytes: st.codec.send_pipe.sent_bytes(),
                 instant: Instant::now(),
@@ -246,7 +250,12 @@ fn send_kex_init(st: &mut ClientState) -> Result<OurKexInit> {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::KEXINIT);
     payload.put_raw(&cookie);
-    payload.put_name_list(&get_algo_names(&st.config.kex_algos));
+    payload.put_name_list(&{
+        let mut names = get_algo_names(&st.config.kex_algos);
+        // RFC 8308
+        names.push("ext-info-c");
+        names
+    });
     payload.put_name_list(&get_algo_names(&st.config.server_pubkey_algos));
     payload.put_name_list(&get_algo_names(&st.config.cipher_algos));
     payload.put_name_list(&get_algo_names(&st.config.cipher_algos));
@@ -324,7 +333,7 @@ pub(super) fn recv_unimplemented(st: &mut ClientState, packet_seq: u32) -> Resul
                     but they sent their SSH_MSG_KEX_INIT"))
             }
 
-            if st.session_id.is_none() {
+            if !st.last_kex.done {
                 return Err(Error::Protocol("peer rejected our first SSH_MSG_KEX_INIT"))
             }
 
@@ -474,7 +483,7 @@ fn send_new_keys(st: &mut ClientState) -> Result<()> {
     st.codec.send_pipe.feed_packet(&payload.finish())?;
 
     st.codec.send_pipe.set_encrypt(packet_encrypt, cipher_algo.block_len, tag_len);
-    log::debug!("sent SSH_MSG_NEWKEYS and applied new keys");
+    log::debug!("sending SSH_MSG_NEWKEYS and applied new keys");
 
     Ok(())
 }
@@ -506,6 +515,16 @@ fn derive_key(st: &ClientState, key_type: u8, key_len: usize) -> Result<Vec<u8>>
     key.truncate(key_len);
     Ok(key)
 }
+
+fn maybe_send_ext_info(st: &mut ClientState) -> Result<()> {
+    let ext_info_s = st.negotiate_st.their_kex_init.as_ref().unwrap().kex_algos.iter()
+        .any(|name| name == "ext-info-s");
+    if !st.last_kex.done && ext_info_s {
+        ext::send_ext_info(st)?;
+    }
+    Ok(())
+}
+
 
 pub(super) fn is_ready(st: &ClientState) -> bool {
     matches!(st.negotiate_st.state, State::Idle)

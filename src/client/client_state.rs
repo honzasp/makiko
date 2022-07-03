@@ -11,6 +11,7 @@ use super::auth::{self, AuthState};
 use super::client::ClientConfig;
 use super::client_event::ClientEvent;
 use super::conn::{self, ConnState};
+use super::ext::TheirExtInfo;
 use super::negotiate::{self, NegotiateState, LastKex};
 use super::pump::Pump;
 use super::recv::{self, RecvState};
@@ -34,6 +35,7 @@ pub(super) struct ClientState {
     disconnect_sent: bool,
     pub session_id: Option<Vec<u8>>,
     pub last_kex: LastKex,
+    pub their_ext_info: TheirExtInfo,
 }
 
 pub(super) fn new_client(
@@ -65,6 +67,7 @@ pub(super) fn new_client(
         disconnect_sent: false,
         session_id: None,
         last_kex: negotiate::init_last_kex(),
+        their_ext_info: TheirExtInfo::default(),
     })
 }
 

@@ -58,6 +58,8 @@ pub fn collect(suite: &mut TestSuite) {
         .except_servers(vec!["lsh"]));
     suite.add(TestCase::new("auth_pubkey_rekey", test_pubkey_rekey)
         .except_servers(vec!["lsh", "tinyssh"]));
+    suite.add(TestCase::new("auth_pubkey_algo_names", test_pubkey_algo_names)
+        .except_servers(vec!["lsh", "tinyssh"]));
 
     suite.add(TestCase::new("auth_pubkey_check_true_ed25519",
         |socket| test_pubkey_check(socket,
@@ -216,6 +218,19 @@ async fn test_pubkey_rekey(socket: TcpStream) -> Result<()> {
         check_authenticated(client).await
     }).await
 }
+
+async fn test_pubkey_algo_names(socket: TcpStream) -> Result<()> {
+    test_auth(socket, |client| async move {
+        let _ = client.auth_none("edward".into()).await?;
+        match client.auth_pubkey_algo_names()? {
+            Some(names) => ensure!(names.contains(&"ssh-ed25519".into()), "received {:?}", names),
+            None => bail!("received None"),
+        }
+        Ok(())
+    }).await
+}
+
+
 
 async fn test_pubkey_check(
     socket: TcpStream,

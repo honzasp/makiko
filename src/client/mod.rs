@@ -19,6 +19,7 @@ mod client;
 mod client_event;
 mod client_state;
 mod conn;
+mod ext;
 mod negotiate;
 mod recv;
 mod session;
