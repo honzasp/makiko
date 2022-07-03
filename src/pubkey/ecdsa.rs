@@ -1,8 +1,10 @@
 use bytes::Bytes;
-use digest::crypto_common;
 use ecdsa::elliptic_curve;
 use ecdsa::elliptic_curve::generic_array;
+use ecdsa::elliptic_curve::generic_array::typenum;
 use ecdsa::signature;
+use ecdsa::signature::digest;
+use ecdsa::signature::digest::crypto_common;
 use std::fmt;
 use num_bigint_dig::BigUint;
 use crate::codec::{PacketDecode, PacketEncode};
@@ -83,7 +85,7 @@ fn verify<C: Curve>(pubkey: &Pubkey, message: &[u8], signature: Bytes) -> Result
     }
 
     let to_field_bytes = |scalar: BigUint| -> Result<elliptic_curve::FieldBytes<C>> {
-        use typenum::Unsigned;
+        use typenum::Unsigned as _;
         let scalar = scalar.to_bytes_be();
         if scalar.len() <= elliptic_curve::FieldSize::<C>::to_usize() {
             let mut scalar_bytes = elliptic_curve::FieldBytes::<C>::default();

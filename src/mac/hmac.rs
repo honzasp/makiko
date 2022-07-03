@@ -1,5 +1,5 @@
-use cipher::{KeySizeUser, KeyInit};
-use hmac::{digest, Hmac};
+use hmac::digest;
+use hmac::digest::crypto_common;
 use std::marker::PhantomData;
 use crate::error::{Result, Error};
 use super::{MacAlgo, MacAlgoVariant, Mac, MacVerified};
@@ -10,7 +10,7 @@ pub static HMAC_SHA2_256: MacAlgo = MacAlgo {
     tag_len: 32,
     key_len: 32,
     variant: MacAlgoVariant::EncryptAndMac,
-    make_mac: |key| Box::new(HmacMac::<Hmac<sha2::Sha256>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<hmac::Hmac<sha2::Sha256>>::new(key)),
 };
 
 /// "hmac-sha2-512" MAC from RFC 6668.
@@ -19,7 +19,7 @@ pub static HMAC_SHA2_512: MacAlgo = MacAlgo {
     tag_len: 64,
     key_len: 64,
     variant: MacAlgoVariant::EncryptAndMac,
-    make_mac: |key| Box::new(HmacMac::<Hmac<sha2::Sha512>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<hmac::Hmac<sha2::Sha512>>::new(key)),
 };
 
 /// "hmac-sha1" MAC from RFC 4253.
@@ -28,7 +28,7 @@ pub static HMAC_SHA1: MacAlgo = MacAlgo {
     tag_len: 20,
     key_len: 20,
     variant: MacAlgoVariant::EncryptAndMac,
-    make_mac: |key| Box::new(HmacMac::<Hmac<sha1::Sha1>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<hmac::Hmac<sha1::Sha1>>::new(key)),
 };
 
 /// "hmac-sha2-256-etm@openssh.com" MAC from RFC 6668 in Encrypt-then-MAC variant.
@@ -37,7 +37,7 @@ pub static HMAC_SHA2_256_ETM: MacAlgo = MacAlgo {
     tag_len: 32,
     key_len: 32,
     variant: MacAlgoVariant::EncryptThenMac,
-    make_mac: |key| Box::new(HmacMac::<Hmac<sha2::Sha256>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<hmac::Hmac<sha2::Sha256>>::new(key)),
 };
 
 /// "hmac-sha2-512-etm@openssh.com" MAC from RFC 6668 in Encrypt-then-MAC variant.
@@ -46,7 +46,7 @@ pub static HMAC_SHA2_512_ETM: MacAlgo = MacAlgo {
     tag_len: 64,
     key_len: 64,
     variant: MacAlgoVariant::EncryptThenMac,
-    make_mac: |key| Box::new(HmacMac::<Hmac<sha2::Sha512>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<hmac::Hmac<sha2::Sha512>>::new(key)),
 };
 
 /// "hmac-sha1-etm@openssh.com" MAC from RFC 4253 in Encrypt-then-MAC variant.
@@ -55,7 +55,7 @@ pub static HMAC_SHA1_ETM: MacAlgo = MacAlgo {
     tag_len: 20,
     key_len: 20,
     variant: MacAlgoVariant::EncryptThenMac,
-    make_mac: |key| Box::new(HmacMac::<Hmac<sha1::Sha1>>::new(key)),
+    make_mac: |key| Box::new(HmacMac::<hmac::Hmac<sha1::Sha1>>::new(key)),
 };
 
 
@@ -64,15 +64,15 @@ struct HmacMac<M> {
     _phantom: PhantomData<M>,
 }
 
-impl<M: digest::Mac + KeySizeUser> HmacMac<M> {
+impl<M: hmac::Mac> HmacMac<M> {
     fn new(key: &[u8]) -> HmacMac<M> {
         HmacMac { key: key.into(), _phantom: PhantomData }
     }
 }
 
-impl<M: digest::Mac + KeySizeUser + KeyInit> Mac for HmacMac<M> {
+impl<M: hmac::Mac + crypto_common::KeyInit> Mac for HmacMac<M> {
     fn sign(&mut self, packet_seq: u32, data: &[u8], tag: &mut [u8]) {
-        let mut digest = <M as digest::Mac>::new_from_slice(&self.key).unwrap();
+        let mut digest = <M as hmac::Mac>::new_from_slice(&self.key).unwrap();
         digest.update(&packet_seq.to_be_bytes());
         digest.update(data);
         tag.copy_from_slice(&digest.finalize().into_bytes());

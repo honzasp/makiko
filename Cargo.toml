@@ -25,10 +25,8 @@ aes-gcm = "^0.10.0-pre"
 bytes = "1.1"
 cbc = "0.1"
 chacha20 = "0.9"
-cipher = "0.4"
 ctr = "0.9"
 derivative = "2.2"
-digest = "0.10"
 ecdsa = {version = "0.14", features = ["sign", "verify"]}
 ed25519-dalek = "1.0"
 futures-core = "0.3"
@@ -48,11 +46,9 @@ rand_chacha = "0.3"
 rsa = {version = "0.6", default-features = false}
 sha-1 = {version = "0.10", default-features = false}
 sha2 = "0.10"
-subtle = "2.4"
 thiserror = "1.0"
 tokio = {version = "1", features = ["sync"]}
 tokio-util = {version = "0.7", features = []}
-typenum = "1.15"
 x25519-dalek = "1.1" # due to issue #89
 
 [dev-dependencies]

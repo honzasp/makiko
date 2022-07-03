@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use guard::guard;
 use rsa::{PublicKey as _, PublicKeyParts as _};
+use sha1::digest;
 use std::fmt;
 use crate::codec::{PacketDecode, PacketEncode};
 use crate::error::{Result, Error};

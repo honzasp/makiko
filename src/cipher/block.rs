@@ -1,5 +1,5 @@
-use cipher::{BlockEncryptMut, BlockDecryptMut, BlockCipher, KeyInit, InnerIvInit as _};
-use cipher::inout::InOutBuf;
+use aes::cipher::{self, BlockEncryptMut, BlockDecryptMut, BlockCipher, KeyInit, InnerIvInit as _};
+use aes::cipher::inout::InOutBuf;
 use super::{CipherAlgo, CipherAlgoVariant, StandardCipherAlgo, Encrypt, Decrypt};
 
 /// "aes128-cbc" cipher from RFC 4253.

@@ -1,8 +1,7 @@
-use cipher::{KeyIvInit as _, StreamCipherCore as _};
-use cipher::generic_array::GenericArray;
-use cipher::inout::InOutBuf;
+use chacha20::cipher::{KeyIvInit as _, StreamCipherCore as _};
+use chacha20::cipher::generic_array::GenericArray;
+use chacha20::cipher::inout::InOutBuf;
 use poly1305::universal_hash::{NewUniversalHash as _};
-use subtle::ConstantTimeEq as _;
 use crate::{Result, Error};
 use crate::mac::MacVerified;
 use super::{CipherAlgo, CipherAlgoVariant, AeadCipherAlgo, AeadEncrypt, AeadDecrypt};
@@ -72,7 +71,8 @@ impl AeadDecrypt for ChachaPolyCipher {
         let poly = poly1305::Poly1305::new(poly_key);
         let poly_tag = poly.compute_unpadded(packet);
         let verified =
-            if poly_tag.ct_eq(&poly1305::Tag::new(*GenericArray::from_slice(tag))).into() {
+            // note that this is a constant-time comparison
+            if poly_tag == poly1305::Tag::new(*GenericArray::from_slice(tag)) {
                 MacVerified::assertion()
             } else {
                 return Err(Error::Mac)

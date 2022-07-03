@@ -1,8 +1,8 @@
-use aes_gcm::aead::{AeadInPlace as _, NewAead as _};
-use cipher::{BlockCipher, BlockEncrypt, KeyInit};
-use cipher::generic_array::GenericArray;
-use cipher::generic_array::sequence::Concat as _;
-use cipher::typenum::{U12, U16};
+use aes_gcm::aead::{AeadInPlace as _};
+use aes_gcm::aes::cipher::{BlockCipher, BlockEncrypt, KeyInit};
+use aes_gcm::aes::cipher::generic_array::GenericArray;
+use aes_gcm::aes::cipher::generic_array::sequence::Concat as _;
+use aes_gcm::aes::cipher::typenum::{U12, U16};
 use crate::{Result, Error};
 use crate::mac::MacVerified;
 use super::{CipherAlgo, CipherAlgoVariant, AeadCipherAlgo, AeadEncrypt, AeadDecrypt};

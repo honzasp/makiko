@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use derivative::Derivative;
-use digest::Digest as _;
 use hex_literal::hex;
 use num_bigint_dig::{BigUint, RandBigInt as _};
 use std::task::Poll;
@@ -157,14 +156,17 @@ fn exchange(kex: &mut DiffieHellmanKex, input: KexInput) -> Result<KexOutput> {
 }
 
 fn compute_hash_sha1(data: &[u8]) -> Vec<u8> {
+    use sha1::digest::Digest as _;
     sha1::Sha1::digest(data).to_vec()
 }
 
 fn compute_hash_sha256(data: &[u8]) -> Vec<u8> {
+    use sha2::digest::Digest as _;
     sha2::Sha256::digest(data).to_vec()
 }
 
 fn compute_hash_sha512(data: &[u8]) -> Vec<u8> {
+    use sha2::digest::Digest as _;
     sha2::Sha512::digest(data).to_vec()
 }
 

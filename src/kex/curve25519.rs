@@ -1,7 +1,6 @@
 use bytes::Bytes;
-use digest::Digest as _;
 use num_bigint_dig::BigUint;
-use sha2::Sha256;
+use sha2::digest::Digest as _;
 use std::task::Poll;
 use crate::codec::{PacketDecode, PacketEncode};
 use crate::codes::msg;
@@ -134,5 +133,5 @@ fn exchange(kex: &mut Curve25519Kex, input: KexInput) -> Result<KexOutput> {
 }
 
 fn compute_hash(data: &[u8]) -> Vec<u8> {
-    Sha256::digest(data).to_vec()
+    sha2::Sha256::digest(data).to_vec()
 }

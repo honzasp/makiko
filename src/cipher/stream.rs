@@ -1,9 +1,9 @@
-use cipher::{
-    InnerIvInit as _, KeyInit, BlockSizeUser, BlockCipher,
+use aes::cipher::{
+    self, InnerIvInit as _, KeyInit, BlockSizeUser, BlockCipher,
     BlockEncrypt, StreamCipher as _, StreamCipherCore,
 };
-use cipher::consts::U256;
-use typenum::{IsLess, Le, NonZero};
+use aes::cipher::consts::U256;
+use aes::cipher::typenum::{IsLess, Le, NonZero};
 use super::{CipherAlgo, CipherAlgoVariant, StandardCipherAlgo, Encrypt, Decrypt};
 
 /// "aes128-ctr" cipher from RFC 4344.
