@@ -258,7 +258,7 @@ pub const DATA_STANDARD: DataType = DataType::Standard;
 /// This is part of a **low level [`Channel`] API** that gives you direct access to an SSH channel.
 pub const DATA_STDERR: DataType = DataType::Extended(1);
 
-/// Configuration of a [`Channel`] (or a [`Session`]).
+/// Configuration of a [`Channel`] (or a [`Session`][crate::Session]).
 ///
 /// You should start from the [default][Default] instance, which has reasonable default
 /// configuration, and modify it according to your needs. You may also find the method

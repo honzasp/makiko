@@ -95,6 +95,22 @@ fn sign<H: RsaHash>(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
     Ok(signature_blob.finish())
 }
 
+pub(super) fn encode(blob: &mut PacketEncode, pubkey: &RsaPubkey) {
+    blob.put_str("ssh-rsa");
+    blob.put_biguint(pubkey.pubkey.e());
+    blob.put_biguint(pubkey.pubkey.n());
+}
+
+pub(super) fn decode(blob: &mut PacketDecode) -> Result<RsaPubkey> {
+    let e = blob.get_biguint()?;
+    let n = blob.get_biguint()?;
+    let pubkey = rsa::RsaPublicKey::new(n, e)
+        .map_err(|_| Error::Decode("decoded ssh-rsa pubkey is invalid"))?;
+
+    Ok(RsaPubkey { pubkey })
+}
+
+
 
 trait RsaHash: digest::Digest {
     const HASH: rsa::Hash;

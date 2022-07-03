@@ -10,8 +10,8 @@
 //! # Supported algorithms
 //!
 //! - "chacha20-poly1305" ([`CHACHA20_POLY1305`])
-//! - "aes128-gcm" ([`AES128_GCM`])
-//! - "aes256-gcm" ([`AES256_GCM`])
+//! - "aes128-gcm@openssh.com" ([`AES128_GCM`])
+//! - "aes256-gcm@openssh.com" ([`AES256_GCM`])
 //! - "aes128-ctr" ([`AES128_CTR`])
 //! - "aes192-ctr" ([`AES192_CTR`])
 //! - "aes256-ctr" ([`AES256_CTR`])

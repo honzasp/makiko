@@ -66,6 +66,19 @@ fn sign(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
     Ok(signature.finish())
 }
 
+pub(super) fn encode(blob: &mut PacketEncode, pubkey: &Ed25519Pubkey) {
+    blob.put_str("ssh-ed25519");
+    blob.put_bytes(pubkey.pubkey.as_bytes());
+}
+
+pub(super) fn decode(blob: &mut PacketDecode) -> Result<Ed25519Pubkey> {
+    let pubkey = blob.get_bytes()?;
+    let pubkey = ed25519_dalek::PublicKey::from_bytes(&pubkey)
+        .map_err(|_| Error::Crypto("ed25519 pubkey is not valid"))?;
+    Ok(Ed25519Pubkey { pubkey })
+}
+
+
 impl From<ed25519_dalek::PublicKey> for Ed25519Pubkey {
     fn from(pubkey: ed25519_dalek::PublicKey) -> Self {
         Self { pubkey }

@@ -22,19 +22,20 @@ class Server(paramiko.ServerInterface):
         return paramiko.AUTH_FAILED
 
     def check_auth_publickey(self, username, key):
-        edward_fingerprints = ["ad215301215ca80b7083cd49b5f7be54"]
-        ruth_fingerprints = [
-            "ae86f75870515995b6726faacf8a1ac8",
-            "3b18ce162d26a656a47bdd62095139f5",
-            "0c3f4a5b7c25f26e11e93dd8126c6e81",
+        allowed_keys = [
+            ("edward", "ssh-ed25519", "ad215301215ca80b7083cd49b5f7be54"),
+            ("ruth", "ssh-rsa", "ae86f75870515995b6726faacf8a1ac8"),
+            ("ruth", "ssh-rsa", "3b18ce162d26a656a47bdd62095139f5"),
+            ("ruth", "ssh-rsa", "0c3f4a5b7c25f26e11e93dd8126c6e81"),
+            ("eda", "ecdsa-sha2-nistp256", "a05caef0cdf7630ffa1bf7ce4ac17bbd"),
+            ("eda", "ecdsa-sha2-nistp384", "e7739d20c38730d1336a498b3e2e8dd9"),
         ]
 
-        if username == "edward" and key.get_name() == "ssh-ed25519":
-            if key.get_fingerprint().hex() in edward_fingerprints:
-                return paramiko.AUTH_SUCCESSFUL
-        if username == "ruth" and key.get_name() == "ssh-rsa":
-            if key.get_fingerprint().hex() in ruth_fingerprints:
-                return paramiko.AUTH_SUCCESSFUL
+        entry = (username, key.get_name(), key.get_fingerprint().hex())
+        if entry in allowed_keys:
+            return paramiko.AUTH_SUCCESSFUL
+
+        print(entry, flush=True)
         return paramiko.AUTH_FAILED
 
     def check_auth_none(self, username):
@@ -113,9 +114,12 @@ def run_client(server_keys, client_sock, client_addr):
         client_sock.close()
 
 def run_server():
+    from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1, SECP384R1
     server_keys = [
         paramiko.rsakey.RSAKey.generate(1024),
         paramiko.ed25519key.Ed25519Key.from_private_key_file("host_key_ed25519"),
+        paramiko.ecdsakey.ECDSAKey.generate(SECP256R1),
+        paramiko.ecdsakey.ECDSAKey.generate(SECP384R1),
     ]
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

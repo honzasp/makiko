@@ -12,7 +12,13 @@ RUN useradd -m ruth -p '*'
 COPY ruth_keys /home/ruth/.ssh/authorized_keys
 RUN chmod 0644 /home/ruth/.ssh/authorized_keys
 
+RUN useradd -m eda -p '*'
+COPY eda_keys /home/eda/.ssh/authorized_keys
+RUN chmod 0644 /home/eda/.ssh/authorized_keys
+
 RUN useradd -m queen && passwd -d queen
+
+RUN ssh-keygen -q -N "" -t ecdsa -b 384 -f /etc/ssh/ssh_host_ecdsa_384_key
 
 COPY sshd_config /etc/ssh/sshd_config
 ENTRYPOINT ["/usr/sbin/sshd", "-D", "-e"]

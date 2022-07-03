@@ -326,7 +326,11 @@ impl<IO> Future for ClientFuture<IO>
     fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<()>> {
         let this = self.project();
         let mut client_st = this.client_st.lock();
-        client_state::poll_client(&mut client_st, this.stream, cx)
+        let res = client_state::poll_client(&mut client_st, this.stream, cx);
+        if let Poll::Ready(Err(ref err)) = res {
+            log::debug!("client future returned error: {:#}", err);
+        }
+        res
     }
 }
 
@@ -430,12 +434,16 @@ impl ClientConfig {
                 &kex::DIFFIE_HELLMAN_GROUP18_SHA512,
                 &kex::DIFFIE_HELLMAN_GROUP14_SHA1,
             ]);
-            c.server_pubkey_algos.push(&pubkey::SSH_RSA_SHA1);
+            c.server_pubkey_algos.extend_from_slice(&[
+                &pubkey::ECDSA_SHA2_NISTP256,
+                &pubkey::ECDSA_SHA2_NISTP384,
+                &pubkey::SSH_RSA_SHA1,
+            ]);
             c.cipher_algos.extend_from_slice(&[
-                &cipher::AES128_CBC, &cipher::AES192_CBC, &cipher::AES256_CBC
+                &cipher::AES128_CBC, &cipher::AES192_CBC, &cipher::AES256_CBC,
             ]);
             c.mac_algos.extend_from_slice(&[
-                &mac::HMAC_SHA1_ETM, &mac::HMAC_SHA1
+                &mac::HMAC_SHA1_ETM, &mac::HMAC_SHA1,
             ]);
         })
     }

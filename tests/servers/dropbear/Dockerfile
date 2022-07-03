@@ -11,6 +11,17 @@ RUN useradd -m ruth -p '*'
 COPY ruth_keys /home/ruth/.ssh/authorized_keys
 RUN chmod 0644 /home/ruth/.ssh/authorized_keys
 
+RUN useradd -m eda -p '*'
+COPY eda_keys /home/eda/.ssh/authorized_keys
+RUN chmod 0644 /home/eda/.ssh/authorized_keys
+
 RUN useradd -m queen && passwd -d queen
 
-ENTRYPOINT ["/usr/sbin/dropbear", "-F", "-E", "-B", "-R"]
+RUN dropbearkey -t ecdsa -s 384 -f /etc/dropbear/dropbear_ecdsa_384_host_key
+
+ENTRYPOINT ["/usr/sbin/dropbear", "-F", "-E", "-B", "-R", \
+    "-r", "/etc/dropbear/dropbear_rsa_host_key", \
+    "-r", "/etc/dropbear/dropbear_ecdsa_host_key", \
+    "-r", "/etc/dropbear/dropbear_ecdsa_384_host_key", \
+    "-r", "/etc/dropbear/dropbear_ed25519_host_key" \
+]

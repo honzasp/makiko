@@ -37,6 +37,16 @@ pub fn collect(suite: &mut TestSuite) {
                 (&makiko::pubkey::RSA_SHA2_512, vec!["openssh", "paramiko"]),
             ],
         ),
+        (
+            "eda",
+            vec![("ecdsa_p256", keys::eda_ecdsa_p256())],
+            vec![(&makiko::pubkey::ECDSA_SHA2_NISTP256, vec!["openssh", "dropbear", "paramiko"])],
+        ),
+        (
+            "eda",
+            vec![("ecdsa_p384", keys::eda_ecdsa_p384())],
+            vec![(&makiko::pubkey::ECDSA_SHA2_NISTP384, vec!["openssh", "dropbear", "paramiko"])],
+        ),
     ];
 
     for (username, key_variants, algo_variants) in pubkey_variants.into_iter() {

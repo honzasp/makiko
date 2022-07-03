@@ -49,6 +49,8 @@ pub fn collect(suite: &mut TestSuite) {
 
     let pubkey_algos = vec![
         (&makiko::pubkey::SSH_ED25519, vec!["openssh", "dropbear", "tinyssh", "paramiko"]),
+        (&makiko::pubkey::ECDSA_SHA2_NISTP256, vec!["openssh", "dropbear", "paramiko"]),
+        (&makiko::pubkey::ECDSA_SHA2_NISTP384, vec!["openssh", "dropbear", "paramiko"]),
         (&makiko::pubkey::SSH_RSA_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
     ];
 
