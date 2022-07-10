@@ -35,6 +35,14 @@ mod chacha_poly;
 mod none;
 mod stream;
 
+static ALGOS: &[&CipherAlgo] = &[
+    &AES128_GCM, &AES256_GCM,
+    &AES128_CBC, &AES192_CBC, &AES256_CBC,
+    &CHACHA20_POLY1305,
+    &NONE,
+    &AES128_CTR, &AES192_CTR, &AES256_CTR,
+];
+
 /// Algorithm for encrypting and decrypting messages.
 ///
 /// See the [module documentation][self] for details.
@@ -111,4 +119,8 @@ impl CipherAlgoVariant {
     pub fn is_aead(&self) -> bool {
         matches!(self, CipherAlgoVariant::Aead(_))
     }
+}
+
+pub(crate) fn algo_by_name(name: &str) -> Option<&'static CipherAlgo> {
+    ALGOS.iter().copied().find(|algo| algo.name == name)
 }

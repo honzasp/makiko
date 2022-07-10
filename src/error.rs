@@ -64,6 +64,12 @@ pub enum Error {
     ClientClosed,
     #[error("client has already disconnected")]
     ClientDisconnected,
+    #[error("could not parse PEM file")]
+    Pem(pem::PemError),
+    #[error("unexpected PEM tag {0:?}, expected {1:?}")]
+    BadPemTag(String, String),
+    #[error("bad passphrase when decoding key")]
+    BadKeyPassphrase,
 }
 
 /// Error that occured because we could not negotiate an algorithm.

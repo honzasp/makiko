@@ -39,6 +39,7 @@ mod codec;
 pub mod codes;
 mod error;
 pub mod kex;
+pub mod keys;
 pub mod mac;
 pub mod pubkey;
 mod util;

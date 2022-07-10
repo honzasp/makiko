@@ -69,15 +69,37 @@ impl PacketDecode {
         Ok(list.split(|x| x == ',').map(|x| x.into()).collect())
     }
 
-    /// Decode a `mpint` as [`BigUint`]
+    /// Decode a `mpint` as [`BigUint`].
     pub fn get_biguint(&mut self) -> Result<BigUint> {
         self.get_bytes().map(|x| BigUint::from_bytes_be(&x))
+    }
+
+    /// Decode a `mpint` as a scalar in unsigned big endian with given length.
+    pub fn get_scalar(&mut self, len: usize) -> Result<Vec<u8>> {
+        let mut bytes = self.get_bytes()?;
+        while bytes.get(0) == Some(&0) {
+            bytes.advance(1);
+        }
+
+        if bytes.len() > len {
+            return Err(Error::Decode("decoded number is too long"));
+        }
+
+        let mut digits_be = vec![0; len];
+        digits_be[len - bytes.len()..].copy_from_slice(&bytes);
+    Ok(digits_be)
     }
 
     /// Skip `len` bytes.
     pub fn skip(&mut self, len: usize) -> Result<()> {
         self.ensure(len)?;
         Ok(self.buf.advance(len))
+    }
+
+    /// Read `len` bytes directly from the buffer.
+    pub fn get_raw(&mut self, len: usize) -> Result<Bytes> {
+        self.ensure(len)?;
+        Ok(self.buf.split_to(len))
     }
 
     fn ensure(&self, min_remaining: usize) -> Result<()> {

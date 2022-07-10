@@ -19,9 +19,14 @@ name = "compat"
 path = "tests/compat/main.rs"
 harness = false
 
+[[test]]
+name = "keys"
+path = "tests/keys/main.rs"
+
 [dependencies]
 aes = "0.8"
 aes-gcm = "^0.10.0-pre"
+bcrypt-pbkdf = "0.9"
 bytes = "1.1"
 cbc = "0.1"
 chacha20 = "0.9"
@@ -38,6 +43,7 @@ num-bigint-dig = {version = "0.8", features = ["rand"]}
 p256 = "0.11"
 p384 = "0.11"
 parking_lot = "0.12"
+pem = "1.0"
 pin-project = "1.0"
 poly1305 = "0.7"
 rand = {version = "0.8", features = ["getrandom"]}
@@ -61,3 +67,6 @@ env_logger = "0.9"
 futures = "0.3"
 regex = "1.5"
 tokio = {version = "1", features = ["full"]}
+
+[features]
+debug_less_secure = []

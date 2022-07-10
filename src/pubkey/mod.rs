@@ -46,7 +46,7 @@ pub struct PubkeyAlgo {
 ///
 /// This enum is marked as `#[non_exhaustive]`, so we might add new variants without breaking
 /// backwards compatibility.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Pubkey {
     /// Ed25519 public key.
@@ -93,8 +93,9 @@ impl SignatureVerified {
 ///
 /// This enum is marked as `#[non_exhaustive]`, so we might add new variants without breaking
 /// backwards compatibility.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 #[non_exhaustive]
+#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
 pub enum Privkey {
     /// Ed25519 private key.
     Ed25519(Ed25519Privkey),
@@ -116,6 +117,10 @@ impl Privkey {
             Privkey::EcdsaP384(privkey) => Pubkey::EcdsaP384(privkey.pubkey()),
         }
     }
+
+    pub(crate) fn decode(blob: &mut PacketDecode) -> Result<Privkey> {
+        decode_privkey(blob)
+    }
 }
 
 
@@ -124,10 +129,10 @@ fn decode_pubkey(blob: Bytes) -> Result<Pubkey> {
     let mut blob = PacketDecode::new(blob);
     let format = blob.get_string()?;
     match format.as_str() {
-        "ssh-ed25519" => ed25519::decode(&mut blob).map(Pubkey::Ed25519),
-        "ssh-rsa" => rsa::decode(&mut blob).map(Pubkey::Rsa),
-        "ecdsa-sha2-nistp256" => ecdsa::decode::<p256::NistP256>(&mut blob).map(Pubkey::EcdsaP256),
-        "ecdsa-sha2-nistp384" => ecdsa::decode::<p384::NistP384>(&mut blob).map(Pubkey::EcdsaP384),
+        "ssh-ed25519" => ed25519::decode_pubkey(&mut blob).map(Pubkey::Ed25519),
+        "ssh-rsa" => rsa::decode_pubkey(&mut blob).map(Pubkey::Rsa),
+        "ecdsa-sha2-nistp256" => ecdsa::decode_pubkey::<p256::NistP256>(&mut blob).map(Pubkey::EcdsaP256),
+        "ecdsa-sha2-nistp384" => ecdsa::decode_pubkey::<p384::NistP384>(&mut blob).map(Pubkey::EcdsaP384),
         _ => {
             log::debug!("unknown pubkey format {:?}", format);
             Err(Error::Decode("unknown public key format"))
@@ -138,10 +143,24 @@ fn decode_pubkey(blob: Bytes) -> Result<Pubkey> {
 fn encode_pubkey(pubkey: &Pubkey) -> Bytes {
     let mut blob = PacketEncode::new();
     match pubkey {
-        Pubkey::Ed25519(pubkey) => ed25519::encode(&mut blob, pubkey),
-        Pubkey::Rsa(pubkey) => rsa::encode(&mut blob, pubkey),
-        Pubkey::EcdsaP256(pubkey) => ecdsa::encode(&mut blob, pubkey),
-        Pubkey::EcdsaP384(pubkey) => ecdsa::encode(&mut blob, pubkey),
+        Pubkey::Ed25519(pubkey) => ed25519::encode_pubkey(&mut blob, pubkey),
+        Pubkey::Rsa(pubkey) => rsa::encode_pubkey(&mut blob, pubkey),
+        Pubkey::EcdsaP256(pubkey) => ecdsa::encode_pubkey(&mut blob, pubkey),
+        Pubkey::EcdsaP384(pubkey) => ecdsa::encode_pubkey(&mut blob, pubkey),
     }
     blob.finish()
+}
+
+fn decode_privkey(blob: &mut PacketDecode) -> Result<Privkey> {
+    let format = blob.get_string()?;
+    match format.as_str() {
+        "ssh-ed25519" => ed25519::decode_privkey(blob).map(Privkey::Ed25519),
+        "ssh-rsa" => rsa::decode_privkey(blob).map(Privkey::Rsa),
+        "ecdsa-sha2-nistp256" => ecdsa::decode_privkey::<p256::NistP256>(blob).map(Privkey::EcdsaP256),
+        "ecdsa-sha2-nistp384" => ecdsa::decode_privkey::<p384::NistP384>(blob).map(Privkey::EcdsaP384),
+        _ => {
+            log::debug!("unknown privkey format {:?}", format);
+            Err(Error::Decode("unknown private key format"))
+        },
+    }
 }

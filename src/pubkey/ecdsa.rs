@@ -38,7 +38,7 @@ pub static ECDSA_SHA2_NISTP384: PubkeyAlgo = PubkeyAlgo {
 ///
 /// You can convert it to and from [`ecdsa::VerifyingKey<C>`] and [`elliptic_curve::PublicKey<C>`]
 /// using `from()`/`into()`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EcdsaPubkey<C> 
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
 {
@@ -52,7 +52,8 @@ pub struct EcdsaPubkey<C>
 ///
 /// You can convert it to and from [`ecdsa::SigningKey<C>`] and [`elliptic_curve::SecretKey<C>`]
 /// using `from()`/`into()`.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
 pub struct EcdsaPrivkey<C>
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
           <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
@@ -153,7 +154,7 @@ fn sign<C: Curve>(privkey: &Privkey, message: &[u8]) -> Result<Bytes>
     Ok(signature.finish())
 }
 
-pub(super) fn decode<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPubkey<C>>
+pub(super) fn decode_pubkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPubkey<C>>
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
           <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
@@ -161,8 +162,8 @@ pub(super) fn decode<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPubkey<C>
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::ToEncodedPoint<C>,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::FromEncodedPoint<C>,
 {
-    if blob.get_string()? != C::FORMAT_NAME {
-        return Err(Error::Decode("bad decoded format of ecdsa public key"))
+    if blob.get_string()? != C::CURVE_NAME {
+        return Err(Error::Decode("bad curve name in ecdsa public key"))
     }
 
     let encoded_point = blob.get_bytes()?;
@@ -170,14 +171,14 @@ pub(super) fn decode<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPubkey<C>
         .map_err(|_| Error::Decode("ecdsa public key is invalid (bad bytes)"))?;
     
     use elliptic_curve::sec1::FromEncodedPoint as _;
-    let pubkey: Option<elliptic_curve::PublicKey<_>> =
+    let public_key: Option<elliptic_curve::PublicKey<C>> =
         elliptic_curve::PublicKey::from_encoded_point(&encoded_point).into();
-    let pubkey = pubkey.ok_or(Error::Decode("ecdsa public key is invalid (bad point)"))?;
+    let public_key = public_key.ok_or(Error::Decode("ecdsa public key is invalid (bad point)"))?;
 
-    Ok(EcdsaPubkey { verifying: pubkey.into() })
+    Ok(EcdsaPubkey { verifying: public_key.into() })
 }
 
-pub(super) fn encode<C: Curve>(blob: &mut PacketEncode, pubkey: &EcdsaPubkey<C>)
+pub(super) fn encode_pubkey<C: Curve>(blob: &mut PacketEncode, pubkey: &EcdsaPubkey<C>)
     where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
           <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
@@ -186,12 +187,45 @@ pub(super) fn encode<C: Curve>(blob: &mut PacketEncode, pubkey: &EcdsaPubkey<C>)
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::FromEncodedPoint<C>,
 {
     use elliptic_curve::sec1::ToEncodedPoint as _;
-    let pubkey: elliptic_curve::PublicKey<C> = pubkey.verifying.into();
-    let encoded_point = pubkey.to_encoded_point(false);
+    let public_key: elliptic_curve::PublicKey<C> = pubkey.verifying.into();
+    let encoded_point = public_key.to_encoded_point(false);
 
     blob.put_str(C::ALGO_NAME);
-    blob.put_str(C::FORMAT_NAME);
+    blob.put_str(C::CURVE_NAME);
     blob.put_bytes(encoded_point.as_bytes());
+}
+
+pub(super) fn decode_privkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPrivkey<C>>
+    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
+          elliptic_curve::FieldSize<C>: elliptic_curve::sec1::ModulusSize,
+          elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::ToEncodedPoint<C>,
+          elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::FromEncodedPoint<C>,
+{
+    if blob.get_string()? != C::CURVE_NAME {
+        return Err(Error::Decode("bad curve name in ecdsa private key"));
+    }
+
+    let encoded_point = blob.get_bytes()?;
+    let encoded_point = elliptic_curve::sec1::EncodedPoint::<C>::from_bytes(&encoded_point)
+        .map_err(|_| Error::Decode("ecdsa private key is invalid (bad bytes of public point)"))?;
+
+    use elliptic_curve::sec1::FromEncodedPoint as _;
+    let public_key: Option<elliptic_curve::PublicKey<C>> =
+        elliptic_curve::PublicKey::from_encoded_point(&encoded_point).into();
+    let public_key = public_key.ok_or(Error::Decode("ecdsa private key is invalid (bad public point)"))?;
+
+    use elliptic_curve::bigint::Encoding as _;
+    let secret_scalar = blob.get_scalar(C::UInt::BYTE_SIZE)?;
+    let secret_key = elliptic_curve::SecretKey::<C>::from_be_bytes(&secret_scalar)
+        .map_err(|_| Error::Decode("ecdsa private key is invalid (bad bytes of private scalar)"))?;
+
+    if secret_key.public_key() != public_key {
+        return Err(Error::Decode("ecdsa private key is invalid (public key does not match private key)"));
+    }
+
+    Ok(EcdsaPrivkey { signing: secret_key.into() })
 }
 
 
@@ -202,7 +236,7 @@ pub(super) trait Curve
           ecdsa::SignatureSize<Self>: generic_array::ArrayLength<u8>,
 {
     const ALGO_NAME: &'static str;
-    const FORMAT_NAME: &'static str;
+    const CURVE_NAME: &'static str;
     type Digest: digest::Digest;
 
     fn extract_verifying(pubkey: &Pubkey) -> Result<&ecdsa::VerifyingKey<Self>>;
@@ -211,7 +245,7 @@ pub(super) trait Curve
 
 impl Curve for p256::NistP256 {
     const ALGO_NAME: &'static str = "ecdsa-sha2-nistp256";
-    const FORMAT_NAME: &'static str = "nistp256";
+    const CURVE_NAME: &'static str = "nistp256";
     type Digest = sha2::Sha256;
 
     fn extract_verifying(pubkey: &Pubkey) -> Result<&ecdsa::VerifyingKey<Self>> {
@@ -231,7 +265,7 @@ impl Curve for p256::NistP256 {
 
 impl Curve for p384::NistP384 {
     const ALGO_NAME: &'static str = "ecdsa-sha2-nistp384";
-    const FORMAT_NAME: &'static str = "nistp384";
+    const CURVE_NAME: &'static str = "nistp384";
     type Digest = sha2::Sha384;
 
     fn extract_verifying(pubkey: &Pubkey) -> Result<&ecdsa::VerifyingKey<Self>> {

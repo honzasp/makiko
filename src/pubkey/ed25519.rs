@@ -18,7 +18,7 @@ pub static SSH_ED25519: PubkeyAlgo = PubkeyAlgo {
 ///
 /// This key is compatible with [`SSH_ED25519`]. You can convert it to and from
 /// [`ed25519_dalek::PublicKey`] using `from()`/`into()`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ed25519Pubkey {
     pub(crate) pubkey: ed25519_dalek::PublicKey,
 }
@@ -27,6 +27,7 @@ pub struct Ed25519Pubkey {
 ///
 /// This key is compatible with [`SSH_ED25519`]. You can convert it to and from
 /// [`ed25519_dalek::Keypair`] using `from()`/`into()`.
+#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
 pub struct Ed25519Privkey {
     pub(crate) keypair: ed25519_dalek::Keypair,
 }
@@ -68,16 +69,28 @@ fn sign(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
     Ok(signature.finish())
 }
 
-pub(super) fn encode(blob: &mut PacketEncode, pubkey: &Ed25519Pubkey) {
+pub(super) fn encode_pubkey(blob: &mut PacketEncode, pubkey: &Ed25519Pubkey) {
     blob.put_str("ssh-ed25519");
     blob.put_bytes(pubkey.pubkey.as_bytes());
 }
 
-pub(super) fn decode(blob: &mut PacketDecode) -> Result<Ed25519Pubkey> {
+pub(super) fn decode_pubkey(blob: &mut PacketDecode) -> Result<Ed25519Pubkey> {
     let pubkey = blob.get_bytes()?;
     let pubkey = ed25519_dalek::PublicKey::from_bytes(&pubkey)
-        .map_err(|_| Error::Crypto("ed25519 pubkey is not valid"))?;
+        .map_err(|_| Error::Crypto("ed25519 public key is not valid"))?;
     Ok(Ed25519Pubkey { pubkey })
+}
+
+pub(super) fn decode_privkey(blob: &mut PacketDecode) -> Result<Ed25519Privkey> {
+    let public_bytes = blob.get_byte_array::<32>()?;
+    let keypair_bytes = blob.get_byte_array::<64>()?;
+    if public_bytes[..] != keypair_bytes[32..] {
+        return Err(Error::Decode("ed25519 privkey is not valid (public keys do not match)"));
+    }
+
+    let keypair = ed25519_dalek::Keypair::from_bytes(&keypair_bytes)
+        .map_err(|_| Error::Crypto("ed25519 keypair is not valid"))?;
+    Ok(Ed25519Privkey { keypair })
 }
 
 
@@ -102,6 +115,14 @@ impl fmt::Display for Ed25519Pubkey {
         write!(f, "ed25519 {:x}", Bytes::copy_from_slice(self.pubkey.as_bytes()))
     }
 }
+
+impl PartialEq for Ed25519Privkey {
+    fn eq(&self, other: &Self) -> bool {
+        self.keypair.public == other.keypair.public &&
+        self.keypair.secret.as_bytes() == other.keypair.secret.as_bytes()
+    }
+}
+impl Eq for Ed25519Privkey {}
 
 impl Clone for Ed25519Privkey {
     fn clone(&self) -> Self {

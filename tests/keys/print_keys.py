@@ -1,4 +1,5 @@
 import os.path
+import sys
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
@@ -79,12 +80,30 @@ for name in [
         "alice_ed25519", "edward_ed25519",
         "ruth_rsa_1024", "ruth_rsa_2048", "ruth_rsa_4096",
         "eda_ecdsa_p256", "eda_ecdsa_p384",
+        "encrypted_rsa", "encrypted_ed25519",
+        "encrypted_ecdsa_p256", "encrypted_ecdsa_p384",
+        #"encrypted_rsa_aes128-gcm",
 ]:
     private_file = os.path.join(base_dir, name)
     public_file = os.path.join(base_dir, f"{name}.pub")
-    private_key = serialization.load_ssh_private_key(open(private_file, "rb").read(), None)
-    public_key = serialization.load_ssh_public_key(open(public_file, "rb").read())
+    private_bytes = open(private_file, "rb").read()
+    public_bytes = open(public_file, "rb").read()
+    private_key = serialization.load_ssh_private_key(private_bytes, b"password")
+    public_key = serialization.load_ssh_public_key(public_bytes)
+
     print(f"pub fn {name}() -> makiko::Privkey {{")
     print_keypair(private_key, public_key)
-    print("}")
+    print(f"}}")
+
+    private_str = private_bytes.decode("utf-8")
+    print(f"pub static {name.upper()}_KEYPAIR_PEM: &'static str = concat!(")
+    for line in private_str.splitlines(keepends=True):
+        escaped_line = line.translate({
+            ord("\n"): "\\n",
+            ord("\\"): "\\\\",
+            ord("\""): "\"",
+        })
+        print(f"    \"{escaped_line}\",")
+    print(");")
+
     print()

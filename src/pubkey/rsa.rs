@@ -39,7 +39,7 @@ pub static RSA_SHA2_512: PubkeyAlgo = PubkeyAlgo {
 ///
 /// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`]. You can
 /// convert it to and from [`rsa::RsaPublicKey`] using `from()`/`into()`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RsaPubkey {
     pub(crate) pubkey: rsa::RsaPublicKey,
 }
@@ -48,7 +48,8 @@ pub struct RsaPubkey {
 ///
 /// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`]. You can
 /// convert it to and from [`rsa::RsaPrivateKey`] using `from()`/`into()`.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
 pub struct RsaPrivkey {
     pub(crate) privkey: rsa::RsaPrivateKey,
 }
@@ -98,19 +99,30 @@ fn sign<H: RsaHash>(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
     Ok(signature_blob.finish())
 }
 
-pub(super) fn encode(blob: &mut PacketEncode, pubkey: &RsaPubkey) {
+pub(super) fn encode_pubkey(blob: &mut PacketEncode, pubkey: &RsaPubkey) {
     blob.put_str("ssh-rsa");
     blob.put_biguint(pubkey.pubkey.e());
     blob.put_biguint(pubkey.pubkey.n());
 }
 
-pub(super) fn decode(blob: &mut PacketDecode) -> Result<RsaPubkey> {
+pub(super) fn decode_pubkey(blob: &mut PacketDecode) -> Result<RsaPubkey> {
     let e = blob.get_biguint()?;
     let n = blob.get_biguint()?;
     let pubkey = rsa::RsaPublicKey::new(n, e)
         .map_err(|_| Error::Decode("decoded ssh-rsa pubkey is invalid"))?;
 
     Ok(RsaPubkey { pubkey })
+}
+
+pub(super) fn decode_privkey(blob: &mut PacketDecode) -> Result<RsaPrivkey> {
+    let n = blob.get_biguint()?;
+    let e = blob.get_biguint()?;
+    let d = blob.get_biguint()?;
+    let _iqmp = blob.get_biguint()?;
+    let p = blob.get_biguint()?;
+    let q = blob.get_biguint()?;
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    Ok(RsaPrivkey { privkey })
 }
 
 
