@@ -43,8 +43,9 @@ pub fn collect(suite: &mut TestSuite) {
         (&makiko::kex::CURVE25519_SHA256_LIBSSH, vec!["openssh", "dropbear", "tinyssh", "paramiko"]),
         (&makiko::kex::DIFFIE_HELLMAN_GROUP14_SHA1, vec!["openssh", "dropbear", "paramiko", "lsh"]),
         (&makiko::kex::DIFFIE_HELLMAN_GROUP14_SHA256, vec!["openssh", "dropbear", "paramiko"]),
-        (&makiko::kex::DIFFIE_HELLMAN_GROUP16_SHA512, vec!["openssh", "paramiko"]),
-        (&makiko::kex::DIFFIE_HELLMAN_GROUP18_SHA512, vec!["openssh"]),
+        // these kexes are very slow
+        //(&makiko::kex::DIFFIE_HELLMAN_GROUP16_SHA512, vec!["openssh", "paramiko"]),
+        //(&makiko::kex::DIFFIE_HELLMAN_GROUP18_SHA512, vec!["openssh"]),
     ];
 
     let pubkey_algos = vec![
