@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 
-def print_keypair(private_key, public_key):
+def print_privkey(private_key, public_key):
     if isinstance(private_key, Ed25519PrivateKey):
         raw_private = private_key.private_bytes(
             serialization.Encoding.Raw,
@@ -76,24 +76,19 @@ print("use hex_literal::hex;")
 print("use makiko::elliptic_curve;")
 print()
 
-for name in [
-        "alice_ed25519", "edward_ed25519",
-        "ruth_rsa_1024", "ruth_rsa_2048", "ruth_rsa_4096",
-        "eda_ecdsa_p256", "eda_ecdsa_p384",
-        "encrypted_rsa", "encrypted_ed25519",
-        "encrypted_ecdsa_p256", "encrypted_ecdsa_p384",
-        #"encrypted_rsa_aes128-gcm",
-]:
+def print_key(name, password="", decode=True):
     private_file = os.path.join(base_dir, name)
     public_file = os.path.join(base_dir, f"{name}.pub")
     private_bytes = open(private_file, "rb").read()
     public_bytes = open(public_file, "rb").read()
-    private_key = serialization.load_ssh_private_key(private_bytes, b"password")
-    public_key = serialization.load_ssh_public_key(public_bytes)
 
-    print(f"pub fn {name}() -> makiko::Privkey {{")
-    print_keypair(private_key, public_key)
-    print(f"}}")
+    if decode:
+        private_key = serialization.load_ssh_private_key(private_bytes, b"password")
+        public_key = serialization.load_ssh_public_key(public_bytes)
+
+        print(f"pub fn {name}() -> makiko::Privkey {{")
+        print_privkey(private_key, public_key)
+        print(f"}}")
 
     private_str = private_bytes.decode("utf-8")
     print(f"pub static {name.upper()}_KEYPAIR_PEM: &'static str = concat!(")
@@ -107,3 +102,24 @@ for name in [
     print(");")
 
     print()
+
+for name in [
+    "alice_ed25519",
+    "edward_ed25519",
+    "ruth_rsa_1024", "ruth_rsa_2048", "ruth_rsa_4096",
+    "eda_ecdsa_p256", "eda_ecdsa_p384",
+]:
+     print_key(name)
+
+for name in [
+    "encrypted_rsa",
+    "encrypted_ed25519",
+    "encrypted_ecdsa_p256",
+    "encrypted_ecdsa_p384",
+]:
+     print_key(name, "password")
+
+for name in [
+    "encrypted_rsa_aes128_gcm",
+]:
+     print_key(name, "password", decode=False)

@@ -393,8 +393,8 @@ pub static ENCRYPTED_RSA_KEYPAIR_PEM: &'static str = concat!(
 );
 
 pub fn encrypted_ed25519() -> makiko::Privkey {
-    let private_bytes = hex!("826246ef3ed7700959c7b2710cbd0f38baa760b393e461567e4d8467e6770194");
-    let public_bytes = hex!("01a1edfb698c7645b3180380b5306e09aa4222c079b9ec0f02f38a22e836c0a8");
+    let private_bytes = hex!("658ffa60f316e34424206cb7423a9083034e92cbbb9c4558767dfbcd9ae0ca7e");
+    let public_bytes = hex!("b745e4c87adfbd3945c243969a127b9767132eb232279d3b16607fa70940b027");
     makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
         secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
         public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
@@ -402,12 +402,12 @@ pub fn encrypted_ed25519() -> makiko::Privkey {
 }
 pub static ENCRYPTED_ED25519_KEYPAIR_PEM: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
-    "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABAnUPbYHd\n",
-    "WthhgytMG2mFLLAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIAGh7ftpjHZFsxgD\n",
-    "gLUwbgmqQiLAebnsDwLziiLoNsCoAAAAoN+it8qLfEr263uVqcQG4Zg2bR4Ey5yj2bwOyA\n",
-    "JPROjjfeiNDncRjY42dnhg1nV/WwPAXFoEvEWIltl1VWz+ypCz4sPqVgKhxYuimnWR4vxW\n",
-    "f+shjPGKqNZPEurQqfCNk52YkricHkHH3057KaPRqZIO3FIbmIF5UGFQ8R/JD88H/1MS5y\n",
-    "V7mcUEIaoQY2J0bC79O1+rOKihjWL9ViXo0oI=\n",
+    "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABDTPlM9fP\n",
+    "LvZc+iYbijNu54AAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAILdF5Mh63705RcJD\n",
+    "lpoSe5dnEy6yMiedOxZgf6cJQLAnAAAAoDlV9qwZ8jlW1M/MRx/i2EZ7sMPMAGmr5hv10Y\n",
+    "I4HHAc0rEff6tnAerWBzz7xhcQ0fQEuFd1rkZNgFRiXKBp96VlaXLehtzpD+1G51Qeb0Z7\n",
+    "MUAX3nNfin30FRR9fveg5kiqVbajeMgH21Kj0O/sBIzyUJLo5ObarTLNnSqnc2ym9lNFJA\n",
+    "FdNqwwocrmcsXlfv6o8y7oNH1Sa2oACCRliMg=\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
 
@@ -448,6 +448,48 @@ pub static ENCRYPTED_ECDSA_P384_KEYPAIR_PEM: &'static str = concat!(
     "EUsp8SxIVna3uHqh70EAAxrfcWxgbL2PN+DXYmhpr0NaNqu8SF9X5+nCMG3uWz72XA09dw\n",
     "n34tqf2DsGklWUtOMuk3NuYe1gzy+gZZ+t2mhKayfPA/3ko/pTK/UJYeYmhBCxlOHDhtKr\n",
     "zBM5+Xu+gB5dlB6srLzNxEXdDw==\n",
+    "-----END OPENSSH PRIVATE KEY-----\n",
+);
+
+pub static ENCRYPTED_RSA_AES128_GCM_KEYPAIR_PEM: &'static str = concat!(
+    "-----BEGIN OPENSSH PRIVATE KEY-----\n",
+    "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\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
 

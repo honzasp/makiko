@@ -32,7 +32,7 @@ pub struct OpensshKeypairNopass {
     pub comment: Option<String>,
 }
 
-    static PEM_TAG: &str = "OPENSSH PRIVATE KEY";
+static PEM_TAG: &str = "OPENSSH PRIVATE KEY";
 
 /// Decode a private key from OpenSSH PEM format.
 ///
@@ -180,22 +180,12 @@ fn decrypt(raw: &RawKeypair, passphrase: &[u8]) -> Result<Vec<u8>> {
             decrypt.decrypt(&mut data);
             Ok(data)
         },
-        CipherAlgoVariant::Aead(algo) => {
-            let mut decrypt = (algo.make_decrypt)(key, iv);
-            if raw.ciphertext.len() < algo.tag_len {
-                return Err(Error::Decode("OpenSSH keypair ciphertext is too short"))
-            }
-            let plaintext_len = raw.ciphertext.len() - algo.tag_len;
-
-            // the AEAD algos assume that the first four bytes are packet length, which is handled
-            // in a special way, so we add dummy zeros at the beginning...
-            let mut data = vec![0; 4 + plaintext_len];
-            data[4..].copy_from_slice(&raw.ciphertext[..plaintext_len]);
-            let tag = &raw.ciphertext[plaintext_len..];
-            decrypt.decrypt_and_verify(0, &mut data, tag)?;
-
-            // ...and now we must remove the dummy length
-            Ok(data[4..].to_vec())
+        CipherAlgoVariant::Aead(_) => {
+            // if we ever want to implement this:
+            // - for aes-gcm, the associated data is empty (for SSH packets, the associated data is
+            // the packet length)
+            // - the tag is stored _after_ the ciphertext
+            Err(Error::Decode("OpenSSH keypair encoded with an AEAD cipher is not supported"))
         },
     }
 }

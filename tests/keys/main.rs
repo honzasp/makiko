@@ -72,3 +72,16 @@ fn check_decode_privkey(expected_privkey: makiko::Privkey, pem_data: &str, passw
     check_decode_privkey(keys::encrypted_ecdsa_p384(),
         keys::ENCRYPTED_ECDSA_P384_KEYPAIR_PEM, Some("password"));
 }
+
+#[test] 
+#[should_panic] // this is not implemented
+fn test_decode_encrypted_rsa_aes128_gcm() {
+    // the `cryptography` library in Python does not support keys encrypted using aes128-gcm, so
+    // the keys.rs file does not contain `encrypted_rsa_aes128_gcm()`
+    let pem_data = keys::ENCRYPTED_RSA_AES128_GCM_KEYPAIR_PEM;
+    let decoded = makiko::keys::decode_openssh_pem_keypair(pem_data.as_bytes(), b"password".as_slice())
+        .expect("could not decode keypair");
+    // at least check that the keypair is valid
+    assert_eq!(decoded.pubkey, decoded.privkey.pubkey());
+}
+
