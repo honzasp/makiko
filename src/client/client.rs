@@ -447,7 +447,7 @@ impl ClientConfig {
         })
     }
 
-    /// Mutate `self` in a closure.
+    /// Update the configuration in pseudo-builder pattern style.
     ///
     /// This method applies your closure to `self` and returns the mutated configuration.
     pub fn with<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {

@@ -16,7 +16,10 @@ pub use crate::client::{
 };
 pub use crate::client::{Client, ClientReceiver, ClientFuture, ClientConfig};
 pub use crate::client::{ClientEvent, AcceptPubkeySender};
-pub use crate::client::{Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal};
+pub use crate::client::{
+    Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal,
+    PtyRequest, PtyTerminalModes, WindowChange,
+};
 pub use crate::codec::{PacketEncode, PacketDecode};
 pub use crate::error::{Result, Error, AlgoNegotiateError, DisconnectError, ChannelOpenError};
 

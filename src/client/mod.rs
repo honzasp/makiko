@@ -8,7 +8,10 @@ pub use self::channel::{
 };
 pub use self::client::{Client, ClientReceiver, ClientFuture, ClientConfig};
 pub use self::client_event::{ClientEvent, AcceptPubkeySender};
-pub use self::session::{Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal};
+pub use self::session::{
+    Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal,
+    PtyRequest, PtyTerminalModes, WindowChange,
+};
 
 #[macro_use] mod pump;
 mod auth;

@@ -81,6 +81,37 @@ impl Session {
         })?;
         Ok(SessionReply { reply_rx })
     }
+
+    /// Request a pseudo-terminal (pty) for the future process.
+    ///
+    /// This will allocate a pseudo-terminal according to the `request`.
+    ///
+    /// This method returns immediately without any blocking, but you may use the returned
+    /// [`SessionReply`] to wait for the server response.
+    pub fn request_pty(&self, request: &PtyRequest) -> Result<SessionReply> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+        let mut payload = PacketEncode::new();
+        payload.put_str(&request.term);
+        payload.put_u32(request.width);
+        payload.put_u32(request.height);
+        payload.put_u32(request.width_px);
+        payload.put_u32(request.height_px);
+
+        let mut encoded_modes = PacketEncode::new();
+        for &(op, arg) in request.modes.opcodes.iter() {
+            encoded_modes.put_u8(op);
+            encoded_modes.put_u32(arg);
+        }
+        encoded_modes.put_u8(0);
+        payload.put_bytes(&encoded_modes.finish());
+
+        self.channel.send_request(ChannelReq {
+            request_type: "pty-req".into(),
+            payload: payload.finish(),
+            reply_tx: Some(reply_tx),
+        })?;
+        Ok(SessionReply { reply_rx })
+    }
 }
 
 /// # Starting the process
@@ -172,6 +203,24 @@ impl Session {
         payload.put_str(signal_name);
         self.channel.send_request(ChannelReq {
             request_type: "signal".into(),
+            payload: payload.finish(),
+            reply_tx: None,
+        })?;
+        Ok(())
+    }
+
+    /// Notify the process that the terminal window size has changed.
+    ///
+    /// This method returns immediately without any blocking, it is not possible to get a reply
+    /// from the server.
+    pub fn window_change(&self, change: &WindowChange) -> Result<()> {
+        let mut payload = PacketEncode::new();
+        payload.put_u32(change.width);
+        payload.put_u32(change.height);
+        payload.put_u32(change.width_px);
+        payload.put_u32(change.height_px);
+        self.channel.send_request(ChannelReq {
+            request_type: "window-change".into(),
             payload: payload.finish(),
             reply_tx: None,
         })?;
@@ -343,4 +392,69 @@ fn translate_request(request: ChannelReq) -> Result<Option<SessionEvent>> {
         let _ = reply_tx.send(ChannelReply::Success);
     }
     Ok(Some(event))
+}
+
+
+
+/// Pseudo-terminal request.
+///
+/// Request for allocation of a pseudo-terminal (pty), used with [`Session::request_pty()`], as
+/// described in RFC 4254, section 6.2.
+#[derive(Debug, Clone, Default)]
+pub struct PtyRequest {
+    /// Value of the `TERM` environment variable (e.g. `"vt100"`).
+    pub term: String,
+    /// Terminal width in characters (e.g. 80).
+    pub width: u32,
+    /// Terminal height in rows (e.g. 24).
+    pub height: u32,
+    /// Terminal width in pixels (e.g. 640).
+    pub width_px: u32,
+    /// Terminal height in pixels (e.g. 480).
+    pub height_px: u32,
+    /// Terminal modes.
+    pub modes: PtyTerminalModes,
+}
+
+/// Terminal modes for a [`PtyRequest`].
+///
+/// The terminal modes are encoded as a sequence of opcodes that take a single `u32` argument. For
+/// more details, please see RFC 4254, section 8. 
+#[derive(Debug, Clone, Default)]
+pub struct PtyTerminalModes {
+    opcodes: Vec<(u8, u32)>,
+}
+
+impl PtyTerminalModes {
+    /// Create an empty instance.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Adds an opcode with a single `u32` argument.
+    ///
+    /// Only opcodes between 1 and 159 are supported. This method will panic if you try to use it
+    /// with other opcodes. In particular, do not use the `TTY_OP_END` (0) opcode.
+    ///
+    /// The opcodes are defined in [`codes::terminal_mode`][crate::codes::terminal_mode].
+    pub fn add(&mut self, opcode: u8, arg: u32) {
+        assert!(opcode >= 1 && opcode < 160);
+        self.opcodes.push((opcode, arg));
+    }
+}
+
+/// Change of terminal window dimensions.
+///
+/// Notification that window dimensions have changed, used with [`Session::window_change()`], as
+/// described in RFC 4254, section 6.7.
+#[derive(Debug, Copy, Clone)]
+pub struct WindowChange {
+    /// Terminal width in characters (e.g. 80).
+    pub width: u32,
+    /// Terminal height in rows (e.g. 24).
+    pub height: u32,
+    /// Terminal width in pixels (e.g. 640).
+    pub width_px: u32,
+    /// Terminal height in pixels (e.g. 480).
+    pub height_px: u32,
 }
