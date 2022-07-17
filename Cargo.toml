@@ -26,6 +26,7 @@ path = "tests/keys/main.rs"
 [dependencies]
 aes = "0.8"
 aes-gcm = "^0.10.0-pre"
+base64 = "^0.13"
 bcrypt-pbkdf = "0.9"
 bytes = "1.1"
 cbc = "0.1"

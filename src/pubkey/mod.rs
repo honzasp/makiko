@@ -91,12 +91,35 @@ impl Pubkey {
         }
     }
 
-    pub(crate) fn decode(blob: Bytes) -> Result<Self> {
+    /// Decode a public key from SSH wire encoding.
+    ///
+    /// This is the encoding initially defined by RFC 4253. For keys other than RSA, the encoding
+    /// is defined in the RFC that introduces the key type.
+    pub fn decode(blob: Bytes) -> Result<Self> {
         decode_pubkey(blob)
     }
 
-    pub(crate) fn encode(&self) -> Bytes {
+    /// Encode a public key into SSH encoding.
+    ///
+    /// This is the encoding initially defined by RFC 4253. For keys other than RSA, the encoding
+    /// is defined in the RFC that introduces the key type.
+    ///
+    /// You can use this method to calculate a digest of the public key.
+    pub fn encode(&self) -> Bytes {
         encode_pubkey(self)
+    }
+
+    /// Compute a fingerprint of the public key.
+    ///
+    /// The fingerprint is in the SHA-256 digest of the public key encoded with base64 (not padded
+    /// with `=` characters) and prefixed with `SHA256:` (e.g.
+    /// `"SHA256:eaBPG/rqx+IPa0Lc9KHypkG3UxjmUwerwq9CZ/xpPWM"`). If you need another format, use
+    /// [`encode()`][Self::encode()] to encode the key into bytes and apply a digest of your
+    /// choice.
+    pub fn fingerprint(&self) -> String {
+        use sha2::Digest;
+        let digest = sha2::Sha256::digest(self.encode());
+        format!("SHA256:{}", base64::encode_config(digest, base64::STANDARD_NO_PAD))
     }
 }
 

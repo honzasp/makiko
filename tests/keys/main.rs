@@ -74,7 +74,7 @@ fn check_decode_privkey(expected_privkey: makiko::Privkey, pem_data: &str, passw
 }
 
 #[test] 
-#[should_panic] // this is not implemented
+#[should_panic] // this functionality is not implemented
 fn test_decode_encrypted_rsa_aes128_gcm() {
     // the `cryptography` library in Python does not support keys encrypted using aes128-gcm, so
     // the keys.rs file does not contain `encrypted_rsa_aes128_gcm()`
@@ -85,3 +85,26 @@ fn test_decode_encrypted_rsa_aes128_gcm() {
     assert_eq!(decoded.pubkey, decoded.privkey.pubkey());
 }
 
+fn check_fingerprint(privkey: makiko::Privkey, expected: &str) {
+    let fingerprint = privkey.pubkey().fingerprint();
+    assert_eq!(fingerprint, expected);
+}
+
+#[test] fn test_fingerprint_alice_ed25519() {
+    check_fingerprint(keys::alice_ed25519(), "SHA256:sBkOpFO1h8D6+8mvKFvAgaHSFLjrG3LMeXDhST/qXwY");
+}
+#[test] fn test_fingerprint_ruth_rsa_1024() {
+    check_fingerprint(keys::ruth_rsa_1024(), "SHA256:JKKfprhKd9n4BaqMcwQmdrtaMxxvaYAi3LEwfsl/j10");
+}
+#[test] fn test_fingerprint_ruth_rsa_2048() {
+    check_fingerprint(keys::ruth_rsa_2048(), "SHA256:f7yXzeoej4cteCs7EipdN2+GPWRLgtleYTpDDQzNybk");
+}
+#[test] fn test_fingerprint_ruth_rsa_4096() {
+    check_fingerprint(keys::ruth_rsa_4096(), "SHA256:eaBPG/rqx+IPa0Lc9KHypkG3UxjmUwerwq9CZ/xpPWM");
+}
+#[test] fn test_fingerprint_eda_ecdsa_p256() {
+    check_fingerprint(keys::eda_ecdsa_p256(), "SHA256:c8EWc8omrSNzIK2ipOLWju6F9Do4ypK+mf3RRbgOCXw");
+}
+#[test] fn test_fingerprint_eda_ecdsa_p384() {
+    check_fingerprint(keys::eda_ecdsa_p384(), "SHA256:8vBuizZHVX0885H8gCJQTzpf73/S9y3vT3VAHtuBikY");
+}

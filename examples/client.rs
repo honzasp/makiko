@@ -179,7 +179,8 @@ async fn verify_pubkey(
     accept_tx: makiko::AcceptPubkeySender,
 ) -> Result<()> {
     log::info!("verifying server pubkey: {}", pubkey);
-    let prompt = format!("ssh: server pubkey: {}\nssh: do you want to connect?", pubkey);
+    let prompt = format!("ssh: server pubkey fingerprint {}\nssh: do you want to connect?",
+        pubkey.fingerprint());
     if ask_yes_no(&prompt).await? {
         accept_tx.accept();
     } else {

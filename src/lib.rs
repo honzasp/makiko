@@ -29,12 +29,12 @@ pub use self::mac::MacAlgo;
 pub use self::pubkey::{PubkeyAlgo, Pubkey, Privkey};
 
 pub use bytes;
-pub use ed25519_dalek;
-pub use rsa;
-pub use p256;
-pub use p384;
 pub use ecdsa;
 pub use ecdsa::elliptic_curve;
+pub use ed25519_dalek;
+pub use p256;
+pub use p384;
+pub use rsa;
 
 pub mod cipher;
 mod client;
