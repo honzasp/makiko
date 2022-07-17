@@ -46,12 +46,10 @@ impl<T: Send + 'static> Nursery<T> {
 }
 
 impl<T> NurseryStream<T> {
-    /*
     pub fn abort(&mut self) {
         self.task_rx.close();
         self.futures.clear();
     }
-    */
 }
 
 impl<T> Stream for NurseryStream<T> {

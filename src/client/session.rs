@@ -17,7 +17,7 @@ use super::client::Client;
 /// SSH session (RFC 4254, section 6) corresponds to the execution of a single process. The
 /// [`Session`] is used to send requests and data to the server, and [`SessionReceiver`] will
 /// receive the requests and data from the server. To open the session, use
-/// [`Client::open_session()`][super::Client::open_session].
+/// [`Client::open_session()`].
 ///
 /// Once the session is open, you will typically go through three stages:
 /// - prepare the execution environment: [`env()`][Self::env()],
@@ -41,6 +41,11 @@ impl Session {
     pub(super) async fn open(client: &Client, config: ChannelConfig) -> Result<(Session, SessionReceiver)> {
         let (channel, channel_rx, _) = client.open_channel("session".into(), config, Bytes::new()).await?;
         Ok((Session { channel }, SessionReceiver { channel_rx }))
+    }
+
+    /// Get the [`Client`] that this session belongs to.
+    pub fn client(&self) -> Client {
+        self.channel.client()
     }
 
     /// Close the session.

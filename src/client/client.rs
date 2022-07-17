@@ -9,8 +9,8 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
-use crate::{Error, Result, DisconnectError};
 use crate::cipher::{self, CipherAlgo};
+use crate::error::{Error, Result, DisconnectError};
 use crate::kex::{self, KexAlgo};
 use crate::mac::{self, MacAlgo};
 use crate::pubkey::{self, PubkeyAlgo, Pubkey, Privkey};
@@ -41,7 +41,7 @@ use super::session::{Session, SessionReceiver};
 /// You can cheaply clone this object and safely share the clones between tasks.
 #[derive(Clone)]
 pub struct Client {
-    client_st: Weak<Mutex<ClientState>>,
+    pub(super) client_st: Weak<Mutex<ClientState>>,
 }
 
 impl Client {
@@ -118,10 +118,8 @@ impl Client {
     /// prove that you own the corresponding private key.
     ///
     /// You must specify the private key `privkey` and also `pubkey_algo`, the pubkey algorithm
-    /// that is used to prove that you own the private key. You can look up compatible algorithms
-    /// in the documentation of your private key (such as
-    /// [`Ed25519Privkey`][crate::pubkey::Ed25519Privkey] or
-    /// [`RsaPrivkey`][crate::pubkey::RsaPrivkey]); if you supply `pubkey_algo` that is not
+    /// that is used to prove that you own the private key (see [`Pubkey::algos_secure()`] and
+    /// [`Pubkey::algos_compatible_less_secure()`]). If you supply `pubkey_algo` that is not
     /// compatible with the `privkey`, you will get an [`Error::PrivkeyFormat`].
     ///
     /// If a previous authentication attempt was successful, this call immediately succeeds. If you
@@ -424,8 +422,9 @@ impl Default for ClientConfig {
 impl ClientConfig {
     /// Default configuration with higher compatibility and lower security.
     ///
-    /// Returns a configuration that includes support for outdated and potentially insecure crypto,
-    /// notably SHA-1. **Use at your own risk!**.
+    /// Returns a configuration that includes support for legacy crypto, notably SHA-1. None of
+    /// these algorithms is known to be broken and they should be alright most of the time, but use
+    /// at your own risk!
     pub fn default_compatible_less_secure() -> ClientConfig {
         Self::default().with(|c| {
             c.kex_algos.extend_from_slice(&[

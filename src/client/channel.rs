@@ -6,14 +6,14 @@ use std::task::{Context, Poll};
 use tokio::sync::{mpsc, oneshot};
 use crate::error::{Result, Error};
 use super::channel_state::{self, ChannelState, ChannelSendData};
+use super::client::Client;
 use super::client_state::ClientState;
 
 /// Handle to an SSH channel (low level API).
 ///
 /// Use this object to send requests and data to the server over an SSH channel. To receive events
 /// and data from the server, use the matching [`ChannelReceiver`]. To obtain an instance of
-/// [`Channel`] and [`ChannelReceiver`], use the method
-/// [`Client::open_channel()`][super::Client::open_channel()].
+/// [`Channel`] and [`ChannelReceiver`], use the method [`Client::open_channel()`].
 ///
 /// This is part of a **low level API** that gives you direct access to an SSH channel, as
 /// described in RFC 4254, section 5.  If you want to execute programs, consider using a
@@ -33,6 +33,11 @@ impl Channel {
 
     fn upgrade_channel(&self) -> Result<Arc<Mutex<ChannelState>>> {
         self.channel_st.upgrade().ok_or(Error::ChannelClosed)
+    }
+
+    /// Get the [`Client`] that this channel belongs to.
+    pub fn client(&self) -> Client {
+        Client { client_st: self.client_st.clone() }
     }
 
     /// Send a request to the server.
