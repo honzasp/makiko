@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use futures::stream::{FuturesUnordered, Stream, StreamExt as _};
 use std::future::Future;
 use std::panic::resume_unwind;

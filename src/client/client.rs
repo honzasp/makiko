@@ -3,6 +3,7 @@ use parking_lot::Mutex;
 use pin_project::pin_project;
 use rand::rngs::OsRng;
 use std::future::Future;
+use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
@@ -23,6 +24,7 @@ use super::client_event::ClientEvent;
 use super::client_state::{self, ClientState};
 use super::conn::{self, OpenChannel};
 use super::session::{Session, SessionReceiver};
+use super::tunnel::{Tunnel, TunnelReceiver};
 
 /// Handle to an SSH connection.
 ///
@@ -193,6 +195,33 @@ impl Client {
     /// This method will wait until you are authenticated before doing anything.
     pub async fn open_session(&self, config: ChannelConfig) -> Result<(Session, SessionReceiver)> {
         Session::open(self, config).await
+    }
+
+    /// Opens a tunnel by asking the server to connect to a host ("local forwarding").
+    ///
+    /// If the server accepts the request, it will try to connect to a host and port determined by
+    /// `connect_addr`. The host may be either an IP address or a domain name. You should also
+    /// specify the `originator_addr`, which should be the IP address and port of the machine from
+    /// where the connection request originates.
+    ///
+    /// If the tunnel is opened successfully, you receive two objects:
+    ///
+    /// - [`Tunnel`] is the handle for sending data to the server.
+    /// - [`TunnelReceiver`] receives the data from the server as
+    /// [`TunnelEvent`][super::TunnelEvent]s. You **must** receive these events in time, otherwise
+    /// the client will stall.
+    ///
+    /// You can open many tunnels or sessions in parallel, the SSH protocol will multiplex them
+    /// over the underlying connection.
+    ///
+    /// This method will wait until you are authenticated before doing anything.
+    pub async fn connect_tunnel(
+        &self,
+        config: ChannelConfig,
+        connect_addr: (String, u16),
+        originator_addr: (IpAddr, u16),
+    ) -> Result<(Tunnel, TunnelReceiver)> {
+        Tunnel::connect(self, config, connect_addr, originator_addr).await
     }
 
     /// Opens a raw SSH channel (low level API).

@@ -15,6 +15,7 @@ mod nursery;
 mod session_test;
 mod smoke_test;
 mod ssh_server;
+mod tunnel_test;
 
 #[path = "../keys/keys.rs"]
 #[allow(dead_code)]
@@ -152,6 +153,7 @@ async fn run_all_tests(selector: TestSelector) -> Result<TestResult> {
     smoke_test::collect(&mut suite);
     auth_test::collect(&mut suite);
     session_test::collect(&mut suite);
+    tunnel_test::collect(&mut suite);
 
     let mut ctx = TestCtx { docker, selector, suite, result: TestResult::default() };
     for server_name in server_names.into_iter() {

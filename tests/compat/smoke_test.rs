@@ -111,15 +111,7 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
     });
 
     nursery.spawn(enclose!{(nursery) async move {
-        let res = client.auth_password("alice".into(), "alicealice".into()).await?;
-        if !matches!(res, makiko::AuthPasswordResult::Success) {
-            let res = client.auth_pubkey(
-                "alice".into(), keys::alice_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
-            if !matches!(res, makiko::AuthPubkeyResult::Success) {
-                bail!("could not authenticate")
-            }
-        }
-
+        authenticate_alice(&client).await?;
         let (session, mut session_rx) = client.open_session(makiko::ChannelConfig::default()).await?;
 
         let (stdout_tx, stdout_rx) = oneshot::channel();
@@ -153,4 +145,16 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
 
     drop(nursery);
     nursery_stream.try_run().await
+}
+
+pub(super) async fn authenticate_alice(client: &makiko::Client) -> Result<()> {
+    let res = client.auth_password("alice".into(), "alicealice".into()).await?;
+    if !matches!(res, makiko::AuthPasswordResult::Success) {
+        let res = client.auth_pubkey(
+            "alice".into(), keys::alice_ed25519(), &makiko::pubkey::SSH_ED25519).await?;
+        if !matches!(res, makiko::AuthPubkeyResult::Success) {
+            bail!("could not authenticate")
+        }
+    }
+    Ok(())
 }

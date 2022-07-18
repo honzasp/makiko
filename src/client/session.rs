@@ -321,6 +321,7 @@ pub struct ExitSignal {
 /// by the server on the channel. You can ignore these events if you don't need them, but you
 /// **must** receive them, otherwise the client will stall when the internal buffer of events fills
 /// up.
+#[derive(Debug)]
 pub struct SessionReceiver {
     channel_rx: ChannelReceiver,
 }
