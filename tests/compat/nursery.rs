@@ -49,7 +49,9 @@ impl<T: Send + 'static> Nursery<T> {
 impl<T> NurseryStream<T> {
     pub fn abort(&mut self) {
         self.task_rx.close();
-        self.futures.clear();
+        for handle in self.futures.iter_mut() {
+            handle.abort();
+        }
     }
 }
 
@@ -100,15 +102,51 @@ impl NurseryStream<()> {
     */
 }
 
-impl<E> NurseryStream<Result<(), E>> {
-    pub async fn try_run(&mut self) -> Result<(), E> {
-        loop {
+impl NurseryStream<Result<(), anyhow::Error>> {
+    pub async fn try_run(&mut self) -> Result<(), anyhow::Error> {
+        let first_err = loop {
             match self.next().await {
                 Some(Ok(())) => continue,
-                Some(Err(err)) => return Err(err),
+                Some(Err(err)) => break err,
                 None => return Ok(()),
             }
+        };
+
+        self.abort();
+        let mut other_errs = vec![];
+        while let Some(res) = self.next().await {
+            other_errs.extend(res.err().into_iter());
         }
+
+        if !other_errs.is_empty() {
+            Err(MultiError { first_err, other_errs }.into())
+        } else {
+            Err(first_err)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MultiError {
+    pub first_err: anyhow::Error,
+    pub other_errs: Vec<anyhow::Error>,
+}
+
+impl std::error::Error for MultiError {}
+
+impl std::fmt::Display for MultiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:#}", self.first_err)?;
+        for other_err in self.other_errs.iter() {
+            write!(f, "\n{:#}", other_err)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T> AbortOnDrop<T> {
+    fn abort(&mut self) {
+        self.0.abort();
     }
 }
 
@@ -121,7 +159,7 @@ impl<T> Future for AbortOnDrop<T> {
 
 impl<T> Drop for AbortOnDrop<T> {
     fn drop(&mut self) {
-        self.0.abort();
+        self.abort();
     }
 }
 

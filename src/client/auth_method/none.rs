@@ -34,14 +34,14 @@ impl AuthNone {
 impl AuthMethod for AuthNone {
     fn recv_success(&mut self) -> Result<()> {
         if let Some(result_tx) = self.result_tx.take() {
-            let _ = result_tx.send(AuthNoneResult::Success);
+            let _: Result<_, _> = result_tx.send(AuthNoneResult::Success);
         }
         Ok(())
     }
 
     fn recv_failure(&mut self, failure: AuthFailure) -> Result<()> {
         if let Some(result_tx) = self.result_tx.take() {
-            let _ = result_tx.send(AuthNoneResult::Failure(failure));
+            let _: Result<_, _> = result_tx.send(AuthNoneResult::Failure(failure));
         }
         Ok(())
     }

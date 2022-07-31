@@ -68,8 +68,8 @@ impl Session {
     /// This will set an environment variable for the process that will be started later.
     ///
     /// This method returns immediately without any blocking, but you may use the returned
-    /// [`SessionReply`] to wait for the server response.
-    pub fn env(&self, name: &[u8], value: &[u8]) -> Result<SessionReply> {
+    /// [`SessionResp`] to wait for the server response.
+    pub fn env(&self, name: &[u8], value: &[u8]) -> Result<SessionResp> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let mut payload = PacketEncode::new();
         payload.put_bytes(name);
@@ -79,7 +79,7 @@ impl Session {
             payload: payload.finish(),
             reply_tx: Some(reply_tx),
         })?;
-        Ok(SessionReply { reply_rx })
+        Ok(SessionResp { reply_rx })
     }
 
     /// Request a pseudo-terminal (pty) for the future process.
@@ -87,8 +87,8 @@ impl Session {
     /// This will allocate a pseudo-terminal according to the `request`.
     ///
     /// This method returns immediately without any blocking, but you may use the returned
-    /// [`SessionReply`] to wait for the server response.
-    pub fn request_pty(&self, request: &PtyRequest) -> Result<SessionReply> {
+    /// [`SessionResp`] to wait for the server response.
+    pub fn request_pty(&self, request: &PtyRequest) -> Result<SessionResp> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let mut payload = PacketEncode::new();
         payload.put_str(&request.term);
@@ -110,7 +110,7 @@ impl Session {
             payload: payload.finish(),
             reply_tx: Some(reply_tx),
         })?;
-        Ok(SessionReply { reply_rx })
+        Ok(SessionResp { reply_rx })
     }
 }
 
@@ -122,22 +122,22 @@ impl Session {
     /// Start the user's default shell on the server.
     ///
     /// This method returns immediately without any blocking, but you may use the returned
-    /// [`SessionReply`] to wait for the server response.
-    pub fn shell(&self) -> Result<SessionReply> {
+    /// [`SessionResp`] to wait for the server response.
+    pub fn shell(&self) -> Result<SessionResp> {
         let (reply_tx, reply_rx) = oneshot::channel();
         self.channel.send_request(ChannelReq {
             request_type: "shell".into(),
             payload: Bytes::new(),
             reply_tx: Some(reply_tx),
         })?;
-        Ok(SessionReply { reply_rx })
+        Ok(SessionResp { reply_rx })
     }
 
     /// Start a command on the server.
     ///
     /// This method returns immediately without any blocking, but you may use the returned
-    /// [`SessionReply`] to wait for the server response.
-    pub fn exec(&self, command: &[u8]) -> Result<SessionReply> {
+    /// [`SessionResp`] to wait for the server response.
+    pub fn exec(&self, command: &[u8]) -> Result<SessionResp> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let mut payload = PacketEncode::new();
         payload.put_bytes(command);
@@ -146,7 +146,7 @@ impl Session {
             payload: payload.finish(),
             reply_tx: Some(reply_tx),
         })?;
-        Ok(SessionReply { reply_rx })
+        Ok(SessionResp { reply_rx })
     }
 
     /// Start an SSH subsystem on the server.
@@ -154,8 +154,8 @@ impl Session {
     /// Subsystems are described in RFC 4254, section 6.5.
     ///
     /// This method returns immediately without any blocking, but you may use the returned
-    /// [`SessionReply`] to wait for the server response.
-    pub fn subsystem(&self, subsystem_name: &str) -> Result<SessionReply> {
+    /// [`SessionResp`] to wait for the server response.
+    pub fn subsystem(&self, subsystem_name: &str) -> Result<SessionResp> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let mut payload = PacketEncode::new();
         payload.put_str(subsystem_name);
@@ -164,7 +164,7 @@ impl Session {
             payload: payload.finish(),
             reply_tx: Some(reply_tx),
         })?;
-        Ok(SessionReply { reply_rx })
+        Ok(SessionResp { reply_rx })
     }
 }
 
@@ -232,19 +232,19 @@ impl Session {
 
 /// Future server response to a [`Session`] request.
 ///
-/// You may either wait for the reply using [`.want_reply()`][Self::want_reply], or ignore the
-/// reply using [`.no_reply()`].
+/// You may either wait for the response using [`.wait()`][Self::wait], or ignore the response
+/// using [`.ignore()`].
 #[derive(Debug)]
-#[must_use = "please use .want_reply() to await the reply, or .no_reply() to ignore it"]
-pub struct SessionReply {
+#[must_use = "please use .wait().await to await the response, or .ignore() to ignore it"]
+pub struct SessionResp {
     reply_rx: oneshot::Receiver<ChannelReply>,
 }
 
-impl SessionReply {
-    /// Wait for the reply from the server.
+impl SessionResp {
+    /// Wait for the response from the server.
     ///
     /// If the request failed, this returns an error ([`Error::ChannelReq`]).
-    pub async fn want_reply(self) -> Result<()> {
+    pub async fn wait(self) -> Result<()> {
         match self.reply_rx.await {
             Ok(ChannelReply::Success) => Ok(()),
             Ok(ChannelReply::Failure) => Err(Error::ChannelReq),
@@ -252,11 +252,11 @@ impl SessionReply {
         }
     }
 
-    /// Ignore the reply.
+    /// Ignore the response.
     ///
-    /// This just drops the [`SessionReply`], but it is a good practice to do this explicitly with
-    /// this method.
-    pub fn no_reply(self) {}
+    /// This just drops the [`SessionResp`], but it is a good practice to do this explicitly
+    /// with this method.
+    pub fn ignore(self) {}
 }
 
 
@@ -390,7 +390,7 @@ fn translate_request(request: ChannelReq) -> Result<Option<SessionEvent>> {
     };
 
     if let Some(reply_tx) = request.reply_tx {
-        let _ = reply_tx.send(ChannelReply::Success);
+        let _: Result<_, _> = reply_tx.send(ChannelReply::Success);
     }
     Ok(Some(event))
 }
@@ -439,7 +439,7 @@ impl PtyTerminalModes {
     ///
     /// The opcodes are defined in [`codes::terminal_mode`][crate::codes::terminal_mode].
     pub fn add(&mut self, opcode: u8, arg: u32) {
-        assert!(opcode >= 1 && opcode < 160);
+        assert!((1..160).contains(&opcode));
         self.opcodes.push((opcode, arg));
     }
 }

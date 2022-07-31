@@ -136,7 +136,7 @@ pub(super) fn pump_channel(
 
         if let Some(mut data) = channel_st.send_datas.pop_front() {
             if send_channel_data(st, channel_st, &mut data.data) {
-                let _ = data.sent_tx.send(());
+                let _: Result<_, _> = data.sent_tx.send(());
                 return Ok(Pump::Progress)
             } else {
                 channel_st.send_datas.push_front(data);
@@ -186,7 +186,7 @@ pub(super) fn recv_channel_success(channel_st: &mut ChannelState) -> ResultRecvS
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_SUCCESS, but no reply was expected"))
     }};
     log::debug!("received SSH_MSG_CHANNEL_SUCCESS for our channel {}", channel_st.our_id);
-    let _ = reply.reply_tx.send(ChannelReply::Success);
+    let _: Result<_, _> = reply.reply_tx.send(ChannelReply::Success);
     Ok(None)
 }
 
@@ -195,7 +195,7 @@ pub(super) fn recv_channel_failure(channel_st: &mut ChannelState) -> ResultRecvS
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_FAILURE, but no reply was expected"))
     }};
     log::debug!("received SSH_MSG_CHANNEL_FAILURE for our channel {}", channel_st.our_id);
-    let _ = reply.reply_tx.send(ChannelReply::Failure);
+    let _: Result<_, _> = reply.reply_tx.send(ChannelReply::Failure);
     Ok(None)
 }
 
@@ -426,7 +426,7 @@ fn send_event(channel_mutex: Arc<Mutex<ChannelState>>, event: ChannelEvent) -> R
             let reserve_res = ready!(channel_st.event_tx.poll_reserve(cx));
             let event = self.event.take().unwrap();
             if reserve_res.is_ok() {
-                let _ = channel_st.event_tx.send_item(event);
+                let _: Result<_, _> = channel_st.event_tx.send_item(event);
             }
             Poll::Ready(Ok(()))
         }

@@ -1,9 +1,9 @@
 use bytes::Bytes;
+use derivative::Derivative;
 use parking_lot::Mutex;
 use pin_project::pin_project;
 use rand::rngs::OsRng;
 use std::future::Future;
-use std::net::IpAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::{Context, Poll};
@@ -11,6 +11,7 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::{mpsc, oneshot};
 use crate::cipher::{self, CipherAlgo};
+use crate::codec::{PacketDecode, PacketEncode};
 use crate::error::{Error, Result, DisconnectError};
 use crate::kex::{self, KexAlgo};
 use crate::mac::{self, MacAlgo};
@@ -20,7 +21,7 @@ use super::auth_method::none::{AuthNone, AuthNoneResult};
 use super::auth_method::password::{AuthPassword, AuthPasswordResult};
 use super::auth_method::pubkey::{AuthPubkey, AuthPubkeyResult, CheckPubkey};
 use super::channel::{Channel, ChannelReceiver, ChannelConfig};
-use super::client_event::ClientEvent;
+use super::client_event::ClientReceiver;
 use super::client_state::{self, ClientState};
 use super::conn::{self, OpenChannel};
 use super::session::{Session, SessionReceiver};
@@ -47,17 +48,18 @@ pub struct Client {
 }
 
 impl Client {
-    /// Creates an SSH connection from an existing stream.
+    /// Create an SSH connection from an existing stream.
     ///
     /// We initialize the client, but do not perform any I/O in this method. You should use the
     /// returned objects as follows:
     ///
     /// - [`Client`] allows you to interact with the SSH client. You should use it to authenticate
     /// yourself to the server and then you can open channels or sessions.
-    /// - [`ClientReceiver`] is the receiving half of the client. It produces [`ClientEvent`]s,
-    /// which mostly correspond to actions initiated by the server. The only event that you need to
-    /// handle is [`ClientEvent::ServerPubkey`]. However, you **must** receive these events in a
-    /// timely manner, otherwise the client will stall.
+    /// - [`ClientReceiver`] is the receiving half of the client. It produces
+    /// [`ClientEvent`][super::ClientEvent]s, which mostly correspond to actions initiated by the
+    /// server. The only event that you need to handle is
+    /// [`ClientEvent::ServerPubkey`][super::ClientEvent::ServerPubkey]. However, you **must**
+    /// receive these events in a timely manner, otherwise the client will stall.
     /// - [`ClientFuture`] is a future that you must poll to drive the connection state machine
     /// forward. You will usually spawn a task for this future.
     pub fn open<IO>(stream: IO, config: ClientConfig) -> Result<(Client, ClientReceiver, ClientFuture<IO>)>
@@ -69,7 +71,11 @@ impl Client {
         let client_st = Arc::new(Mutex::new(client_st));
 
         let client = Client { client_st: Arc::downgrade(&client_st) };
-        let client_rx = ClientReceiver { event_rx };
+        let client_rx = ClientReceiver {
+            client_st: Arc::downgrade(&client_st),
+            event_rx,
+            specialize_channels: true,
+        };
         let client_fut = ClientFuture { client_st, stream };
         Ok((client, client_rx, client_fut))
     }
@@ -139,7 +145,7 @@ impl Client {
         result_rx.await.map_err(|_| Error::AuthAborted)?
     }
 
-    /// Checks whether "publickey" authentication method would be acceptable.
+    /// Check whether "publickey" authentication method would be acceptable.
     ///
     /// Before attempting the "publickey" authentication method using
     /// [`auth_pubkey()`][Self::auth_pubkey()], you may ask the server whether authentication using
@@ -173,14 +179,14 @@ impl Client {
         Ok(self.upgrade()?.lock().their_ext_info.auth_pubkey_algo_names.clone())
     }
 
-    /// Returns true if the server has authenticated you.
+    /// Return true if the server has authenticated you.
     ///
     /// You must use one of the `auth_*` methods to authenticate.
     pub fn is_authenticated(&self) -> Result<bool> {
         Ok(auth::is_authenticated(&self.upgrade()?.lock()))
     }
 
-    /// Opens an SSH session to execute a program or the shell.
+    /// Open an SSH session to execute a program or the shell.
     ///
     /// If the session is opened successfully, you receive two objects:
     ///
@@ -197,7 +203,7 @@ impl Client {
         Session::open(self, config).await
     }
 
-    /// Opens a tunnel by asking the server to connect to a host ("local forwarding").
+    /// Open a tunnel by asking the server to connect to a host ("local forwarding").
     ///
     /// If the server accepts the request, it will try to connect to a host and port determined by
     /// `connect_addr`. The host may be either an IP address or a domain name. You should also
@@ -219,12 +225,69 @@ impl Client {
         &self,
         config: ChannelConfig,
         connect_addr: (String, u16),
-        originator_addr: (IpAddr, u16),
+        originator_addr: (String, u16),
     ) -> Result<(Tunnel, TunnelReceiver)> {
         Tunnel::connect(self, config, connect_addr, originator_addr).await
     }
 
-    /// Opens a raw SSH channel (low level API).
+    /// Start listening for connections on the server and tunnels them to us ("remote
+    /// forwarding").
+    ///
+    /// If the server accepts the request, it will try to bind to the host and port determined by
+    /// `bind_addr`. The host might be an IP address, `"localhost"` (listen on loopback addresses)
+    /// or `""` (listen on all addresses). The port might be 0, in which case the server assigns a
+    /// free port and returns it in the response. Note that by default, most SSH servers will allow
+    /// you to bind only to the loopback (localhost) address.
+    ///
+    /// Once somebody connects to the server on the bound address, you will receive
+    /// [`ClientEvent::Tunnel`][super::ClientEvent::Tunnel] from the [`ClientReceiver`], and you
+    /// then may accept the tunnel.
+    ///
+    /// The server responds with the bound port if you specified port 0.
+    ///
+    /// This method will wait until you are authenticated before doing anything.
+    pub fn bind_tunnel(&self, bind_addr: (String, u16)) -> Result<ClientResp<Option<u16>>> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+
+        let mut payload = PacketEncode::new();
+        payload.put_str(&bind_addr.0);
+        payload.put_u32(bind_addr.1 as u32);
+        self.send_request(GlobalReq {
+            request_type: "tcpip-forward".into(),
+            payload: payload.finish(),
+            reply_tx: Some(reply_tx),
+        })?;
+
+        Ok(ClientResp::map(reply_rx, |payload| {
+            if payload.remaining_len() >= 4 {
+                payload.get_u32().map(|x| Some(x as u16))
+            } else {
+                Ok(None)
+            }
+        }))
+    }
+
+    /// Stop listening for connections on the server.
+    ///
+    /// This cancels the remote forwarding set up by [`bind_tunnel()`][Self::bind_tunnel()].
+    ///
+    /// This method will wait until you are authenticated before doing anything.
+    pub fn unbind_tunnel(&self, bind_addr: (String, u16)) -> Result<ClientResp<()>> {
+        let (reply_tx, reply_rx) = oneshot::channel();
+
+        let mut payload = PacketEncode::new();
+        payload.put_str(&bind_addr.0);
+        payload.put_u32(bind_addr.1 as u32);
+        self.send_request(GlobalReq {
+            request_type: "cancel-tcpip-forward".into(),
+            payload: payload.finish(),
+            reply_tx: Some(reply_tx),
+        })?;
+
+        Ok(ClientResp::map(reply_rx, |_payload| Ok(())))
+    }
+
+    /// Open a raw SSH channel (low level API).
     ///
     /// Use this to directly open an SSH channel, as described in RFC 4254, section 5.
     /// The bytes in `open_payload` will be appended to the `SSH_MSG_CHANNEL_OPEN` packet as the
@@ -247,26 +310,37 @@ impl Client {
     pub async fn open_channel(&self, channel_type: String, config: ChannelConfig, open_payload: Bytes) 
         -> Result<(Channel, ChannelReceiver, Bytes)> 
     {
-        let (confirmed_tx, confirmed_rx) = oneshot::channel();
+        let (result_tx, result_rx) = oneshot::channel();
         let open = OpenChannel {
             channel_type,
-            recv_window_max: config.recv_window_max.clamp(1000, u32::MAX as usize),
-            recv_packet_len_max: config.recv_packet_len_max.clamp(200, u32::MAX as usize),
+            recv_window_max: config.recv_window_max(),
+            recv_packet_len_max: config.recv_packet_len_max(),
             open_payload,
-            confirmed_tx,
+            result_tx,
         };
         conn::open_channel(&mut self.upgrade()?.lock(), open);
 
-        let confirmed = confirmed_rx.await.map_err(|_| Error::ChannelClosed)??;
+        let result = result_rx.await.map_err(|_| Error::ChannelClosed)??;
 
         let channel = Channel {
             client_st: self.client_st.clone(), 
-            channel_st: confirmed.channel_st,
+            channel_st: result.channel_st,
         };
         let channel_rx = ChannelReceiver {
-            event_rx: confirmed.event_rx,
+            event_rx: result.event_rx,
         };
-        Ok((channel, channel_rx, confirmed.confirm_payload))
+        Ok((channel, channel_rx, result.confirm_payload))
+    }
+
+    /// Send a global request (low level API).
+    ///
+    /// This sends `SSH_MSG_GLOBAL_REQUEST` to the server (RFC 4254, section 4). We simply enqueue
+    /// the request and immediately return without any blocking, but you may use
+    /// [`GlobalReq::reply_tx`] to wait for the reply.
+    ///
+    /// The request will not be sent until you are authenticated.
+    pub fn send_request(&self, req: GlobalReq) -> Result<()> {
+        conn::send_request(&mut self.upgrade()?.lock(), req)
     }
 
     /// Trigger key exchange (rekeying).
@@ -289,7 +363,7 @@ impl Client {
         done_rx.await.map_err(|_| Error::RekeyAborted)?
     }
 
-    /// Disconnects from the server and closes the client.
+    /// Disconnect from the server and close the client.
     ///
     /// We send a disconnection message to the server, so that they can be sure that we intended to
     /// close the connection (i.e., it was not closed by a man-in-the-middle attacker). After
@@ -302,30 +376,63 @@ impl Client {
     }
 }
 
-/// Receiving half of a [`Client`].
+/// Global request on an SSH connection (low level API).
 ///
-/// [`ClientReceiver`] provides you with the [`ClientEvent`]s, various events that are produced
-/// during the life of the connection. You can usually ignore them, except
-/// [`ClientEvent::ServerPubkey`], which is used to verify the server's public key (if you ignore
-/// that event, we assume that you reject the key and we abort the connection). However, you
-/// **must** receive these events, otherwise the client will stall when the internal buffer of
-/// events fills up.
-pub struct ClientReceiver {
-    event_rx: mpsc::Receiver<ClientEvent>,
+/// Global requests are used to alter the state of the connection globally, without reference to
+/// any channels, using `SSH_MSG_GLOBAL_REQUEST`, as described in RFC 4254, section 4.
+#[derive(Debug)]
+pub struct GlobalReq {
+    /// The type of the request.
+    pub request_type: String,
+
+    /// The type-specifiec payload of the `SSH_MSG_GLOBAL_REQUEST` message.
+    pub payload: Bytes,
+
+    /// The reply to the request.
+    ///
+    /// For requests that you send to the server, you can create a [`oneshot`] pair and store the
+    /// sender here. We will set the `want reply` field in the `SSH_MSG_GLOBAL_REQUEST`, wait for
+    /// the reply from the server, and then send the reply to this sender. You may then receive the
+    /// reply from the `oneshot` receiver that you created along with the sender.
+    pub reply_tx: Option<oneshot::Sender<GlobalReply>>,
 }
 
-impl ClientReceiver {
-    /// Wait for the next event.
-    ///
-    /// Returns `None` if the connection was closed.
-    pub async fn recv(&mut self) -> Option<ClientEvent> {
-        self.event_rx.recv().await
+/// Reply to global request on an SSH connection (low level API).
+///
+/// This is a reply to `SSH_MSG_GLOBAL_REQUEST`, as described in RFC 4254, section 4.
+#[derive(Debug)]
+pub enum GlobalReply {
+    /// Successful reply (`SSH_MSG_REQUEST_SUCCESS`) with response specific payload.
+    Success(Bytes),
+    /// Failure reply (`SSH_MSG_REQUEST_FAILURE`).
+    Failure,
+}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+#[must_use = "please use .wait().await to await the response, or .ignore() to ignore it"]
+pub struct ClientResp<T> {
+    reply_rx: oneshot::Receiver<GlobalReply>,
+    #[derivative(Debug = "ignore")]
+    map_fn: Box<dyn FnOnce(&mut PacketDecode) -> Result<T> + Send + Sync>,
+}
+
+impl<T> ClientResp<T> {
+    fn map<F>(reply_rx: oneshot::Receiver<GlobalReply>, map_fn: F) -> Self 
+        where F: FnOnce(&mut PacketDecode) -> Result<T> + Send + Sync + 'static
+    {
+        Self { reply_rx, map_fn: Box::new(map_fn) }
     }
 
-    /// Poll-friendly variant of [`.recv()`][Self::recv()].
-    pub fn poll_recv(&mut self, cx: &mut Context) -> Poll<Option<ClientEvent>> {
-        self.event_rx.poll_recv(cx)
+    pub async fn wait(self) -> Result<T> {
+        match self.reply_rx.await {
+            Ok(GlobalReply::Success(payload)) => (self.map_fn)(&mut PacketDecode::new(payload)),
+            Ok(GlobalReply::Failure) => Err(Error::GlobalReq),
+            Err(_) => Err(Error::ClientClosed),
+        }
     }
+
+    pub fn ignore(self) {}
 }
 
 /// Future that drives the connection state machine.

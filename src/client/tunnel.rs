@@ -1,7 +1,6 @@
 use bytes::Bytes;
 use futures_core::ready;
 use std::future::Future;
-use std::net::IpAddr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use crate::codec::PacketEncode;
@@ -28,16 +27,20 @@ impl Tunnel {
         client: &Client,
         config: ChannelConfig,
         connect_addr: (String, u16),
-        originator_addr: (IpAddr, u16),
+        originator_addr: (String, u16),
     ) -> Result<(Tunnel, TunnelReceiver)> {
         let mut open_payload = PacketEncode::new();
         open_payload.put_str(&connect_addr.0);
         open_payload.put_u32(connect_addr.1 as u32);
-        open_payload.put_str(&originator_addr.0.to_string());
+        open_payload.put_str(&originator_addr.0);
         open_payload.put_u32(originator_addr.1 as u32);
 
         let (channel, channel_rx, _) = client.open_channel(
             "direct-tcpip".into(), config, open_payload.finish()).await?;
+        Ok((Tunnel { channel }, TunnelReceiver { channel_rx }))
+    }
+
+    pub(super) fn accept(channel: Channel, channel_rx: ChannelReceiver) -> Result<(Tunnel, TunnelReceiver)> {
         Ok((Tunnel { channel }, TunnelReceiver { channel_rx }))
     }
 }

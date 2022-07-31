@@ -48,7 +48,7 @@ impl AuthPubkey {
 
     fn send_result(&mut self, result: Result<AuthPubkeyResult>) {
         if let Some(result_tx) = self.result_tx.take() {
-            let _ = result_tx.send(result);
+            let _: Result<_, _> = result_tx.send(result);
         }
     }
 }
@@ -89,7 +89,7 @@ impl AuthMethod for AuthPubkey {
                     // killing the whole client), we send the error to `result_tx`, so that it will
                     // be returned from `Client::auth_pubkey()`
                     if let Some(result_tx) = self.result_tx.take() {
-                        let _ = result_tx.send(Err(err));
+                        let _: Result<_, _> = result_tx.send(Err(err));
                     }
                     return None
                 },
@@ -146,7 +146,7 @@ impl CheckPubkey {
 
     fn send_result(&mut self, result: bool) {
         if let Some(result_tx) = self.result_tx.take() {
-            let _ = result_tx.send(result);
+            let _: Result<_, _> = result_tx.send(result);
         }
     }
 }

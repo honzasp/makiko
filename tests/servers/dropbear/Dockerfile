@@ -19,7 +19,7 @@ RUN useradd -m queen && passwd -d queen
 
 RUN dropbearkey -t ecdsa -s 384 -f /etc/dropbear/dropbear_ecdsa_384_host_key
 
-ENTRYPOINT ["/usr/sbin/dropbear", "-F", "-E", "-B", "-R", \
+ENTRYPOINT ["/usr/sbin/dropbear", "-F", "-E", "-B", "-R", "-a", \
     "-r", "/etc/dropbear/dropbear_rsa_host_key", \
     "-r", "/etc/dropbear/dropbear_ecdsa_host_key", \
     "-r", "/etc/dropbear/dropbear_ecdsa_384_host_key", \

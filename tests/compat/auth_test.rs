@@ -231,7 +231,7 @@ async fn test_pubkey_rekey(socket: TcpStream) -> Result<()> {
 
 async fn test_pubkey_algo_names(socket: TcpStream) -> Result<()> {
     test_auth(socket, |client| async move {
-        let _ = client.auth_none("edward".into()).await?;
+        let _: makiko::AuthNoneResult = client.auth_none("edward".into()).await?;
         match client.auth_pubkey_algo_names()? {
             Some(names) => ensure!(names.contains(&"ssh-ed25519".into()), "received {:?}", names),
             None => bail!("received None"),
@@ -326,7 +326,7 @@ async fn test_auth_inner(
     });
 
     nursery.spawn(async move {
-        while let Some(event) = client_rx.recv().await {
+        while let Some(event) = client_rx.recv().await? {
             if let makiko::ClientEvent::ServerPubkey(_pubkey, accept_tx) = event {
                 accept_tx.accept();
             }

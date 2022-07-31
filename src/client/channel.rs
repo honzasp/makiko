@@ -213,7 +213,7 @@ pub struct ChannelReq {
     ///
     /// - For requests that you send to the server, you can create a [`oneshot`] pair and store
     /// the sender here. We will set the `want reply` field in the `SSH_MSG_CHANNEL_REQUEST`, wait
-    /// for the reply from the server, and then send the reply to the sender. You may then receive
+    /// for the reply from the server, and then send the reply to this sender. You may then receive
     /// the reply from the `oneshot` receiver that you created along with the sender.
     ///
     /// - For requests that we received from the server, we will set this field if the server set
@@ -323,5 +323,13 @@ impl ChannelConfig {
     pub fn with<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
         f(&mut self);
         self
+    }
+
+    pub(super) fn recv_window_max(&self) -> usize {
+        self.recv_window_max.clamp(1000, u32::MAX as usize)
+    }
+
+    pub(super) fn recv_packet_len_max(&self) -> usize {
+        self.recv_packet_len_max.clamp(200, u32::MAX as usize)
     }
 }

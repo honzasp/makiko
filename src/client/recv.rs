@@ -107,7 +107,7 @@ pub(super) fn send_event(event: ClientEvent) -> ResultRecvState {
             let reserve_res = ready!(st.event_tx.poll_reserve(cx));
             let event = self.event.take().unwrap();
             if reserve_res.is_ok() {
-                let _ = st.event_tx.send_item(event);
+                let _: Result<_, _> = st.event_tx.send_item(event);
             }
             Poll::Ready(Ok(()))
         }

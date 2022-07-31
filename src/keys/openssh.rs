@@ -59,8 +59,9 @@ pub fn decode_openssh_pem_keypair(pem_data: &[u8], passphrase: &[u8]) -> Result<
 /// key, which is stored without encryption. The private key is decoded only if it is not
 /// encrypted.
 ///
-/// For example, you can use this method together with [`Client::check_pubkey()`] to test whether
-/// the public key can be used for authentication before prompting the user for password.
+/// For example, you can use this method together with
+/// [`Client::check_pubkey()`][crate::Client::check_pubkey()] to test whether the public key can be
+/// used for authentication before prompting the user for password.
 pub fn decode_openssh_pem_keypair_nopass(pem_data: &[u8]) -> Result<OpensshKeypairNopass> {
     let data = super::decode_pem(pem_data, PEM_TAG)?;
     decode_openssh_binary_keypair_nopass(data.into())
@@ -88,8 +89,9 @@ pub fn decode_openssh_binary_keypair(data: Bytes, passphrase: &[u8]) -> Result<O
 /// key, which is stored without encryption. The private key is decoded only if it is not
 /// encrypted.
 ///
-/// For example, you can use this method together with [`Client::check_pubkey()`] to test whether
-/// the public key can be used for authentication before prompting the user for password.
+/// For example, you can use this method together with
+/// [`Client::check_pubkey()`][crate::Client::check_pubkey()] to test whether the public key can be
+/// used for authentication before prompting the user for password.
 pub fn decode_openssh_binary_keypair_nopass(data: Bytes) -> Result<OpensshKeypairNopass> {
     let raw = decode_raw(data)?;
     let (privkey, comment) =

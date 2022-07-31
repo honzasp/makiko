@@ -14,7 +14,7 @@ use crate::kex::{Kex, KexAlgo, KexInput, KexOutput};
 use crate::mac::{self, MacAlgo, MacAlgoVariant};
 use crate::pubkey::{PubkeyAlgo, Pubkey, SignatureVerified};
 use super::{auth, ext};
-use super::client_event::{ClientEvent, AcceptPubkeySender, PubkeyAccepted};
+use super::client_event::{ClientEvent, AcceptPubkey, PubkeyAccepted};
 use super::client_state::{self, ClientState};
 use super::pump::Pump;
 use super::recv::ResultRecvState;
@@ -29,7 +29,7 @@ pub(super) struct NegotiateState {
     kex_output: Option<KexOutput>,
     signature_verified: Option<SignatureVerified>,
     pubkey_event: Option<ClientEvent>,
-    accept_rx: Option<oneshot::Receiver<Result<PubkeyAccepted>>>,
+    accepted_rx: Option<oneshot::Receiver<Result<PubkeyAccepted>>>,
     pubkey_accepted: Option<PubkeyAccepted>,
     new_keys_sent: bool,
     new_keys_recvd: bool,
@@ -158,10 +158,10 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
             st.negotiate_st.signature_verified = Some(signature_verified);
             st.negotiate_st.kex_output = Some(kex_output);
 
-            let (accept_tx, accept_rx) = oneshot::channel();
-            let accept_tx = AcceptPubkeySender { accept_tx };
+            let (accepted_tx, accepted_rx) = oneshot::channel();
+            let accept_tx = AcceptPubkey { accepted_tx };
             st.negotiate_st.pubkey_event = Some(ClientEvent::ServerPubkey(pubkey, accept_tx));
-            st.negotiate_st.accept_rx = Some(accept_rx);
+            st.negotiate_st.accepted_rx = Some(accepted_rx);
             st.negotiate_st.state = State::AcceptPubkey;
             return Ok(Pump::Progress)
         },
@@ -170,11 +170,11 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
                 let reserve_res = pump_ready!(st.event_tx.poll_reserve(cx));
                 let pubkey_event = st.negotiate_st.pubkey_event.take().unwrap();
                 if reserve_res.is_ok() {
-                    let _ = st.event_tx.send_item(pubkey_event);
+                    let _: Result<_, _> = st.event_tx.send_item(pubkey_event);
                 }
             }
 
-            let accepted = pump_ready!(Pin::new(st.negotiate_st.accept_rx.as_mut().unwrap()).poll(cx))
+            let accepted = pump_ready!(Pin::new(st.negotiate_st.accepted_rx.as_mut().unwrap()).poll(cx))
                 .map_err(|err| Error::PubkeyAccept(Box::new(err)))??;
             log::debug!("server pubkey was accepted");
             st.negotiate_st.pubkey_accepted = Some(accepted);
@@ -199,7 +199,7 @@ pub(super) fn pump_negotiate(st: &mut ClientState, cx: &mut Context) -> Result<P
         },
         State::Done => {
             for done_tx in st.negotiate_st.done_txs.drain(..) {
-                let _ = done_tx.send(Ok(()));
+                let _: Result<_, _> = done_tx.send(Ok(()));
             }
             st.negotiate_st = Box::new(NegotiateState::default());
             st.last_kex = LastKex {
@@ -338,7 +338,7 @@ pub(super) fn recv_unimplemented(st: &mut ClientState, packet_seq: u32) -> Resul
             }
 
             for done_tx in st.negotiate_st.done_txs.drain(..) {
-                let _ = done_tx.send(Err(Error::RekeyRejected));
+                let _: Result<_, _> = done_tx.send(Err(Error::RekeyRejected));
             }
             st.negotiate_st = Box::new(NegotiateState::default());
             return Ok(true)

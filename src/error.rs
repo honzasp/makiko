@@ -2,7 +2,7 @@ use std::fmt;
 use crate::codes::{disconnect, open};
 
 /// Result type for our [`Error`].
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// Error that occured while handling SSH connection.
 ///
@@ -46,6 +46,8 @@ pub enum Error {
     ChannelOpen(ChannelOpenError),
     #[error("channel request failed")]
     ChannelReq,
+    #[error("global request failed")]
+    GlobalReq,
     #[error("rekeying was aborted")]
     RekeyAborted,
     #[error("rekeying was rejected by the peer")]

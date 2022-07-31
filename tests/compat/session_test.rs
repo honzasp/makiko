@@ -79,7 +79,7 @@ async fn test_cat(socket: TcpStream, config: makiko::ClientConfig) -> Result<()>
         // send stdin data to the session
         let (stdin_tx, mut stdin_rx) = mpsc::channel(8);
         nursery.spawn(enclose!{(session) async move {
-            session.exec("cat".as_bytes())?.want_reply().await?;
+            session.exec("cat".as_bytes())?.wait().await?;
 
             let mut rng = ChaCha8Rng::seed_from_u64(42);
             let mut stdin_len = 0;
@@ -161,7 +161,7 @@ async fn test_exit_status(socket: TcpStream, command: &'static str, expected_sta
             Ok(())
         });
 
-        session.exec(command.as_bytes())?.want_reply().await?;
+        session.exec(command.as_bytes())?.wait().await?;
 
         drop(nursery);
         nursery_stream.try_run().await
@@ -204,10 +204,10 @@ async fn test_signal(socket: TcpStream, expected_signal: &'static str, test: Tes
         match test {
             TestSignal::Exit => {
                 let command = format!("kill -{} $$", expected_signal);
-                session.exec(command.as_bytes())?.want_reply().await?;
+                session.exec(command.as_bytes())?.wait().await?;
             },
             TestSignal::Send => {
-                session.exec("sleep 2".as_bytes())?.want_reply().await?;
+                session.exec("sleep 2".as_bytes())?.wait().await?;
                 session.signal(expected_signal)?;
             },
         }
@@ -231,24 +231,24 @@ async fn test_env(socket: TcpStream) -> Result<()> {
                     break;
                 }
             }
-            let _ = stdout_tx.send(stdout.freeze());
+            let _: Result<_, _> = stdout_tx.send(stdout.freeze());
             log::debug!("session was closed");
             Ok(())
         });
 
         nursery.spawn(async move {
             // accepted env
-            session.env("TEST_1".as_bytes(), "foo".as_bytes())?.want_reply().await?;
-            session.env("TEST_2".as_bytes(), "bar".as_bytes())?.no_reply();
+            session.env("TEST_1".as_bytes(), "foo".as_bytes())?.wait().await?;
+            session.env("TEST_2".as_bytes(), "bar".as_bytes())?.wait().await?;
 
             // rejected env
-            match session.env("SPAM".as_bytes(), "eggs".as_bytes())?.want_reply().await {
+            match session.env("SPAM".as_bytes(), "eggs".as_bytes())?.wait().await {
                 Ok(_) => bail!("expected a failure while setting env SPAM"),
                 Err(makiko::Error::ChannelReq) => {},
                 Err(err) => bail!("unexpected error while setting env SPAM: {}", err),
             }
 
-            session.exec("echo $TEST_1 $TEST_2 $SPAM".as_bytes())?.want_reply().await?;
+            session.exec("echo $TEST_1 $TEST_2 $SPAM".as_bytes())?.wait().await?;
 
             let stdout = stdout_rx.await?;
             ensure!(stdout.as_ref() == "foo bar\n".as_bytes(), "received unexpected stdout {:?}", stdout);
@@ -276,7 +276,7 @@ async fn test_close(socket: TcpStream) -> Result<()> {
         });
 
         nursery.spawn(async move {
-            session.exec("cat".as_bytes())?.want_reply().await?;
+            session.exec("cat".as_bytes())?.wait().await?;
             session.close()?;
             Ok(())
         });
@@ -317,7 +317,7 @@ async fn test_session_inner(
     });
 
     nursery.spawn(async move {
-        while let Some(event) = client_rx.recv().await {
+        while let Some(event) = client_rx.recv().await? {
             if let makiko::ClientEvent::ServerPubkey(_pubkey, accept_tx) = event {
                 accept_tx.accept();
             }

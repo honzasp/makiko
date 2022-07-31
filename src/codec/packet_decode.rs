@@ -87,7 +87,7 @@ impl PacketDecode {
 
         let mut digits_be = vec![0; len];
         digits_be[len - bytes.len()..].copy_from_slice(&bytes);
-    Ok(digits_be)
+        Ok(digits_be)
     }
 
     /// Skip `len` bytes.

@@ -14,10 +14,10 @@ pub use crate::client::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply, ChannelConfig,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
-pub use crate::client::{Client, ClientReceiver, ClientFuture, ClientConfig};
-pub use crate::client::{ClientEvent, AcceptPubkeySender};
+pub use crate::client::{Client, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
+pub use crate::client::{ClientReceiver, ClientEvent, AcceptPubkey, AcceptChannel, AcceptTunnel};
 pub use crate::client::{
-    Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal,
+    Session, SessionReceiver, SessionEvent, SessionResp, ExitSignal,
     PtyRequest, PtyTerminalModes, WindowChange,
 };
 pub use crate::client::{Tunnel, TunnelReceiver, TunnelEvent};

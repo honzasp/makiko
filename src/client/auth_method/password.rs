@@ -61,14 +61,14 @@ impl AuthPassword {
 impl AuthMethod for AuthPassword {
     fn recv_success(&mut self) -> Result<()> {
         if let Some(result_tx) = self.result_tx.take() {
-            let _ = result_tx.send(AuthPasswordResult::Success);
+            let _: Result<_, _> = result_tx.send(AuthPasswordResult::Success);
         }
         Ok(())
     }
 
     fn recv_failure(&mut self, failure: AuthFailure) -> Result<()> {
         if let Some(result_tx) = self.result_tx.take() {
-            let _ = result_tx.send(AuthPasswordResult::Failure(failure));
+            let _: Result<_, _> = result_tx.send(AuthPasswordResult::Failure(failure));
         }
         Ok(())
     }
@@ -79,7 +79,7 @@ impl AuthMethod for AuthPassword {
             let prompt_lang = payload.get_string()?;
             if let Some(result_tx) = self.result_tx.take() {
                 let password_prompt = AuthPasswordPrompt { prompt, prompt_lang };
-                let _ = result_tx.send(AuthPasswordResult::ChangePassword(password_prompt));
+                let _: Result<_, _> = result_tx.send(AuthPasswordResult::ChangePassword(password_prompt));
             }
             Ok(())
         } else {

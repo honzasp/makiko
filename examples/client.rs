@@ -135,7 +135,7 @@ async fn run_client(
     let client_task = tokio::task::spawn(client_fut);
 
     let event_task = tokio::task::spawn(enclose!{(client) async move {
-        while let Some(event) = client_rx.recv().await {
+        while let Some(event) = client_rx.recv().await? {
             if let makiko::ClientEvent::ServerPubkey(pubkey, accept_tx) = event {
                 verify_pubkey(&client, pubkey, accept_tx).await?;
             }
@@ -176,7 +176,7 @@ async fn run_client(
 async fn verify_pubkey(
     client: &makiko::Client,
     pubkey: makiko::Pubkey,
-    accept_tx: makiko::AcceptPubkeySender,
+    accept_tx: makiko::AcceptPubkey,
 ) -> Result<()> {
     log::info!("verifying server pubkey: {}", pubkey);
     let prompt = format!("ssh: server pubkey fingerprint {}\nssh: do you want to connect?",
@@ -364,13 +364,13 @@ async fn interact(
 
     let send_task = tokio::task::spawn(enclose!{(session) async move {
         if let Some(pty_req) = pty_req.as_ref() {
-            session.request_pty(&pty_req)?.want_reply().await?;
+            session.request_pty(&pty_req)?.wait().await?;
         }
 
         if let Some(command) = command {
-            session.exec(command.as_bytes())?.want_reply().await?;
+            session.exec(command.as_bytes())?.wait().await?;
         } else {
-            session.shell()?.want_reply().await?;
+            session.shell()?.wait().await?;
         }
 
         let mut stdin = tokio::io::stdin();

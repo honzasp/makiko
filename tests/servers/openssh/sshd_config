@@ -9,5 +9,7 @@ Ciphers=+aes128-cbc,aes192-cbc,aes256-cbc
 PubkeyAcceptedAlgorithms=+ssh-rsa
 
 PermitEmptyPasswords=yes
-
 AcceptEnv TEST_*
+GatewayPorts clientspecified
+
+LogLevel DEBUG1

@@ -100,7 +100,7 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
     });
 
     nursery.spawn(async move {
-        while let Some(event) = client_rx.recv().await {
+        while let Some(event) = client_rx.recv().await? {
             log::debug!("received {:?}", event);
             if let makiko::ClientEvent::ServerPubkey(_pubkey, accept_tx) = event {
                 accept_tx.accept();
@@ -124,14 +124,14 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
                     break;
                 }
             }
-            let _ = stdout_tx.send(stdout.freeze());
+            let _: Result<_, _> = stdout_tx.send(stdout.freeze());
             log::debug!("session was closed");
             Ok(())
         });
 
         session.exec("whoami".as_bytes())
             .context("could not send exec request")?
-            .want_reply().await
+            .wait().await
             .context("could not execute command")?;
 
         let stdout = stdout_rx.await

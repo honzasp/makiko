@@ -6,10 +6,10 @@ pub use self::channel::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply, ChannelConfig,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
-pub use self::client::{Client, ClientReceiver, ClientFuture, ClientConfig};
-pub use self::client_event::{ClientEvent, AcceptPubkeySender};
+pub use self::client::{Client, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
+pub use self::client_event::{ClientReceiver, ClientEvent, AcceptPubkey, AcceptChannel, AcceptTunnel};
 pub use self::session::{
-    Session, SessionReceiver, SessionEvent, SessionReply, ExitSignal,
+    Session, SessionReceiver, SessionEvent, SessionResp, ExitSignal,
     PtyRequest, PtyTerminalModes, WindowChange,
 };
 pub use self::tunnel::{Tunnel, TunnelReceiver, TunnelEvent};

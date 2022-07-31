@@ -195,7 +195,7 @@ pub mod terminal_mode {
     /// Terminal input and output is assumed to be encoded in UTF-8.
     pub const IUTF8: u8 = 42;
 
-    /// Enable signals INTR, QUIT, [D]SUSP.
+    /// Enable signals INTR, QUIT, \[D\]SUSP.
     pub const ISIG: u8 = 50;
     /// Canonicalize input lines.
     pub const ICANON: u8 = 51;
