@@ -1,5 +1,6 @@
 //! Encoding and decoding keys.
 use bytes::Bytes;
+use derivative::Derivative;
 use crate::cipher::{self,  CipherAlgoVariant};
 use crate::codec::PacketDecode;
 use crate::error::{Result, Error};
@@ -8,11 +9,13 @@ use crate::pubkey::{Pubkey, Privkey};
 /// Keypair (public and private key) in OpenSSH format.
 ///
 /// Note that we do not check that the public key and private key form a valid keypair.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Derivative)]
+#[derivative(Debug)]
 pub struct OpensshKeypair {
     /// Public key, always unencrypted.
     pub pubkey: Pubkey,
     /// Private key, may be encrypted in the key file.
+    #[cfg_attr(not(feature = "debug_less_secure"), derivative(Debug = "ignore"))]
     pub privkey: Privkey,
     /// Comment, encrypted if and only if the private key is encrypted.
     pub comment: String,
@@ -22,11 +25,13 @@ pub struct OpensshKeypair {
 ///
 /// We can always decode the public key, which is stored without encryption. The private key will
 /// be decoded only if the file was not encrypted.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Derivative)]
+#[derivative(Debug)]
 pub struct OpensshKeypairNopass {
     /// Public key, available even without password.
     pub pubkey: Pubkey,
     /// Private key, available only if the key file was not encrypted.
+    #[cfg_attr(not(feature = "debug_less_secure"), derivative(Debug = "ignore"))]
     pub privkey: Option<Privkey>,
     /// Comment, available only if the key file was not encrypted.
     pub comment: Option<String>,
