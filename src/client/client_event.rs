@@ -281,8 +281,12 @@ impl AcceptChannel {
 #[derive(Debug)]
 pub struct AcceptTunnel {
     accept: AcceptChannel,
+
     /// The address on the SSH server that the remote peer has connected to.
+    ///
+    /// This should be equal to the address that you have passed to [`Client::bind_tunnel()`].
     pub connected_addr: (String, u16),
+
     /// The address of the remote peer.
     pub originator_addr: (String, u16),
 }
