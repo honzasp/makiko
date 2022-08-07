@@ -35,6 +35,7 @@ pub use ecdsa::elliptic_curve;
 pub use ed25519_dalek;
 pub use p256;
 pub use p384;
+pub use pem;
 pub use rsa;
 
 pub mod cipher;

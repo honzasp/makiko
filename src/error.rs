@@ -1,4 +1,5 @@
 use std::fmt;
+use rsa::pkcs1;
 use crate::codes::{disconnect, open};
 
 /// Result type for our [`Error`].
@@ -68,6 +69,8 @@ pub enum Error {
     ClientDisconnected,
     #[error("could not parse PEM file")]
     Pem(pem::PemError),
+    #[error("could not parse file in PKCS#1 format")]
+    Pkcs1(pkcs1::Error),
     #[error("unexpected PEM tag {0:?}, expected {1:?}")]
     BadPemTag(String, String),
     #[error("bad passphrase when decoding key")]

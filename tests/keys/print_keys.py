@@ -76,32 +76,42 @@ print("use hex_literal::hex;")
 print("use makiko::elliptic_curve;")
 print()
 
-def print_key(name, password="", decode=True):
+def print_key(name, password=None, decode=True, format="ssh"):
     private_file = os.path.join(base_dir, name)
     public_file = os.path.join(base_dir, f"{name}.pub")
     private_bytes = open(private_file, "rb").read()
     public_bytes = open(public_file, "rb").read()
 
     if decode:
-        private_key = serialization.load_ssh_private_key(private_bytes, b"password")
-        public_key = serialization.load_ssh_public_key(public_bytes)
+        if format == "ssh":
+            private_key = serialization.load_ssh_private_key(private_bytes, password)
+            public_key = serialization.load_ssh_public_key(public_bytes)
+        elif format == "pem":
+            private_key = serialization.load_pem_private_key(private_bytes, password)
+            public_key = serialization.load_pem_public_key(public_bytes)
 
         print(f"pub fn {name}() -> makiko::Privkey {{")
         print_privkey(private_key, public_key)
         print(f"}}")
 
-    private_str = private_bytes.decode("utf-8")
-    print(f"pub static {name.upper()}_KEYPAIR_PEM: &'static str = concat!(")
-    for line in private_str.splitlines(keepends=True):
-        escaped_line = line.translate({
-            ord("\n"): "\\n",
-            ord("\\"): "\\\\",
-            ord("\""): "\"",
-        })
-        print(f"    \"{escaped_line}\",")
-    print(");")
+    print_key_file(f"{name.upper()}_PRIVKEY_FILE", private_bytes)
+    print_key_file(f"{name.upper()}_PUBKEY_FILE", public_bytes)
 
     print()
+
+def print_key_file(name, file_bytes):
+    file_str = file_bytes.decode("utf-8")
+    print(f"pub static {name}: &'static str = concat!(")
+    for line in file_str.splitlines(keepends=True):
+        while line:
+            chunk, line = line[:80], line[80:]
+            escaped_chunk = chunk.translate({
+                ord("\n"): "\\n",
+                ord("\\"): "\\\\",
+                ord("\""): "\"",
+            })
+            print(f"    \"{escaped_chunk}\",")
+    print(");")
 
 for name in [
     "alice_ed25519",
@@ -117,9 +127,9 @@ for name in [
     "encrypted_ecdsa_p256",
     "encrypted_ecdsa_p384",
 ]:
-     print_key(name, "password")
+     print_key(name, b"password")
 
-for name in [
-    "encrypted_rsa_aes128_gcm",
-]:
-     print_key(name, "password", decode=False)
+print_key("encrypted_rsa_aes128_gcm", b"password", decode=False)
+print_key("pkcs1", None, format="pem")
+print_key("pkcs1_aes_256_ctr", b"password", format="pem")
+print_key("pkcs1_aes_128_cbc", b"password", format="pem")
