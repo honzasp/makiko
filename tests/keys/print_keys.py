@@ -122,14 +122,22 @@ for name in [
      print_key(name)
 
 for name in [
-    "encrypted_rsa",
-    "encrypted_ed25519",
-    "encrypted_ecdsa_p256",
-    "encrypted_ecdsa_p384",
+    "rsa_encrypted",
+    "ed25519_encrypted",
+    "ecdsa_p256_encrypted",
+    "ecdsa_p384_encrypted",
 ]:
      print_key(name, b"password")
 
-print_key("encrypted_rsa_aes128_gcm", b"password", decode=False)
+print_key("rsa_encrypted_aes128_gcm", b"password", decode=False)
+
 print_key("pkcs1", None, format="pem")
-print_key("pkcs1_aes_256_ctr", b"password", format="pem")
-print_key("pkcs1_aes_128_cbc", b"password", format="pem")
+for name in ["pkcs1_aes_256_ctr", "pkcs1_aes_128_cbc"]:
+    print_key(name, b"password", format="pem")
+
+for name in ["pkcs8_rsa", "pkcs8_ecdsa_p256", "pkcs8_ecdsa_p384", "pkcs8_ed25519"]:
+    print_key(name, None, format="pem")
+print_key("pkcs8v2_ed25519", None, format="pem", decode=False)
+
+for name in ["pkcs8_rsa_encrypted"]:
+    print_key(name, b"password", format="pem")

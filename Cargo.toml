@@ -34,6 +34,7 @@ chacha20 = "0.9"
 ctr = "0.9"
 derivative = "2.2"
 ecdsa = {version = "0.14", features = ["sign", "verify"]}
+ed25519 = {version = "1.5", features = ["pkcs8"]}
 ed25519-dalek = "1.0"
 futures-core = "0.3"
 guard = "0.5"
@@ -46,6 +47,7 @@ p384 = "0.11"
 parking_lot = "0.12"
 pem = "1.0"
 pin-project = "1.0"
+pkcs8 = {version = "0.9", features = ["encryption"]}
 poly1305 = "0.7"
 rand = {version = "0.8", features = ["getrandom"]}
 rand_0_7 = {version = "0.7", package = "rand"} # because of x25519-dalek

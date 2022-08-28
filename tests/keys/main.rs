@@ -16,7 +16,7 @@ macro_rules! assert_privkeys_eq {
     }
 }
 
-fn check_decode_privkey(expected_privkey: makiko::Privkey, pem_data: &str, password: Option<&str>) {
+fn check_openssh_privkey(expected_privkey: makiko::Privkey, pem_data: &str, password: Option<&str>) {
     let decoded_nopass = makiko::keys::decode_openssh_pem_keypair_nopass(pem_data.as_bytes())
         .expect("could not decode keypair (without password)");
 
@@ -36,49 +36,49 @@ fn check_decode_privkey(expected_privkey: makiko::Privkey, pem_data: &str, passw
 }
 
 #[test] fn test_decode_alice_ed25519() {
-    check_decode_privkey(keys::alice_ed25519(), keys::ALICE_ED25519_PRIVKEY_FILE, None);
+    check_openssh_privkey(keys::alice_ed25519(), keys::ALICE_ED25519_PRIVKEY_FILE, None);
 }
 
 #[test] fn test_decode_ruth_rsa_1024() {
-    check_decode_privkey(keys::ruth_rsa_1024(), keys::RUTH_RSA_1024_PRIVKEY_FILE, None);
+    check_openssh_privkey(keys::ruth_rsa_1024(), keys::RUTH_RSA_1024_PRIVKEY_FILE, None);
 }
 #[test] fn test_decode_ruth_rsa_2048() {
-    check_decode_privkey(keys::ruth_rsa_2048(), keys::RUTH_RSA_2048_PRIVKEY_FILE, None);
+    check_openssh_privkey(keys::ruth_rsa_2048(), keys::RUTH_RSA_2048_PRIVKEY_FILE, None);
 }
 #[test] fn test_decode_ruth_rsa_4096() {
-    check_decode_privkey(keys::ruth_rsa_4096(), keys::RUTH_RSA_4096_PRIVKEY_FILE, None);
+    check_openssh_privkey(keys::ruth_rsa_4096(), keys::RUTH_RSA_4096_PRIVKEY_FILE, None);
 }
 
 #[test] fn test_decode_eda_ecdsa_p256() {
-    check_decode_privkey(keys::eda_ecdsa_p256(), keys::EDA_ECDSA_P256_PRIVKEY_FILE, None);
+    check_openssh_privkey(keys::eda_ecdsa_p256(), keys::EDA_ECDSA_P256_PRIVKEY_FILE, None);
 }
 #[test] fn test_decode_eda_ecdsa_p384() {
-    check_decode_privkey(keys::eda_ecdsa_p384(), keys::EDA_ECDSA_P384_PRIVKEY_FILE, None);
+    check_openssh_privkey(keys::eda_ecdsa_p384(), keys::EDA_ECDSA_P384_PRIVKEY_FILE, None);
 }
 
-#[test] fn test_decode_encrypted_rsa() {
-    check_decode_privkey(keys::encrypted_rsa(),
-        keys::ENCRYPTED_RSA_PRIVKEY_FILE, Some("password"));
+#[test] fn test_decode_rsa_encrypted() {
+    check_openssh_privkey(keys::rsa_encrypted(),
+        keys::RSA_ENCRYPTED_PRIVKEY_FILE, Some("password"));
 }
-#[test] fn test_decode_encrypted_ed25519() {
-    check_decode_privkey(keys::encrypted_ed25519(),
-        keys::ENCRYPTED_ED25519_PRIVKEY_FILE, Some("password"));
+#[test] fn test_decode_ed25519_encrypted() {
+    check_openssh_privkey(keys::ed25519_encrypted(),
+        keys::ED25519_ENCRYPTED_PRIVKEY_FILE, Some("password"));
 }
-#[test] fn test_decode_encrypted_ecdsa_p256() {
-    check_decode_privkey(keys::encrypted_ecdsa_p256(),
-        keys::ENCRYPTED_ECDSA_P256_PRIVKEY_FILE, Some("password"));
+#[test] fn test_decode_ecdsa_p256_encrypted() {
+    check_openssh_privkey(keys::ecdsa_p256_encrypted(),
+        keys::ECDSA_P256_ENCRYPTED_PRIVKEY_FILE, Some("password"));
 }
-#[test] fn test_decode_encrypted_ecdsa_p384() {
-    check_decode_privkey(keys::encrypted_ecdsa_p384(),
-        keys::ENCRYPTED_ECDSA_P384_PRIVKEY_FILE, Some("password"));
+#[test] fn test_decode_ecdsa_p384_encrypted() {
+    check_openssh_privkey(keys::ecdsa_p384_encrypted(),
+        keys::ECDSA_P384_ENCRYPTED_PRIVKEY_FILE, Some("password"));
 }
 
 #[test] 
 #[should_panic] // this functionality is not implemented
-fn test_decode_encrypted_rsa_aes128_gcm() {
+fn test_decode_rsa_encrypted_aes128_gcm() {
     // the `cryptography` library in Python does not support keys encrypted using aes128-gcm, so
     // the keys.rs file does not contain `encrypted_rsa_aes128_gcm()`
-    let pem_data = keys::ENCRYPTED_RSA_AES128_GCM_PRIVKEY_FILE;
+    let pem_data = keys::RSA_ENCRYPTED_AES128_GCM_PRIVKEY_FILE;
     let decoded = makiko::keys::decode_openssh_pem_keypair(pem_data.as_bytes(), b"password".as_slice())
         .expect("could not decode keypair");
     // at least check that the keypair is valid
@@ -112,7 +112,7 @@ fn check_fingerprint(privkey: makiko::Privkey, expected: &str) {
 #[test]
 fn test_decode_pkcs1_privkey() {
     let pem_data = keys::PKCS1_PRIVKEY_FILE;
-    let privkey = makiko::keys::decode_pkcs1_pem_privkey_nopass(pem_data)
+    let privkey = makiko::keys::decode_pkcs1_pem_privkey_nopass(pem_data.as_bytes())
         .expect("could not decode privkey");
     assert_privkeys_eq!(makiko::Privkey::Rsa(privkey), keys::pkcs1());
 }
@@ -120,7 +120,41 @@ fn test_decode_pkcs1_privkey() {
 #[test]
 fn test_decode_pkcs1_pubkey() {
     let pem_data = keys::PKCS1_PUBKEY_FILE;
-    let pubkey = makiko::keys::decode_pkcs1_pem_pubkey(pem_data)
+    let pubkey = makiko::keys::decode_pkcs1_pem_pubkey(pem_data.as_bytes())
         .expect("could not decode pubkey");
     assert_eq!(makiko::Pubkey::Rsa(pubkey), keys::pkcs1().pubkey());
 }
+
+fn check_pkcs8_privkey(expected_privkey: makiko::Privkey, pem_data: &str, password: &str) {
+    let decoded_privkey = makiko::keys::decode_pkcs8_pem_privkey(pem_data.as_bytes(), password.as_bytes())
+        .expect("could not decode privkey");
+    assert_privkeys_eq!(&decoded_privkey, &expected_privkey);
+}
+
+#[test] fn test_decode_pkcs8_rsa() {
+    check_pkcs8_privkey(keys::pkcs8_rsa(), keys::PKCS8_RSA_PRIVKEY_FILE, "");
+}
+
+#[test] fn test_decode_pkcs8_ecdsa_p256() {
+    check_pkcs8_privkey(keys::pkcs8_ecdsa_p256(), keys::PKCS8_ECDSA_P256_PRIVKEY_FILE, "");
+}
+
+#[test] fn test_decode_pkcs8_ecdsa_p384() {
+    check_pkcs8_privkey(keys::pkcs8_ecdsa_p384(), keys::PKCS8_ECDSA_P384_PRIVKEY_FILE, "");
+}
+
+#[test] fn test_decode_pkcs8_ed25519() {
+    check_pkcs8_privkey(keys::pkcs8_ed25519(), keys::PKCS8_ED25519_PRIVKEY_FILE, "");
+}
+
+#[test] fn test_decode_pkcs8v2_ed25519() {
+    let pem_data = keys::PKCS8V2_ED25519_PRIVKEY_FILE;
+    let decoded_privkey = makiko::keys::decode_pkcs8_pem_privkey(pem_data.as_bytes(), &[])
+        .expect("could not decode privkey");
+    assert!(matches!(decoded_privkey, makiko::Privkey::Ed25519(_)));
+}
+
+#[test] fn test_decode_pkcs8_rsa_encrypted() {
+    check_pkcs8_privkey(keys::pkcs8_rsa_encrypted(), keys::PKCS8_RSA_ENCRYPTED_PRIVKEY_FILE, "password");
+}
+

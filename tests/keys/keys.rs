@@ -343,7 +343,7 @@ pub static EDA_ECDSA_P384_PUBKEY_FILE: &'static str = concat!(
     "Say3txzTsdqoeQahCFJn3jKEFGNWcYcZgk2TSBj8AQ== eda\n",
 );
 
-pub fn encrypted_rsa() -> makiko::Privkey {
+pub fn rsa_encrypted() -> makiko::Privkey {
     let n = BigUint::from_bytes_be(&hex!(
         "dd2621c85ff9ae71346a9bc9ce267f33c5138aae527505557304cc75f84792a4"
         "de7f90ba28c5552dbee4f298633012e6fee03192aa516ef5fd76775bf0a21ecd"
@@ -392,7 +392,7 @@ pub fn encrypted_rsa() -> makiko::Privkey {
     let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
     makiko::Privkey::Rsa(privkey.into())
 }
-pub static ENCRYPTED_RSA_PRIVKEY_FILE: &'static str = concat!(
+pub static RSA_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
     "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABD/ZI+VXu\n",
     "eliz+nw049g3JxAAAAEAAAAAEAAAGXAAAAB3NzaC1yc2EAAAADAQABAAABgQDdJiHIX/mu\n",
@@ -433,7 +433,7 @@ pub static ENCRYPTED_RSA_PRIVKEY_FILE: &'static str = concat!(
     "Ck8ndkJhx+0Og5jQKtdDfk42d9s=\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
-pub static ENCRYPTED_RSA_PUBKEY_FILE: &'static str = concat!(
+pub static RSA_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDdJiHIX/mucTRqm8nOJn8zxROKrlJ1BVVzBMx1+EeS",
     "pN5/kLooxVUtvuTymGMwEub+4DGSqlFu9f12d1vwoh7NURx6yz2D9Z4oATDUOIGmm+C0u6wSgA2lfcwG",
     "v2taRFlQl4RMKDJqSTYt5QzkcWOd+z7HrLIp3RrR53B83bIMUWRBf7Hvza/5hp4JvrSLOqHf4tRJ4AMp",
@@ -444,7 +444,7 @@ pub static ENCRYPTED_RSA_PUBKEY_FILE: &'static str = concat!(
     " comment\n",
 );
 
-pub fn encrypted_ed25519() -> makiko::Privkey {
+pub fn ed25519_encrypted() -> makiko::Privkey {
     let private_bytes = hex!("658ffa60f316e34424206cb7423a9083034e92cbbb9c4558767dfbcd9ae0ca7e");
     let public_bytes = hex!("b745e4c87adfbd3945c243969a127b9767132eb232279d3b16607fa70940b027");
     makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
@@ -452,7 +452,7 @@ pub fn encrypted_ed25519() -> makiko::Privkey {
         public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
     }.into())
 }
-pub static ENCRYPTED_ED25519_PRIVKEY_FILE: &'static str = concat!(
+pub static ED25519_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
     "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABDTPlM9fP\n",
     "LvZc+iYbijNu54AAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAILdF5Mh63705RcJD\n",
@@ -462,19 +462,19 @@ pub static ENCRYPTED_ED25519_PRIVKEY_FILE: &'static str = concat!(
     "FdNqwwocrmcsXlfv6o8y7oNH1Sa2oACCRliMg=\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
-pub static ENCRYPTED_ED25519_PUBKEY_FILE: &'static str = concat!(
+pub static ED25519_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILdF5Mh63705RcJDlpoSe5dnEy6yMiedOxZgf6cJQLAn",
     " example comment\n",
 );
 
-pub fn encrypted_ecdsa_p256() -> makiko::Privkey {
+pub fn ecdsa_p256_encrypted() -> makiko::Privkey {
     let private_key = elliptic_curve::SecretKey::<p256::NistP256>::from_be_bytes(&hex!(
         "ad18e77b6941aaba4496a348ec21a863b6fbac8d456c508ce1cd90da7d00968d"
     )).unwrap();
     let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(private_key);
     makiko::Privkey::EcdsaP256(privkey)
 }
-pub static ENCRYPTED_ECDSA_P256_PRIVKEY_FILE: &'static str = concat!(
+pub static ECDSA_P256_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
     "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABDoplaOYE\n",
     "SFqk8RQ347BqFBAAAAEAAAAAEAAABoAAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlz\n",
@@ -485,20 +485,20 @@ pub static ENCRYPTED_ECDSA_P256_PRIVKEY_FILE: &'static str = concat!(
     "R1twhj5we06/k4ZtG2YFQWHa7XZsZ5tK4EBvoDZZ2NapNEKwEgMtE92Diq0=\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
-pub static ENCRYPTED_ECDSA_P256_PUBKEY_FILE: &'static str = concat!(
+pub static ECDSA_P256_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
     "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBO2ZeXda",
     "WAUr4ns8U8/bQag2djDbbcH1oIHq1vopf1kYSZN+8+qVt/vWBd3EppRKT3zIgOe4hvm7se1ILL+IjL8=",
     " example comment\n",
 );
 
-pub fn encrypted_ecdsa_p384() -> makiko::Privkey {
+pub fn ecdsa_p384_encrypted() -> makiko::Privkey {
     let private_key = elliptic_curve::SecretKey::<p384::NistP384>::from_be_bytes(&hex!(
         "d5e1163bd7efb7b0e2c7554e8dca5cf66eaedd345d54f8734832070997baf782575a660cf57fc71b98deded3a29f22a1"
     )).unwrap();
     let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(private_key);
     makiko::Privkey::EcdsaP384(privkey)
 }
-pub static ENCRYPTED_ECDSA_P384_PRIVKEY_FILE: &'static str = concat!(
+pub static ECDSA_P384_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
     "b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCsgNRLfR\n",
     "jR5HahwAV59KKRAAAAEAAAAAEAAACIAAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlz\n",
@@ -511,13 +511,13 @@ pub static ENCRYPTED_ECDSA_P384_PRIVKEY_FILE: &'static str = concat!(
     "zBM5+Xu+gB5dlB6srLzNxEXdDw==\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
-pub static ENCRYPTED_ECDSA_P384_PUBKEY_FILE: &'static str = concat!(
+pub static ECDSA_P384_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
     "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBE90bl1W",
     "vFWLHVcWVUpU90z+h5Q0aaGGOQibbyxMB3y7tDHE2O8p7EbeEjpzqUAnANUL7iayGMRB5f/442POVjV5",
     "wOOJyBKCudpNHFzpXC+r2G2L1X5Z2bqS0imfRKvuJw== example comment\n",
 );
 
-pub static ENCRYPTED_RSA_AES128_GCM_PRIVKEY_FILE: &'static str = concat!(
+pub static RSA_ENCRYPTED_AES128_GCM_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
     "b3BlbnNzaC1rZXktdjEAAAAAFmFlczEyOC1nY21Ab3BlbnNzaC5jb20AAAAGYmNyeXB0AA\n",
     "AAGAAAABCKIhajzEnP4iOmtY2U6s9xAAAAEAAAAAEAAAGXAAAAB3NzaC1yc2EAAAADAQAB\n",
@@ -558,7 +558,7 @@ pub static ENCRYPTED_RSA_AES128_GCM_PRIVKEY_FILE: &'static str = concat!(
     "OPfsTDogCQlFoidFoLMLRCyoDEPXGh6OD7t+qWGY7R/WqMRUSnlgR7X4HzP1Z88r\n",
     "-----END OPENSSH PRIVATE KEY-----\n",
 );
-pub static ENCRYPTED_RSA_AES128_GCM_PUBKEY_FILE: &'static str = concat!(
+pub static RSA_ENCRYPTED_AES128_GCM_PUBKEY_FILE: &'static str = concat!(
     "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDJkdbeQiEUyGWMdIBTGN/sPnEIR/AqobUoWflsGaz2",
     "i8OJ8GQOz1g5B2TZ6kU60TO/kMq9op7pWd4Kj2dKp/wZl3Hhh1U+dOdLGjxZzqWtN0htagrTFKMt0OOt",
     "qYk1Qy4icX3iynGbctBMrCEaZbcyW39l2PvtJaZuE27VtQvrIR1rxKIHzhAnlN0r+hw32j/TV9nvhJ1d",
@@ -804,5 +804,290 @@ pub static PKCS1_AES_128_CBC_PUBKEY_FILE: &'static str = concat!(
     "He9KwtsI5fj8ZISvICehubtLK86mTjttVyleKOloz6rqDvX5HQ0tcU1uaNEysuUH\n",
     "l5Pu2vxYw9uem6M8XIR6ktjs5pVrXe2UWwIDAQAB\n",
     "-----END RSA PUBLIC KEY-----\n",
+);
+
+pub fn pkcs8_rsa() -> makiko::Privkey {
+    let n = BigUint::from_bytes_be(&hex!(
+        "937df690f4b11fb34b84e0eb33fd5982cd6b09973730479d56a2a4ec1ba2b4d8"
+        "bd2316b80e9bc8248ed04a5fc471269c5abd61e03a70a542ad2d98d9f732847f"
+        "294f9df764c89900dd80fe06fe99f783a74032435dd67681c3410f6c06cdd184"
+        "028f8f2eda1874e681778f7b43bf0f0aed26becec1690ff4a904cd014077a1a1"
+        "bbd5fc298c5f241f1a08f5fbd86f9cbf129a02c0a2aa034db3fe939e6a73b388"
+        "3eecd89b4f423dadca6f344615161b188aa7ad216b9b5e88fb25076c2c6e3638"
+        "32ecda3318c47df95e4b1a1937758709f453a478cb4a5238d69b27015bf5535e"
+        "6f083cd2ca595daa8eaed87938ca3fcc178540bf6caff624e6ece73cd42a665f"
+        "27ddd0d598289a7ddd72616973445ab821a2073a5a09d8955672b9bee1b945ca"
+        "9dbb09bf01dc9841c1e7b18d98c4c8f863ff207608be4d4826e3c56656f624e1"
+        "a0ced13fcb28c81a3842719059030f3765bd00be1b31fd89e0c2b0f86e92fa64"
+        "25c531729e1fd6c34a7033edebd999f33bbf9977203ff014842e13f74c743189"
+    ));
+    let e = BigUint::from_bytes_be(&hex!("010001"));
+    let d = BigUint::from_bytes_be(&hex!(
+        "08b6c87a87fa6f0508d130f8b479a37036f2bbfe53246716c4a79756dbcb2124"
+        "2d0885af1a2dda054eeabf7a29010666f67579f2e58102428e38c36f1d4bbec8"
+        "44888facae27abe28133bdce6bfc6cc33a7e7079ca71814ee95a4eaef337f5c8"
+        "f6ddc477e02ad1bd4ca8e3b144af6514202ec9d72d5627bb2cc13bdb77139a59"
+        "13dff0a603c51b3d3b2c8c5bf4cda35526a432c56ed6dc9b1aa74fd16c38a9c2"
+        "c2f4fb5731b7982d4c68858e1e70cfe9034824d274a9194cbe89d1867299905a"
+        "6aa923359391d3f2487889f191e54539f1ac2d781e977914449392b51c9a68e0"
+        "2d0bd7af2c0ded41b13c3dc7db97bf82a5e06b26c46a9038826a38f4364f62b7"
+        "1376a22f840ced2a4a5cc097d8495dbfbc77b068cfb559b8da81e3966f5c73de"
+        "67f47392a83af2745b761e554c2cf90c5c7b31f1702a329898f1f648cf011d24"
+        "a2541577fbc21db5f04ace384d1849af42c876c858048f88570e8b659670b2b9"
+        "e1dfefcb12155c7d4e625e4ffa738b24b4b83b1842d6ef940ab9550d49885e81"
+    ));
+    let p = BigUint::from_bytes_be(&hex!(
+        "cd2b9ecaf8cca65a68be47cf15ecc5f4a601c502d1aed67b39c239accf3883c1"
+        "ac70bb59d66a89ad0abd6490514e0d5b6c049f691a0c738cd79cf36b0eedb32d"
+        "3c6e2029d49780b61da4f3b32afb7c839dc9d1646cad17cc3336770bb1b99bad"
+        "39be12516223997fa5f1438e333e0e1defced03197d4220c2dcd1156d78e27f2"
+        "90ed823082a62eeaea4bd52cac4cc5a4a4076cd5d2367292817283a0fb2c5af3"
+        "6e47d71de9c35a0f69e394d3d5461425d4283d77cefcf52d76feada7e585fbc7"
+    ));
+    let q = BigUint::from_bytes_be(&hex!(
+        "b8083fb921982383b121d19f08c059773adfae83fccecf97af5ecae7a2fbeb79"
+        "75a1c5812b220c14e34951c99b588dc92c5b8996e15c53d86a1b5db541d36041"
+        "61025ba2e3899d88d69c0b07265a73d1759a00e8f5f2582d5a975c988bd740ab"
+        "6b34453d3d8038fc6dc84b644168c3c1c1f85a02b7057d8fd68a0f61a91070ea"
+        "dd95af958c9a4d8b783a696837406aece856cbeb89b7575624ad1b15be17bc5c"
+        "503a9912fe61dee80d00254b3a4f7346023d744b9e89b23e2c0954f2679d482f"
+    ));
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    makiko::Privkey::Rsa(privkey.into())
+}
+pub static PKCS8_RSA_PRIVKEY_FILE: &'static str = concat!(
+    "-----BEGIN PRIVATE KEY-----\n",
+    "MIIG/QIBADANBgkqhkiG9w0BAQEFAASCBucwggbjAgEAAoIBgQCTffaQ9LEfs0uE\n",
+    "4Osz/VmCzWsJlzcwR51WoqTsG6K02L0jFrgOm8gkjtBKX8RxJpxavWHgOnClQq0t\n",
+    "mNn3MoR/KU+d92TImQDdgP4G/pn3g6dAMkNd1naBw0EPbAbN0YQCj48u2hh05oF3\n",
+    "j3tDvw8K7Sa+zsFpD/SpBM0BQHehobvV/CmMXyQfGgj1+9hvnL8SmgLAoqoDTbP+\n",
+    "k55qc7OIPuzYm09CPa3KbzRGFRYbGIqnrSFrm16I+yUHbCxuNjgy7NozGMR9+V5L\n",
+    "Ghk3dYcJ9FOkeMtKUjjWmycBW/VTXm8IPNLKWV2qjq7YeTjKP8wXhUC/bK/2JObs\n",
+    "5zzUKmZfJ93Q1Zgomn3dcmFpc0RauCGiBzpaCdiVVnK5vuG5Rcqduwm/AdyYQcHn\n",
+    "sY2YxMj4Y/8gdgi+TUgm48VmVvYk4aDO0T/LKMgaOEJxkFkDDzdlvQC+GzH9ieDC\n",
+    "sPhukvpkJcUxcp4f1sNKcDPt69mZ8zu/mXcgP/AUhC4T90x0MYkCAwEAAQKCAYAI\n",
+    "tsh6h/pvBQjRMPi0eaNwNvK7/lMkZxbEp5dW28shJC0Iha8aLdoFTuq/eikBBmb2\n",
+    "dXny5YECQo44w28dS77IRIiPrK4nq+KBM73Oa/xswzp+cHnKcYFO6VpOrvM39cj2\n",
+    "3cR34CrRvUyo47FEr2UUIC7J1y1WJ7sswTvbdxOaWRPf8KYDxRs9OyyMW/TNo1Um\n",
+    "pDLFbtbcmxqnT9FsOKnCwvT7VzG3mC1MaIWOHnDP6QNIJNJ0qRlMvonRhnKZkFpq\n",
+    "qSM1k5HT8kh4ifGR5UU58awteB6XeRREk5K1HJpo4C0L168sDe1BsTw9x9uXv4Kl\n",
+    "4GsmxGqQOIJqOPQ2T2K3E3aiL4QM7SpKXMCX2Eldv7x3sGjPtVm42oHjlm9cc95n\n",
+    "9HOSqDrydFt2HlVMLPkMXHsx8XAqMpiY8fZIzwEdJKJUFXf7wh218ErOOE0YSa9C\n",
+    "yHbIWASPiFcOi2WWcLK54d/vyxIVXH1OYl5P+nOLJLS4OxhC1u+UCrlVDUmIXoEC\n",
+    "gcEAzSueyvjMplpovkfPFezF9KYBxQLRrtZ7OcI5rM84g8GscLtZ1mqJrQq9ZJBR\n",
+    "Tg1bbASfaRoMc4zXnPNrDu2zLTxuICnUl4C2HaTzsyr7fIOdydFkbK0XzDM2dwux\n",
+    "uZutOb4SUWIjmX+l8UOOMz4OHe/O0DGX1CIMLc0RVteOJ/KQ7YIwgqYu6upL1Sys\n",
+    "TMWkpAds1dI2cpKBcoOg+yxa825H1x3pw1oPaeOU09VGFCXUKD13zvz1LXb+rafl\n",
+    "hfvHAoHBALgIP7khmCODsSHRnwjAWXc6366D/M7Pl69eyuei++t5daHFgSsiDBTj\n",
+    "SVHJm1iNySxbiZbhXFPYahtdtUHTYEFhAlui44mdiNacCwcmWnPRdZoA6PXyWC1a\n",
+    "l1yYi9dAq2s0RT09gDj8bchLZEFow8HB+FoCtwV9j9aKD2GpEHDq3ZWvlYyaTYt4\n",
+    "OmloN0Bq7OhWy+uJt1dWJK0bFb4XvFxQOpkS/mHe6A0AJUs6T3NGAj10S56Jsj4s\n",
+    "CVTyZ51ILwKBwCQ5ZmDpyqA4aDPoU8zIMC9AvCE/nSvkXH9XJn23XIAOytZgjb0I\n",
+    "tGQj+EpwHJrOSuzoaAjTe41POaZRZ/6Lw03iVINDP3C8Xesf+5MPrLVQO6StXrC9\n",
+    "Yu0/wYcFPozJyqzePTe3PxfT7MWLKukrNKzecUJa7zaaCFJx2XTevA+biTEWAmCe\n",
+    "3LvHQDpUF9u6LZZ0ZSffZJOYAFjqmpqeOzStrOtzMZm3Je+JKfa4uhXGlA3CxIt8\n",
+    "KAGt98tLUH/2cwKBwDtrLmfv2NdepcptjBOfR0Of1qjaJL4BeNA+ovS3Qu98f+aD\n",
+    "hnkOvSfhWsL1fRrSbKnNxFba3JyVu2yqjON8BBAX6lL7/Mtp+cyRBV6Bm6LZdkcL\n",
+    "FCyU2rOKFGTpO/17+9zZO6HSQZwkpK2O6gfUc6ATqMQnLECxkceLO/wkQhKzQmga\n",
+    "EQccqvzlDLcL1wsNewBpRd3+0Rt5zM23eQWvVDnaDZFu+INRHUtVSLVJVm25pO+C\n",
+    "pQfDHbHFNh4fRiUaMQKBwQClY7WNMX/hLktLPHGKA5XBMh4VNelruH8U4B6d1CNb\n",
+    "ogdCE0TZGr3MYHmNVZ6N4ne5UkzWcFO8mTncaz30ci5sfGf6R6RXSuv5iIhOwgFn\n",
+    "ETKTqCTjIHMdFqfvLAo7nrhPHZusZZ5ZwvG3jJ27tAkDKK1lxrQ7JB8UwZmu5ztD\n",
+    "X8rhFPVVdxYqc63JYhTJCQrhQwfl3tWX3M1PiKCC7sTnUsBl4joMY2i/ntzhYXPM\n",
+    "+GuwOtUXYalyy2uY0OSsb70=\n",
+    "-----END PRIVATE KEY-----\n",
+);
+pub static PKCS8_RSA_PUBKEY_FILE: &'static str = concat!(
+    "-----BEGIN PUBLIC KEY-----\n",
+    "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAk332kPSxH7NLhODrM/1Z\n",
+    "gs1rCZc3MEedVqKk7BuitNi9Ixa4DpvIJI7QSl/EcSacWr1h4DpwpUKtLZjZ9zKE\n",
+    "fylPnfdkyJkA3YD+Bv6Z94OnQDJDXdZ2gcNBD2wGzdGEAo+PLtoYdOaBd497Q78P\n",
+    "Cu0mvs7BaQ/0qQTNAUB3oaG71fwpjF8kHxoI9fvYb5y/EpoCwKKqA02z/pOeanOz\n",
+    "iD7s2JtPQj2tym80RhUWGxiKp60ha5teiPslB2wsbjY4MuzaMxjEffleSxoZN3WH\n",
+    "CfRTpHjLSlI41psnAVv1U15vCDzSylldqo6u2Hk4yj/MF4VAv2yv9iTm7Oc81Cpm\n",
+    "Xyfd0NWYKJp93XJhaXNEWrghogc6WgnYlVZyub7huUXKnbsJvwHcmEHB57GNmMTI\n",
+    "+GP/IHYIvk1IJuPFZlb2JOGgztE/yyjIGjhCcZBZAw83Zb0Avhsx/YngwrD4bpL6\n",
+    "ZCXFMXKeH9bDSnAz7evZmfM7v5l3ID/wFIQuE/dMdDGJAgMBAAE=\n",
+    "-----END PUBLIC KEY-----\n",
+);
+
+pub fn pkcs8_ecdsa_p256() -> makiko::Privkey {
+    let private_key = elliptic_curve::SecretKey::<p256::NistP256>::from_be_bytes(&hex!(
+        "d5e07955f86df89a1abb70d494a40a6e7698ff1ef8b940fece2bda7da5d08ce7"
+    )).unwrap();
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(private_key);
+    makiko::Privkey::EcdsaP256(privkey)
+}
+pub static PKCS8_ECDSA_P256_PRIVKEY_FILE: &'static str = concat!(
+    "-----BEGIN PRIVATE KEY-----\n",
+    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg1eB5Vfht+Joau3DU\n",
+    "lKQKbnaY/x74uUD+zivafaXQjOehRANCAAQHSC2B0jd1JZhnf2H1WYcgGCTB/cDa\n",
+    "0WhxW7dGZ420tiIYaGnH4MnJ1NQtAT4TcLn1Zrw8tFFzeqvh8IceW/X2\n",
+    "-----END PRIVATE KEY-----\n",
+);
+pub static PKCS8_ECDSA_P256_PUBKEY_FILE: &'static str = concat!(
+    "-----BEGIN PUBLIC KEY-----\n",
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEB0gtgdI3dSWYZ39h9VmHIBgkwf3A\n",
+    "2tFocVu3RmeNtLYiGGhpx+DJydTULQE+E3C59Wa8PLRRc3qr4fCHHlv19g==\n",
+    "-----END PUBLIC KEY-----\n",
+);
+
+pub fn pkcs8_ecdsa_p384() -> makiko::Privkey {
+    let private_key = elliptic_curve::SecretKey::<p384::NistP384>::from_be_bytes(&hex!(
+        "3b9564ce53defb1405a8061e85014f8363ebfe1de8a58052784fbc634fac38faca2547df6e00eb74c1a60df24a3953c6"
+    )).unwrap();
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(private_key);
+    makiko::Privkey::EcdsaP384(privkey)
+}
+pub static PKCS8_ECDSA_P384_PRIVKEY_FILE: &'static str = concat!(
+    "-----BEGIN PRIVATE KEY-----\n",
+    "MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDA7lWTOU977FAWoBh6F\n",
+    "AU+DY+v+HeilgFJ4T7xjT6w4+solR99uAOt0waYN8ko5U8ahZANiAARB2CraQoSB\n",
+    "slL06DUNTLXfmppgYVV0eUEIjUGMb8HErKYUt6sqcrMOuHalTZtAQsel44+iKBgf\n",
+    "GMQ7VHnGF3XzWyGGnESLULfqCccCYoCH/gc/xaZKjQl2TXZXDBQfAp4=\n",
+    "-----END PRIVATE KEY-----\n",
+);
+pub static PKCS8_ECDSA_P384_PUBKEY_FILE: &'static str = concat!(
+    "-----BEGIN PUBLIC KEY-----\n",
+    "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEQdgq2kKEgbJS9Og1DUy135qaYGFVdHlB\n",
+    "CI1BjG/BxKymFLerKnKzDrh2pU2bQELHpeOPoigYHxjEO1R5xhd181shhpxEi1C3\n",
+    "6gnHAmKAh/4HP8WmSo0Jdk12VwwUHwKe\n",
+    "-----END PUBLIC KEY-----\n",
+);
+
+pub fn pkcs8_ed25519() -> makiko::Privkey {
+    let private_bytes = hex!("913b3c130b79f9949f91a227ea91a388906e778d19358e2fdf67fb1b26aec1fc");
+    let public_bytes = hex!("5652ceff9784c400f92e20c891fda383efb48b27e163086c05ebf8c214adca28");
+    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
+        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
+        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
+    }.into())
+}
+pub static PKCS8_ED25519_PRIVKEY_FILE: &'static str = concat!(
+    "-----BEGIN PRIVATE KEY-----\n",
+    "MC4CAQAwBQYDK2VwBCIEIJE7PBMLefmUn5GiJ+qRo4iQbneNGTWOL99n+xsmrsH8\n",
+    "-----END PRIVATE KEY-----\n",
+);
+pub static PKCS8_ED25519_PUBKEY_FILE: &'static str = concat!(
+    "-----BEGIN PUBLIC KEY-----\n",
+    "MCowBQYDK2VwAyEAVlLO/5eExAD5LiDIkf2jg++0iyfhYwhsBev4whStyig=\n",
+    "-----END PUBLIC KEY-----\n",
+);
+
+pub static PKCS8V2_ED25519_PRIVKEY_FILE: &'static str = concat!(
+    "-----BEGIN PRIVATE KEY-----\n",
+    "MHICAQEwBQYDK2VwBCIEINTuctv5E1hK1bbY8fdp+K06/nwoy/HU++CXqI9EdVhC\n",
+    "oB8wHQYKKoZIhvcNAQkJFDEPDA1DdXJkbGUgQ2hhaXJzgSEAGb9ECWmEzf6FQbrB\n",
+    "Z9w7lshQhqowtrbLDFw4rXAxZuE=\n",
+    "-----END PRIVATE KEY-----\n",
+);
+pub static PKCS8V2_ED25519_PUBKEY_FILE: &'static str = concat!(
+);
+
+pub fn pkcs8_rsa_encrypted() -> makiko::Privkey {
+    let n = BigUint::from_bytes_be(&hex!(
+        "bda7e2ff8d48c14e2b79959149b7f4dcdec5ba8634c28fa121d919ac25f44605"
+        "4b8dce12e0957cb28dce93bea41c8bc9bc5202eeb70580db3749dbb4fb73c88f"
+        "64e8c219eb60617cffab29636e2b1a4f4f6ad54428eb2d9e0a7dee0b25771eff"
+        "82bf0e91692bd17e88e9587c55d69f6b0a460f9f27f76c9d7ee8c7da5249bb1b"
+        "452317d3216f41fc06f4c740f67a21499dd283887def1706bc2554a4343e49b3"
+        "bcc3722619aeb0bf4a723058867baed4da1218f7390699138bd77ae9f3b5e545"
+        "a0a7b6235fc424c92f372de08bab8f823749a99aeb44ee61863ab59c0a8dc5cf"
+        "143543ea0df006283b03e480e7f4e87630db109336b40abfac5cbf4993cdf8dc"
+        "3df869066e0a75500a6fa9fc848fd084242b4259f1c1604c7e279ffa78ffcfe2"
+        "869fccef2e9f88cf7b6333283daacf18a1bcc6c78f8bf7b403b6182c2a8d7040"
+        "4f4291c6826ffbd0ee39f1b3e769ecb984a2151bce57b7841cf5a2e9e26ec236"
+        "96ed0935e6811ff09fcfda82b4dc167810a88e7ef2190dbcaf8d0a25083f411b"
+    ));
+    let e = BigUint::from_bytes_be(&hex!("010001"));
+    let d = BigUint::from_bytes_be(&hex!(
+        "2b675d397c058f0bcb424f9b09027b1d0334c04bcf8e495da887ed6aaae2fd15"
+        "6025ab684192a48f9e898ce17fe0729370305ab0741d63d08796351c75c19940"
+        "4be942e6b8a9fd95a453712ceabd1d8fd20e92913f4617520877aa7f4d8b3602"
+        "66d33fcbc2847f34d4b386872a03ecc70bfa5dbfe05f2d31dc25fcfaf7831d39"
+        "8ff8888ecea38e37d605b60625826cd4d2b4275b18eb1b5b74ba9c64d9f9f957"
+        "1397ad2b900c1d32222100f4798e9bc3e5c6678548bd3c522f5a58ac6b14914c"
+        "192ecd8f088aa2dd894b229aba8b40cd26f1b65b282753e5d634048187bb77d7"
+        "1cf9348348fd71e85fa4cc7c865f224f0e4a531973e5bc38ad12315a00bcf384"
+        "08d948d3b8f8cfae968fda82c471562ee618b4bb0243aaf7fbfcd1c393a2d19a"
+        "6b7c69be1ef5589eb9a8d9fe6a12433104d123dc69e946ff0c843ba028dcdb4b"
+        "7024eca300ffddf864a30008fd689748bf8c23832a7f331d626ba78a63162fcf"
+        "631cfe89a872daee552c674815cab432b27e2e48998ac24e3f0a37440dc05cbd"
+    ));
+    let p = BigUint::from_bytes_be(&hex!(
+        "c78ceec647e3ba1ac72ec6c17b5af8b9bcf731f8c3321883cadd2b3370b3ad1a"
+        "9cb397b5025246e5a36420dd0886151d0010603a3340f3dadebddcf65112a570"
+        "e9bb6d3374fba97e403c019c41729f418ef21e7aafe0984b5dbd5a06fbfeedbb"
+        "9dd0272876cdfcb33c7207c1ba3f1045f01b675ac0fd28420869936aa59630d5"
+        "3038887c96e5f94582156fa5cb51f8a95f87991f93048e857c02376df19bcd64"
+        "d44677481681ff4f0fb6e8f71937fbfa8d6f755ec40b9309b2dd6a1b28d788cf"
+    ));
+    let q = BigUint::from_bytes_be(&hex!(
+        "f34e65df342a20ca124dd256b21044fc0bb44e8039753e03b9706c59b23bf091"
+        "394ba03be197061f611d004ddbf091577d97caf83a317372d2fb7b386b4ba6d5"
+        "27c0a9c6bd008ccbd65d2f0f7ca4265ffed72bad5dd770de254efe629d1801c8"
+        "bddeb4dd35f22355bc64af87dd25740f09f93aaad88394b7476d7546d964ed29"
+        "3219302e25c2f3573e1a3d0c4010543cd0d48dde23d97eaf5aa314668d47b04e"
+        "3ff5cc8148913e4af06905449e8e0694eb29b92df95f9f99d4b669c3dba03df5"
+    ));
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    makiko::Privkey::Rsa(privkey.into())
+}
+pub static PKCS8_RSA_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
+    "-----BEGIN ENCRYPTED PRIVATE KEY-----\n",
+    "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\n",
+    "-----END ENCRYPTED PRIVATE KEY-----\n",
+);
+pub static PKCS8_RSA_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
+    "-----BEGIN PUBLIC KEY-----\n",
+    "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAvafi/41IwU4reZWRSbf0\n",
+    "3N7FuoY0wo+hIdkZrCX0RgVLjc4S4JV8so3Ok76kHIvJvFIC7rcFgNs3Sdu0+3PI\n",
+    "j2TowhnrYGF8/6spY24rGk9PatVEKOstngp97gsldx7/gr8OkWkr0X6I6Vh8Vdaf\n",
+    "awpGD58n92ydfujH2lJJuxtFIxfTIW9B/Ab0x0D2eiFJndKDiH3vFwa8JVSkND5J\n",
+    "s7zDciYZrrC/SnIwWIZ7rtTaEhj3OQaZE4vXeunzteVFoKe2I1/EJMkvNy3gi6uP\n",
+    "gjdJqZrrRO5hhjq1nAqNxc8UNUPqDfAGKDsD5IDn9Oh2MNsQkza0Cr+sXL9Jk834\n",
+    "3D34aQZuCnVQCm+p/ISP0IQkK0JZ8cFgTH4nn/p4/8/ihp/M7y6fiM97YzMoParP\n",
+    "GKG8xsePi/e0A7YYLCqNcEBPQpHGgm/70O458bPnaey5hKIVG85Xt4Qc9aLp4m7C\n",
+    "NpbtCTXmgR/wn8/agrTcFngQqI5+8hkNvK+NCiUIP0EbAgMBAAE=\n",
+    "-----END PUBLIC KEY-----\n",
 );
 

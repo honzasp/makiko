@@ -31,8 +31,8 @@ pub enum Error {
     Protocol(&'static str),
     #[error("could not decode bytes: {0}")]
     Decode(&'static str),
-    #[error("could not negotiate algorithm: {0}")]
-    AlgoNegotiate(AlgoNegotiateError),
+    #[error("could not negotiate algorithm")]
+    AlgoNegotiate(#[source] AlgoNegotiateError),
     #[error("we do not implement packet {0}")]
     PacketNotImplemented(u8),
     #[error("authentication method was aborted")]
@@ -43,8 +43,8 @@ pub enum Error {
     AuthFailed,
     #[error("channel is closed")]
     ChannelClosed,
-    #[error("could not open channel: {0}")]
-    ChannelOpen(ChannelOpenError),
+    #[error("could not open channel")]
+    ChannelOpen(#[source] ChannelOpenError),
     #[error("channel request failed")]
     ChannelReq,
     #[error("global request failed")]
@@ -61,16 +61,28 @@ pub enum Error {
     PeerRejectedPacket(u32),
     #[error("connection unexpectedly closed by peer")]
     PeerClosed,
-    #[error("peer disconnected: {0}")]
-    PeerDisconnected(DisconnectError),
+    #[error("peer disconnected")]
+    PeerDisconnected(#[source] DisconnectError),
     #[error("client is closed")]
     ClientClosed,
     #[error("client has already disconnected")]
     ClientDisconnected,
     #[error("could not parse PEM file")]
-    Pem(pem::PemError),
+    Pem(#[source] pem::PemError),
     #[error("could not parse file in PKCS#1 format")]
-    Pkcs1(pkcs1::Error),
+    Pkcs1(#[source] pkcs1::Error),
+    #[error("could not parse file in PKCS#8 format: {0}")]
+    Pkcs8(pkcs8::Error), // rustc mysteriously complains when we use `#[source]` here
+    #[error("could not parse file in PKCS#8 format (RSA)")]
+    Pkcs8Rsa(#[source] rsa::pkcs8::Error),
+    #[error("could not parse file in PKCS#8 format (spki): {0}")]
+    Pkcs8Spki(pkcs8::spki::Error), // rustc mysteriously complains when we use `#[source]` here
+    #[error("could not parse file in PKCS#8 format (Ed25519)")]
+    Pkcs8Ed25519(#[source] ed25519_dalek::SignatureError),
+    #[error("unknown algorithm OID {0:?} in PKCS#8 file")]
+    Pkcs8BadAlgorithmOid(String),
+    #[error("unknown curve OID {0:?} in PKCS#8 file")]
+    Pkcs8BadCurveOid(String),
     #[error("unexpected PEM tag {0:?}, expected {1:?}")]
     BadPemTag(String, String),
     #[error("bad passphrase when decoding key")]
