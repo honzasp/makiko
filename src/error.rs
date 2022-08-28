@@ -75,8 +75,10 @@ pub enum Error {
     Pkcs8(pkcs8::Error), // rustc mysteriously complains when we use `#[source]` here
     #[error("could not parse file in PKCS#8 format (RSA)")]
     Pkcs8Rsa(#[source] rsa::pkcs8::Error),
-    #[error("could not parse file in PKCS#8 format (spki): {0}")]
+    #[error("could not parse file in PKCS#8 format (SPKI): {0}")]
     Pkcs8Spki(pkcs8::spki::Error), // rustc mysteriously complains when we use `#[source]` here
+    #[error("could not parse file in PKCS#8 format (RSA/SPKI)")]
+    Pkcs8RsaSpki(#[source] rsa::pkcs8::spki::Error),
     #[error("could not parse file in PKCS#8 format (Ed25519)")]
     Pkcs8Ed25519(#[source] ed25519_dalek::SignatureError),
     #[error("unknown algorithm OID {0:?} in PKCS#8 file")]

@@ -12,6 +12,7 @@ pub use self::pkcs1::{
 };
 pub use self::pkcs8::{
     decode_pkcs8_pem_privkey, decode_pkcs8_der_privkey, decode_pkcs8_encrypted_der_privkey,
+    decode_pkcs8_pem_pubkey, decode_pkcs8_der_pubkey,
 };
 
 mod openssh;

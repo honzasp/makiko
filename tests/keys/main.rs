@@ -131,20 +131,30 @@ fn check_pkcs8_privkey(expected_privkey: makiko::Privkey, pem_data: &str, passwo
     assert_privkeys_eq!(&decoded_privkey, &expected_privkey);
 }
 
+fn check_pkcs8_pubkey(expected_privkey: makiko::Privkey, pem_data: &str) {
+    let decoded_pubkey = makiko::keys::decode_pkcs8_pem_pubkey(pem_data.as_bytes())
+        .expect("could not decode pubkey");
+    assert_eq!(decoded_pubkey, expected_privkey.pubkey());
+}
+
 #[test] fn test_decode_pkcs8_rsa() {
     check_pkcs8_privkey(keys::pkcs8_rsa(), keys::PKCS8_RSA_PRIVKEY_FILE, "");
+    check_pkcs8_pubkey(keys::pkcs8_rsa(), keys::PKCS8_RSA_PUBKEY_FILE);
 }
 
 #[test] fn test_decode_pkcs8_ecdsa_p256() {
     check_pkcs8_privkey(keys::pkcs8_ecdsa_p256(), keys::PKCS8_ECDSA_P256_PRIVKEY_FILE, "");
+    check_pkcs8_pubkey(keys::pkcs8_ecdsa_p256(), keys::PKCS8_ECDSA_P256_PUBKEY_FILE);
 }
 
 #[test] fn test_decode_pkcs8_ecdsa_p384() {
     check_pkcs8_privkey(keys::pkcs8_ecdsa_p384(), keys::PKCS8_ECDSA_P384_PRIVKEY_FILE, "");
+    check_pkcs8_pubkey(keys::pkcs8_ecdsa_p384(), keys::PKCS8_ECDSA_P384_PUBKEY_FILE);
 }
 
 #[test] fn test_decode_pkcs8_ed25519() {
     check_pkcs8_privkey(keys::pkcs8_ed25519(), keys::PKCS8_ED25519_PRIVKEY_FILE, "");
+    check_pkcs8_pubkey(keys::pkcs8_ed25519(), keys::PKCS8_ED25519_PUBKEY_FILE);
 }
 
 #[test] fn test_decode_pkcs8v2_ed25519() {
