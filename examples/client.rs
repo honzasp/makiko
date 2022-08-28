@@ -1,5 +1,6 @@
 use anyhow::{Result, Context as _, bail};
 use bytes::BytesMut;
+use derivative::Derivative;
 use enclose::enclose;
 use futures::ready;
 use futures::future::{FutureExt as _, FusedFuture as _, Fuse};
@@ -131,17 +132,19 @@ fn parse_destination(dest: &str) -> Result<Destination> {
     Ok(Destination { host, port, username })
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 struct Key {
     path: PathBuf,
     data: Vec<u8>,
-    decoded: makiko::keys::OpensshKeypairNopass,
+    #[derivative(Debug = "ignore")]
+    decoded: makiko::keys::DecodedPrivkeyNopass,
 }
 
 fn read_key(path: &Path) -> Result<Key> {
     let data = fs::read(&path)
         .context(format!("could not read file {:?} with private key", path))?;
-    let decoded = makiko::keys::decode_openssh_pem_keypair_nopass(&data)
+    let decoded = makiko::keys::decode_pem_privkey_nopass(&data)
         .context(format!("could not decode keypair from file {:?}", path))?;
     Ok(Key { path: path.into(), data, decoded })
 }
@@ -331,7 +334,7 @@ async fn bind_remote_tunnels(
     Ok(())
 }
 
-async fn authenticate(client: &makiko::Client, username: String, keys: Vec<Key>) -> Result<()> {
+async fn authenticate(client: &makiko::Client, username: String, mut keys: Vec<Key>) -> Result<()> {
     struct AuthCtx<'c> {
         client: &'c makiko::Client,
         username: String,
@@ -362,20 +365,20 @@ async fn authenticate(client: &makiko::Client, username: String, keys: Vec<Key>)
         Ok(false)
     }
 
-    async fn try_auth_key(ctx: &mut AuthCtx<'_>, key: &Key) -> Result<bool> {
+    async fn try_auth_key(ctx: &mut AuthCtx<'_>, key: &mut Key) -> Result<bool> {
         if !ctx.methods.contains("publickey") {
             return Ok(false)
         }
 
-        let mut password = None;
-        for algo in key.decoded.pubkey.algos_compatible_less_secure().iter() {
+        let pubkey = decode_pubkey(key).await?;
+        for algo in pubkey.algos_compatible_less_secure().iter() {
             if let Some(names) = ctx.pubkey_algo_names.as_ref() {
                 if !names.contains(algo.name) {
                     continue
                 }
             }
 
-            if try_auth_key_algo(ctx, &key, algo, &mut password).await? {
+            if try_auth_key_algo(ctx, key, &pubkey, algo).await? {
                 return Ok(true)
             }
         }
@@ -384,21 +387,17 @@ async fn authenticate(client: &makiko::Client, username: String, keys: Vec<Key>)
 
     async fn try_auth_key_algo(
         ctx: &mut AuthCtx<'_>,
-        key: &Key,
+        key: &mut Key,
+        pubkey: &makiko::Pubkey,
         algo: &'static makiko::PubkeyAlgo,
-        password: &mut Option<String>,
     ) -> Result<bool> {
         log::info!("checking 'publickey' authentication with key {}, algorithm {:?}",
             key.path.display(), algo.name);
-        if !ctx.client.check_pubkey(ctx.username.clone(), &key.decoded.pubkey, algo).await? {
+        if !ctx.client.check_pubkey(ctx.username.clone(), &pubkey, algo).await? {
             return Ok(false)
         }
 
-        let privkey = match key.decoded.privkey {
-            Some(ref privkey) => privkey.clone(),
-            None => decode_privkey(key, password).await?,
-        };
-
+        let privkey = decode_privkey(key).await?;
         log::info!("trying 'publickey' authentication with key {}, algorithm {:?}",
             key.path.display(), algo.name);
         match ctx.client.auth_pubkey(ctx.username.clone(), privkey, algo).await? {
@@ -408,15 +407,28 @@ async fn authenticate(client: &makiko::Client, username: String, keys: Vec<Key>)
         Ok(false)
     }
 
-    async fn decode_privkey(key: &Key, password: &mut Option<String>) -> Result<makiko::Privkey> {
+    async fn decode_pubkey(key: &mut Key) -> Result<makiko::Pubkey> {
+        match &key.decoded {
+            makiko::keys::DecodedPrivkeyNopass::Privkey(privkey) => return Ok(privkey.pubkey()),
+            makiko::keys::DecodedPrivkeyNopass::Pubkey(pubkey) => return Ok(pubkey.clone()),
+            _ => {},
+        }
+        decode_privkey(key).await.map(|privkey| privkey.pubkey())
+    }
+
+    async fn decode_privkey(key: &mut Key) -> Result<makiko::Privkey> {
         loop {
-            let prompt = format!("ssh: password for key {}", key.path.display());
-            if password.is_none() {
-                *password = Some(ask_for_password(&prompt).await?);
+            if let makiko::keys::DecodedPrivkeyNopass::Privkey(ref privkey) = key.decoded {
+                return Ok(privkey.clone())
             }
-            let password = password.as_ref().unwrap().as_bytes();
-            match makiko::keys::decode_openssh_pem_keypair(&key.data, password) {
-                Ok(decoded) => return Ok(decoded.privkey),
+
+            let prompt = format!("ssh: password for key {}", key.path.display());
+            let password = ask_for_password(&prompt).await?;
+            match makiko::keys::decode_pem_privkey(&key.data, password.as_bytes()) {
+                Ok(privkey) => {
+                    key.decoded = makiko::keys::DecodedPrivkeyNopass::Privkey(privkey.clone());
+                    return Ok(privkey)
+                },
                 Err(makiko::Error::BadKeyPassphrase) => continue,
                 Err(err) => return Err(err.into()),
             }
@@ -448,7 +460,7 @@ async fn authenticate(client: &makiko::Client, username: String, keys: Vec<Key>)
 
     if try_auth_none(&mut ctx).await? { return Ok(()) }
     update_pubkey_algo_names(&mut ctx)?;
-    for key in keys.iter() {
+    for key in keys.iter_mut() {
         if try_auth_key(&mut ctx, key).await? { return Ok(()) }
     }
     if try_auth_password(&mut ctx).await? { return Ok(()) }

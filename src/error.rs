@@ -87,6 +87,8 @@ pub enum Error {
     Pkcs8BadCurveOid(String),
     #[error("unexpected PEM tag {0:?}, expected {1:?}")]
     BadPemTag(String, String),
+    #[error("unsupported PEM tag {0:?}")]
+    UnknownPemTag(String),
     #[error("bad passphrase when decoding key")]
     BadKeyPassphrase,
 }
