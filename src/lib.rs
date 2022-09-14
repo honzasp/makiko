@@ -43,6 +43,7 @@ mod client;
 mod codec;
 pub mod codes;
 mod error;
+pub mod host_file;
 pub mod kex;
 pub mod keys;
 pub mod mac;

@@ -109,6 +109,16 @@ impl Pubkey {
         encode_pubkey(self)
     }
 
+    /// Get the type of the key as a string.
+    ///
+    /// Returns a string like `"ssh-rsa"` or `"ssh-ed25519"`, which is used in OpenSSH files like
+    /// `authorized_keys` or `known_hosts` as a human-readable description of the key type. It
+    /// corresponds to the string identifier of the key format that is present in the SSH encoding
+    /// of the key.
+    pub fn type_str(&self) -> String {
+        pubkey_type_str(self).into()
+    }
+
     /// Compute a fingerprint of the public key.
     ///
     /// The fingerprint is in the SHA-256 digest of the public key encoded with base64 (not padded
@@ -191,6 +201,15 @@ fn decode_pubkey(blob: Bytes) -> Result<Pubkey> {
             log::debug!("unknown pubkey format {:?}", format);
             Err(Error::Decode("unknown public key format"))
         },
+    }
+}
+
+fn pubkey_type_str(pubkey: &Pubkey) -> &'static str {
+    match pubkey {
+        Pubkey::Ed25519(_) => "ssh-ed25519",
+        Pubkey::Rsa(_) => "ssh-rsa",
+        Pubkey::EcdsaP256(_) => "ecdsa-sha2-nistp256",
+        Pubkey::EcdsaP384(_) => "ecdsa-sha2-nistp384",
     }
 }
 
