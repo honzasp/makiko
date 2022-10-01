@@ -70,6 +70,7 @@ colored = "2.0"
 enclose = "1.1"
 env_logger = "0.9"
 futures = "0.3"
+home = "0.5"
 regex = "1.5"
 rustix = {version = "0.35", features = ["termios"]}
 tokio = {version = "1", features = ["full"]}

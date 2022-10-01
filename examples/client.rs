@@ -61,6 +61,10 @@ fn run_main() -> Result<ExitCode> {
             .takes_value(true)
             .action(clap::ArgAction::Append)
             .value_name("[remote-host:]remote-port:local-host:local-port"))
+        .arg(clap::Arg::new("known-hosts").short('k')
+            .takes_value(true)
+            .value_hint(clap::ValueHint::FilePath)
+            .value_name("host-file"))
         .get_matches();
 
     let mut destination = Destination::default();
@@ -87,7 +91,13 @@ fn run_main() -> Result<ExitCode> {
         .map(|spec| parse_tunnel_spec(&spec))
         .collect::<Result<Vec<_>>>()?;
 
-    let opts = Opts { destination, keys, command, want_tty, local_tunnels, remote_tunnels };
+    let host_file_path = matches.get_one::<PathBuf>("known-hosts").cloned();
+    let host_file = read_host_file(host_file_path)?;
+
+    let opts = Opts {
+        destination, keys, command, want_tty,
+        local_tunnels, remote_tunnels, host_file,
+    };
 
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all().build()?;
@@ -104,6 +114,7 @@ struct Opts {
     want_tty: bool,
     local_tunnels: Vec<TunnelSpec>,
     remote_tunnels: Vec<TunnelSpec>,
+    host_file: Option<HostFile>,
 }
 
 #[derive(Debug, Default)]
@@ -178,6 +189,22 @@ fn parse_tunnel_spec(spec: &str) -> Result<TunnelSpec> {
     Ok(TunnelSpec { bind_host, bind_port, connect_host, connect_port })
 }
 
+#[derive(Debug)]
+struct HostFile {
+    path: PathBuf,
+    file: makiko::host_file::File,
+}
+
+fn read_host_file(path: Option<PathBuf>) -> Result<Option<HostFile>> {
+    let default_path = home::home_dir().map(|dir| dir.join(".ssh/known_hosts"));
+    guard!{let Some(path) = path.or(default_path) else { return Ok(None) }};
+
+    let file_data = fs::read(&path)
+        .context(format!("could not read known_hosts file {}", path.display()))?;
+    let file = makiko::host_file::File::decode(file_data.into());
+    Ok(Some(HostFile { path, file }))
+}
+
 async fn run_client(opts: Opts) -> Result<ExitCode> {
     let host = opts.destination.host
         .context("please specify the host to connect to")?;
@@ -185,6 +212,7 @@ async fn run_client(opts: Opts) -> Result<ExitCode> {
         .context("please specify the username to login with")?;
     let port = opts.destination.port.unwrap_or(22);
     let config = makiko::ClientConfig::default_compatible_less_secure();
+    let hostname = makiko::host_file::host_port_to_hostname(&host, port);
 
     log::info!("connecting to host {:?}, port {}", host, port);
     let socket = tokio::net::TcpStream::connect((host, port)).await
@@ -203,7 +231,7 @@ async fn run_client(opts: Opts) -> Result<ExitCode> {
     let client_task = TaskHandle(tokio::task::spawn(client_fut));
 
     let event_task = TaskHandle(tokio::task::spawn(
-        run_events(client.clone(), client_rx, remote_tunnel_addrs.clone())
+        run_events(client.clone(), client_rx, remote_tunnel_addrs.clone(), hostname, opts.host_file)
     ));
 
     let interact_task = TaskHandle(tokio::task::spawn(enclose!{(client) async move {
@@ -257,6 +285,8 @@ async fn run_events(
     client: makiko::Client,
     mut client_rx: makiko::ClientReceiver,
     remote_tunnel_addrs: HashMap<(String, u16), (String, u16)>,
+    hostname: String,
+    mut host_file: Option<HostFile>,
 ) -> Result<()> {
     let mut pubkey_task = Fuse::terminated();
     let mut tunnel_tasks = FuturesUnordered::new();
@@ -264,9 +294,21 @@ async fn run_events(
         tokio::select!{
             event = client_rx.recv() => match event? {
                 Some(makiko::ClientEvent::ServerPubkey(pubkey, accept_tx)) => {
-                    pubkey_task = TaskHandle(tokio::task::spawn(
-                        verify_pubkey(client.clone(), pubkey, accept_tx)
-                    )).fuse();
+                    let client = client.clone();
+                    let hostname = hostname.clone();
+                    let host_file = host_file.take();
+                    pubkey_task = TaskHandle(tokio::task::spawn(async move {
+                        if verify_pubkey(pubkey, hostname, host_file).await? {
+                            accept_tx.accept();
+                        } else {
+                            client.disconnect(makiko::DisconnectError {
+                                reason_code: makiko::codes::disconnect::HOST_KEY_NOT_VERIFIABLE,
+                                description: "user did not accept the host public key".into(),
+                                description_lang: "".into(),
+                            })?;
+                        }
+                        Result::<()>::Ok(())
+                    })).fuse();
                 },
                 Some(makiko::ClientEvent::Tunnel(accept)) => {
                     let connect_addr = remote_tunnel_addrs.get(&accept.connected_addr);
@@ -286,23 +328,58 @@ async fn run_events(
 }
 
 async fn verify_pubkey(
-    client: makiko::Client,
     pubkey: makiko::Pubkey,
-    accept_tx: makiko::AcceptPubkey,
-) -> Result<()> {
-    log::info!("verifying server pubkey: {}", pubkey);
-    let prompt = format!("ssh: server pubkey fingerprint {}\nssh: do you want to connect?",
-        pubkey.fingerprint());
-    if ask_yes_no(&prompt).await? {
-        accept_tx.accept();
-    } else {
-        client.disconnect(makiko::DisconnectError {
-            reason_code: makiko::codes::disconnect::HOST_KEY_NOT_VERIFIABLE,
-            description: "user did not accept the host public key".into(),
-            description_lang: "".into(),
-        })?;
+    hostname: String,
+    mut host_file: Option<HostFile>,
+) -> Result<bool> {
+    log::info!("verifying pubkey for server {:?}: {}", hostname, pubkey);
+
+    if let Some(host_file) = host_file.as_ref() {
+        use makiko::host_file::KeyMatch;
+        match host_file.file.match_hostname_key(&hostname, &pubkey) {
+            KeyMatch::Accepted(entries) => {
+                log::info!("server pubkey found in {}:", host_file.path.display());
+                for entry in entries.iter() {
+                    log::info!("  at line {}", entry.line());
+                }
+                return Ok(true)
+            },
+            KeyMatch::Revoked(entry) => {
+                println!("ssh: server pubkey was revoked in {} at line {}!!!",
+                    host_file.path.display(), entry.line());
+                return Ok(false)
+            },
+            KeyMatch::OtherKeys(entries) => {
+                println!("ssh: found other pubkeys in {}!!!", host_file.path.display());
+                for entry in entries.iter() {
+                    println!("ssh:  at line {}: {}, fingerprint {}",
+                        entry.line(), entry.pubkey(), entry.pubkey().fingerprint());
+                }
+                return Ok(false)
+            },
+            KeyMatch::NotFound => {
+                log::info!("server was not found in {}", host_file.path.display());
+            },
+        }
     }
-    Ok(())
+
+    let prompt = format!(
+        "ssh: server {:?} has pubkey with fingerprint {}\nssh: do you want to connect?",
+        hostname, pubkey.fingerprint(),
+    );
+
+    if ask_yes_no(&prompt).await? {
+        if let Some(host_file) = host_file.as_mut() {
+            host_file.file.append_entry(makiko::host_file::File::entry_builder()
+                .hostname(&hostname)
+                .key(pubkey));
+            fs::write(&host_file.path, &host_file.file.encode())
+                .context(format!("could not write to {}", host_file.path.display()))?;
+        }
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 async fn run_remote_tunnel(accept: makiko::AcceptTunnel, connect_addr: (String, u16)) -> Result<()> {

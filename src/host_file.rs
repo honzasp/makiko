@@ -108,6 +108,11 @@ pub enum KeyMatch<'e> {
     /// The `Entry` is the first revoked entry in the file that matches the hostname and the key.
     Revoked(&'e Entry),
 
+    /// We found other keys for this hostname.
+    ///
+    /// The `Vec` list all non-revoked entries that match the hostname, it is always non-empty.
+    OtherKeys(Vec<&'e Entry>),
+
     /// The combination of key and host was not found.
     NotFound,
 }
@@ -137,21 +142,23 @@ impl File {
 
     /// Finds the match for the given hostname and key in this file.
     ///
-    /// See [`host_port_to_hostname()`][Self::host_port_to_hostname()] for the format of the
-    /// `hostname`; you can use [`match_host_port_key()`][Self::match_host_port_key()] to match a
-    /// `(host, port)` pair.
+    /// See [`host_port_to_hostname()`] for the format of the `hostname`; you can use
+    /// [`match_host_port_key()`][Self::match_host_port_key()] to match a `(host, port)` pair.
     ///
     /// If you want more advanced processing, you can use [`entries()`][Self::entries()] to list
     /// all entries and the [`Entry::matches_hostname()`] and [`Entry::pubkey()`] methods to match
     /// them to a hostname and key.
     pub fn match_hostname_key(&self, hostname: &str, pubkey: &Pubkey) -> KeyMatch<'_> {
         let mut accepted = Vec::new();
+        let mut other_keys = Vec::new();
+
         for entry in self.entries() {
             if !entry.matches_hostname(hostname) {
                 continue
             }
 
             if entry.pubkey() != pubkey {
+                other_keys.push(entry);
                 continue
             }
 
@@ -164,6 +171,8 @@ impl File {
 
         if !accepted.is_empty() {
             KeyMatch::Accepted(accepted)
+        } else if !other_keys.is_empty() {
+            KeyMatch::OtherKeys(other_keys)
         } else {
             KeyMatch::NotFound
         }
@@ -172,21 +181,9 @@ impl File {
     /// Finds the match for the given host and port in this file.
     ///
     /// Same as [`match_hostname_key()`][Self::match_hostname_key()], but formats the host and port
-    /// using [`host_port_to_hostname()`][Self::host_port_to_hostname()].
+    /// using [`host_port_to_hostname()`].
     pub fn match_host_port_key(&self, host: &str, port: u16, pubkey: &Pubkey) -> KeyMatch<'_> {
-        self.match_hostname_key(&Self::host_port_to_hostname(host, port), pubkey)
-    }
-
-    /// Converts a host and port to an OpenSSH-compatible hostname.
-    ///
-    /// If the port is not 22, it returns `[host]:port`, otherwise the `host` is returned as-is.
-    /// `host` can be either a domain name or an IP address.
-    pub fn host_port_to_hostname(host: &str, port: u16) -> String {
-        if port == 22 {
-            host.into()
-        } else {
-            format!("[{}]:{}", host, port)
-        }
+        self.match_hostname_key(&host_port_to_hostname(host, port), pubkey)
     }
 
     /// Creates an [`EntryBuilder`], which can be used to add an entry (or a set of entries) to the
@@ -224,6 +221,18 @@ impl File {
 impl Default for File {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Converts a host and port to an OpenSSH-compatible hostname.
+///
+/// If the port is not 22, it returns `[host]:port`, otherwise the `host` is returned as-is.
+/// `host` can be either a domain name or an IP address.
+pub fn host_port_to_hostname(host: &str, port: u16) -> String {
+    if port == 22 {
+        host.into()
+    } else {
+        format!("[{}]:{}", host, port)
     }
 }
 
@@ -278,7 +287,7 @@ impl EntryBuilder {
 
     /// Adds a given hostname in plaintext.
     ///
-    /// See [`File::host_port_to_hostname()`] for the format of the `hostname`; you can use
+    /// See [`host_port_to_hostname()`] for the format of the `hostname`; you can use
     /// [`plaintext_host_port()`][Self::plaintext_host_port()] to add a `(host, port)` pair.
     ///
     /// The hostname will be added in plaintext, so anybody who has access to `known_hosts` can see
@@ -294,12 +303,12 @@ impl EntryBuilder {
     /// can see which hostnames you connected to. See [`hostname()`][Self::hostname()] if you want
     /// to hide the hostname.
     pub fn plaintext_host_port(&mut self, host: &str, port: u16) -> &mut Self {
-        self.plaintext_hostnames.push(File::host_port_to_hostname(host, port)); self
+        self.plaintext_hostnames.push(host_port_to_hostname(host, port)); self
     }
 
     /// Adds a given hostname in a hashed form.
     ///
-    /// See [`File::host_port_to_hostname()`] for the format of the `hostname`; you can use
+    /// See [`host_port_to_hostname()`] for the format of the `hostname`; you can use
     /// [`plaintext_host_port()`][Self::plaintext_host_port()] to add a `(host, port)` pair.
     ///
     /// The hostname will be stored in the file as a HMAC-SHA1 hash with a random salt. This hides
@@ -313,7 +322,7 @@ impl EntryBuilder {
     /// The host and port will be stored in the file as a HMAC-SHA1 hash with a random salt. This
     /// hides the host and port if the file is disclosed.
     pub fn host_port(&mut self, host: &str, port: u16) -> &mut Self {
-        self.hashed_hostnames.push(File::host_port_to_hostname(host, port)); self
+        self.hashed_hostnames.push(host_port_to_hostname(host, port)); self
     }
 
     /// Adds a public key.
@@ -851,6 +860,18 @@ mod tests {
         }
     }
 
+    fn check_other_keys(file: &File, host: &str, port: u16, pubkey: &Pubkey, checks: Vec<fn(&Entry)>) {
+        match file.match_host_port_key(host, port, pubkey) {
+            KeyMatch::OtherKeys(entries) => {
+                assert_eq!(entries.len(), checks.len());
+                for (entry, check) in entries.iter().zip(checks.iter().copied()) {
+                    check(entry);
+                }
+            },
+            res => panic!("expected OtherKeys, got: {:?}", res),
+        }
+    }
+
     fn check_not_found(file: &File, host: &str, port: u16, pubkey: &Pubkey) {
         match file.match_host_port_key(host, port, pubkey) {
             KeyMatch::NotFound => (),
@@ -900,13 +921,15 @@ mod tests {
                 assert_eq!(e.key_comment(), Some("edward"));
             },
         ]);
-        check_not_found(&file, "prefix.example.com", 22, &edward);
         check_not_found(&file, "example.com", 42, &edward);
+        check_not_found(&file, "prefix.example.com", 22, &edward);
 
         check_accepted(&file, "github.com", 22, &ruth, vec![
             |e| assert_eq!(e.line(), 4),
         ]);
-        check_not_found(&file, "github.com", 22, &edward);
+        check_other_keys(&file, "github.com", 22, &edward, vec![
+            |e| assert_eq!(e.line(), 4),
+        ]);
             
         check_accepted(&file, "secure.gitlab.org", 22, &alice, vec![
             |e| assert_eq!(e.line(), 5),
