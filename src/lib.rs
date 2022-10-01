@@ -1,4 +1,4 @@
-//! SSH client library.
+//! Asynchronous SSH client library for Rust.
 //!
 //! The entry point for making SSH connections is the [`Client`].
 #![allow(clippy::collapsible_if)]

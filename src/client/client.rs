@@ -558,9 +558,8 @@ impl Default for ClientConfig {
 impl ClientConfig {
     /// Default configuration with higher compatibility and lower security.
     ///
-    /// Returns a configuration that includes support for legacy crypto, notably SHA-1. None of
-    /// these algorithms is known to be broken and they should be alright most of the time, but use
-    /// at your own risk!
+    /// Returns a configuration that includes support for subpar crypto, notably SHA-1, NIST curves
+    /// and CBC-mode ciphers. Use at your own risk!
     pub fn default_compatible_less_secure() -> ClientConfig {
         Self::default().with(|c| {
             c.kex_algos.extend_from_slice(&[

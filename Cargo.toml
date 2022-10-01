@@ -52,8 +52,8 @@ poly1305 = "0.7"
 rand = {version = "0.8", features = ["getrandom"]}
 rand_0_7 = {version = "0.7", package = "rand"} # because of x25519-dalek
 rand_chacha = "0.3"
-regex = "1.6"
-regex-syntax = "0.6"
+regex = {version = "1.6", features = ["std"], default-features = false}
+regex-syntax = {version = "0.6", features = [], default-features = false}
 rsa = {version = "0.6"}
 sha-1 = {version = "0.10", default-features = false}
 sha2 = "0.10"
