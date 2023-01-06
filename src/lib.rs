@@ -15,7 +15,9 @@ pub use crate::client::{
     DataType, DATA_STANDARD, DATA_STDERR,
 };
 pub use crate::client::{Client, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
-pub use crate::client::{ClientReceiver, ClientEvent, AcceptPubkey, AcceptChannel, AcceptTunnel};
+pub use crate::client::{
+    ClientReceiver, ClientEvent, AcceptPubkey, DebugMsg, AuthBanner, AcceptTunnel, AcceptChannel,
+};
 pub use crate::client::{
     Session, SessionReceiver, SessionEvent, SessionResp, ExitSignal,
     PtyRequest, PtyTerminalModes, WindowChange,

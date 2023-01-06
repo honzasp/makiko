@@ -7,7 +7,9 @@ pub use self::channel::{
     DataType, DATA_STANDARD, DATA_STDERR,
 };
 pub use self::client::{Client, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
-pub use self::client_event::{ClientReceiver, ClientEvent, AcceptPubkey, AcceptChannel, AcceptTunnel};
+pub use self::client_event::{
+    ClientReceiver, ClientEvent, AcceptPubkey, DebugMsg, AuthBanner, AcceptTunnel, AcceptChannel,
+};
 pub use self::session::{
     Session, SessionReceiver, SessionEvent, SessionResp, ExitSignal,
     PtyRequest, PtyTerminalModes, WindowChange,
