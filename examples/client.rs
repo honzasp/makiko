@@ -448,7 +448,7 @@ async fn authenticate(client: &makiko::Client, username: String, mut keys: Vec<K
         }
 
         let pubkey = decode_pubkey(key).await?;
-        for algo in pubkey.algos_compatible_less_secure().iter() {
+        for algo in pubkey.algos().iter() {
             if let Some(names) = ctx.pubkey_algo_names.as_ref() {
                 if !names.contains(algo.name) {
                     continue

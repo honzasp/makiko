@@ -60,14 +60,14 @@ pub enum Pubkey {
 }
 
 impl Pubkey {
-    /// Get best public key algorithms that work with this key.
+    /// Get all public key algorithms that work with this key.
     ///
     /// Most key types work with just a single public key algorithm, but with RSA keys
     /// ([`Pubkey::Rsa`]), there are multiple algorithms that differ in the hash function. This
-    /// method returns only highly secure algorithms, but older servers may not support them.
-    pub fn algos_secure(&self) -> &'static [&'static PubkeyAlgo] {
+    /// method returns all supported algorithms for this key.
+    pub fn algos(&self) -> &'static [&'static PubkeyAlgo] {
         static ED25519: &[&PubkeyAlgo] = &[&SSH_ED25519];
-        static RSA: &[&PubkeyAlgo] = &[&RSA_SHA2_256, &RSA_SHA2_512];
+        static RSA: &[&PubkeyAlgo] = &[&RSA_SHA2_256, &RSA_SHA2_512, &SSH_RSA_SHA1];
         static ECDSA_P256: &[&PubkeyAlgo] = &[&ECDSA_SHA2_NISTP256];
         static ECDSA_P384: &[&PubkeyAlgo] = &[&ECDSA_SHA2_NISTP384];
         match self {
@@ -78,17 +78,30 @@ impl Pubkey {
         }
     }
 
+    /// Get best public key algorithms that work with this key.
+    ///
+    /// Most key types work with just a single public key algorithm, but with RSA keys
+    /// ([`Pubkey::Rsa`]), there are multiple algorithms that differ in the hash function. This
+    /// method returns only highly secure algorithms, but older servers may not support them.
+    #[deprecated(since = "0.2.1", note = "Disabling public key algorithms for authentication _on the client_ \
+        does not increase security, the older, less secure algorithms must be disabled on the server. \
+        Please use `Pubkey::algos()` instead.")]
+    pub fn algos_secure(&self) -> &'static [&'static PubkeyAlgo] {
+        static RSA: &[&PubkeyAlgo] = &[&RSA_SHA2_256, &RSA_SHA2_512];
+        match self {
+            Pubkey::Rsa(_) => RSA,
+            _ => self.algos(),
+        }
+    }
+
     /// Get all public key algorithms that work with this key.
     ///
     /// Most key types work with just a single public key algorithm, but with RSA keys
     /// ([`Pubkey::Rsa`]), there are multiple algorithms that differ in the hash function. This
     /// method returns all supported algorithms for maximum compatibility.
+    #[deprecated(since = "0.2.1", note = "Please use `Pubkey::algos()` instead.")]
     pub fn algos_compatible_less_secure(&self) -> &'static [&'static PubkeyAlgo] {
-        static RSA: &[&PubkeyAlgo] = &[&RSA_SHA2_256, &RSA_SHA2_512, &SSH_RSA_SHA1];
-        match self {
-            Pubkey::Rsa(_) => RSA,
-            _ => self.algos_secure(),
-        }
+        self.algos()
     }
 
     /// Decode a public key from SSH wire encoding.
