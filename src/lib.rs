@@ -12,6 +12,7 @@
 #![allow(clippy::unused_unit)]
 #![allow(clippy::unit_arg)]
 #![allow(clippy::module_inception)]
+#![allow(clippy::type_complexity)]
 #![warn(missing_docs)]
 
 pub use crate::client::{

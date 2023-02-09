@@ -136,7 +136,7 @@ impl File {
     /// Comments and invalid lines are not returned by this method.
     pub fn entries(&self) -> impl Iterator<Item = &Entry> {
         self.lines.iter().filter_map(|line| match &line.content {
-            LineContent::Entry(entry) => Some(&*entry as &Entry),
+            LineContent::Entry(entry) => Some(entry as &Entry),
             LineContent::Comment | LineContent::Error(_) => None,
         })
     }
@@ -596,7 +596,7 @@ fn read_field<'b>(bytes: &mut &'b [u8]) -> Option<&'b [u8]> {
     consume_whitespace(bytes);
 
     // '#' starts a comment, which should be ignored
-    if matches!(bytes.get(0), None | Some(b'#')) {
+    if matches!(bytes.first(), None | Some(b'#')) {
         return None
     }
 

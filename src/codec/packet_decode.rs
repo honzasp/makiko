@@ -77,7 +77,7 @@ impl PacketDecode {
     /// Decode a `mpint` as a scalar in unsigned big endian with given length.
     pub fn get_scalar(&mut self, len: usize) -> Result<Vec<u8>> {
         let mut bytes = self.get_bytes()?;
-        while bytes.get(0) == Some(&0) {
+        while bytes.first() == Some(&0) {
             bytes.advance(1);
         }
 

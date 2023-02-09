@@ -40,7 +40,7 @@ impl SendPipe {
 
     pub fn feed_packet(&mut self, payload: &[u8]) -> u32 {
         log::trace!("feed packet {}, len {}, seq {}",
-            payload.get(0).cloned().unwrap_or(0), payload.len(), self.packet_seq);
+            payload.first().cloned().unwrap_or(0), payload.len(), self.packet_seq);
 
         let include_len = match self.encrypt {
             PacketEncrypt::EncryptAndMac(_, _) => true,
