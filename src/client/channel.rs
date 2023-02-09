@@ -80,7 +80,7 @@ impl Channel {
     pub async fn send_eof(&self) -> Result<()> {
         match self.try_send_eof().await {
             Ok(_) => Ok(()),
-            // it is common that the peer closes the channel before we have a change to send EOF,
+            // it is common that the peer closes the channel before we have a chance to send EOF,
             // so we just ignore the error in this case
             Err(Error::ChannelClosed) => Ok(()),
             Err(err) => Err(err),

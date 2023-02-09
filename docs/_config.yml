@@ -1,0 +1,27 @@
+title: "Makiko"
+description: "Makiko is an asynchronous SSH client library in pure Rust"
+theme: just-the-docs
+
+url: "https://honzasp.github.io/makiko"
+baseurl: "/makiko"
+aux_links:
+  "Github": "https://github.com/honzasp/makiko"
+  "API docs": "https://docs.rs/makiko/latest/makiko"
+nav_external_links:
+  - title: "Makiko on Github"
+    url: "https://github.com/honzasp/makiko"
+  - title: "API documentation"
+    url: "https://docs.rs/makiko/latest/makiko"
+
+color_scheme: "makiko_light"
+callouts:
+  "note":
+    title: "Note"
+    color: blue
+  "warning":
+    title: "Warning"
+    color: yellow
+favicon_ico: "/favicon.ico"
+
+exclude:
+  - "Session.vim"

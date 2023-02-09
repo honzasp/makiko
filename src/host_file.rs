@@ -101,6 +101,7 @@ pub enum KeyMatch<'e> {
     /// The key was accepted for this hostname.
     ///
     /// The `Vec` lists the entries that match the hostname and the key, it is always non-empty.
+    // TODO: rename this to `Found`
     Accepted(Vec<&'e Entry>),
 
     /// The key was revoked.
@@ -113,7 +114,7 @@ pub enum KeyMatch<'e> {
     /// The `Vec` list all non-revoked entries that match the hostname, it is always non-empty.
     OtherKeys(Vec<&'e Entry>),
 
-    /// The combination of key and host was not found.
+    /// No entry that matches this hostname was found.
     NotFound,
 }
 

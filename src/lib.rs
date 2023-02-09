@@ -1,6 +1,13 @@
-//! Asynchronous SSH client library for Rust.
+//! Asynchronous SSH client library in pure Rust.
 //!
-//! The entry point for making SSH connections is the [`Client`].
+//! You may want to **[read the tutorial][tutorial]** to get started with Makiko.
+//!
+//! [tutorial]: https://honzasp.github.io/makiko
+//!
+//! - Entry point for making SSH connections is the [`Client`].
+//! - Functions for decoding keys are in the [`keys`] module.
+//! - Support for the `known_hosts` file is in the [`host_file`] module.
+//!
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::unit_arg)]

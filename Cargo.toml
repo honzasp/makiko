@@ -12,7 +12,7 @@ readme = "README.md"
 
 keywords = ["ssh", "ssh-client", "tokio", "async"]
 categories = ["network-programming", "asynchronous"]
-description = "Asynchronous SSH client library"
+description = "Asynchronous SSH client library in pure Rust"
 
 [[test]]
 name = "compat"

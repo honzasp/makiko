@@ -1,11 +1,12 @@
 # Makiko
 
-Makiko is an asynchronous SSH client library for Rust.
+Makiko is an asynchronous SSH client library in pure Rust.
 
-**[Github][github] | [API docs][docs-rs] | [Crate][crates-io]**
+**[Tutorial][tutorial] | [API docs][docs-rs] | [Github][github] | [Crate][crates-io]**
 
-[github]: https://github.com/honzasp/makiko
+[tutorial]: https://honzasp.github.io/makiko
 [docs-rs]: https://docs.rs/makiko/latest/makiko
+[github]: https://github.com/honzasp/makiko
 [crates-io]: https://crates.io/crates/makiko
 
 ## Features
@@ -27,6 +28,7 @@ Makiko is an asynchronous SSH client library for Rust.
 - Crypto from [Rust Crypto][rust-crypto]
 - Use your own sockets, spawn your own tasks
 - Uses [Tokio][tokio] interfaces (but does not depend on the Tokio runtime)
+- Rust all the way down: no dependency on non-Rust libraries, direct or indirect
 
 [rust-crypto]: https://github.com/RustCrypto
 [tokio]: https://tokio.rs/
@@ -38,6 +40,10 @@ Makiko is an asynchronous SSH client library for Rust.
 Makiko gives you a lot of control over the SSH connection, it is meant to be a
 building block for libraries and advanced applications.
 
+> Makiko and most of the cryptography crates from [Rust Crypto][rust-crypto]
+> that Makiko uses have not yet been audited by a trusted third party. Use at
+> your own risk!
+
 ## Contributing
 
 Contributions are welcome! Please contact me ([@honzasp][honzasp]) or open a
@@ -47,4 +53,4 @@ pull request.
 
 ## License
 
-This software is released into the public domain. Please see [LICENSE](LICENSE).
+This software is released into the public domain. Please see [UNLICENSE](UNLICENSE).

@@ -1,0 +1,17 @@
+.main-content {
+    a {
+        text-decoration-color: $link-color;
+    }
+
+    ul > li::before {
+        color: $grey-dk-100;
+    }
+
+    ol > li::before {
+        color: $grey-dk-100;
+    }
+}
+
+hr {
+    background-color: $grey-lt-300;
+}

@@ -21,6 +21,7 @@ use super::client::Client;
 ///
 /// Once the session is open, you will typically go through three stages:
 /// - prepare the execution environment: [`env()`][Self::env()],
+/// [`request_pty()`][Self::request_pty()],
 /// - start the execution: [`shell()`][Self::shell()], [`exec()`][Self::exec()],
 /// [`subsystem()`][Self::subsystem()],
 /// - interact with the process: [`send_stdin()`][Self::send_stdin()],
@@ -232,8 +233,8 @@ impl Session {
 
 /// Future server response to a [`Session`] request.
 ///
-/// You may either wait for the response using [`.wait()`][Self::wait], or ignore the response
-/// using [`.ignore()`].
+/// You may either wait for the response using [`.wait()`][Self::wait()], or ignore the response
+/// using [`.ignore()`][Self::ignore()].
 #[derive(Debug)]
 #[must_use = "please use .wait().await to await the response, or .ignore() to ignore it"]
 pub struct SessionResp {
