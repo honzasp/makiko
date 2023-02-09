@@ -4,7 +4,7 @@ version = "0.2.1-pre"
 edition = "2021"
 
 authors = ["Jan Špaček <patek.mail@gmail.com>"]
-homepage = "https://github.com/honzasp/makiko"
+homepage = "https://honzasp.github.io/makiko"
 repository = "https://github.com/honzasp/makiko"
 documentation = "https://docs.rs/makiko"
 license = "Unlicense"
