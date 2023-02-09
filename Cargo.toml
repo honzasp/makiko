@@ -25,15 +25,15 @@ path = "tests/keys/main.rs"
 
 [dependencies]
 aes = "0.8"
-aes-gcm = "^0.10.0-pre"
-base64 = "^0.13"
+aes-gcm = "0.10"
+base64 = "0.21"
 bcrypt-pbkdf = "0.9"
 bytes = "1.1"
 cbc = "0.1"
 chacha20 = "0.9"
 ctr = "0.9"
 derivative = "2.2"
-ecdsa = {version = "0.14", features = ["sign", "verify"]}
+ecdsa = {version = "0.15", features = ["signing", "verifying"]}
 ed25519 = {version = "1.5", features = ["pkcs8"]}
 ed25519-dalek = "1.0"
 futures-core = "0.3"
@@ -42,21 +42,21 @@ hex-literal = "0.3"
 hmac = "0.12"
 log = "0.4"
 num-bigint-dig = {version = "0.8", features = ["rand"]}
-p256 = "0.11"
-p384 = "0.11"
+p256 = "0.12"
+p384 = "0.12"
 parking_lot = "0.12"
 pem = "1.0"
 pin-project = "1.0"
 pkcs8 = {version = "0.9", features = ["encryption"]}
-poly1305 = "0.7"
+poly1305 = "0.8"
 rand = {version = "0.8", features = ["getrandom"]}
 rand_0_7 = {version = "0.7", package = "rand"} # because of x25519-dalek
 rand_chacha = "0.3"
 regex = {version = "1.6", features = ["std"], default-features = false}
 regex-syntax = {version = "0.6", features = [], default-features = false}
-rsa = {version = "0.6"}
-sha-1 = {version = "0.10", default-features = false}
-sha2 = "0.10"
+rsa = {version = "0.8"}
+sha-1 = {version = "0.10", features = ["oid"]}
+sha2 = {version = "0.10", features = ["oid"]}
 thiserror = "1.0"
 tokio = {version = "1", features = ["sync"]}
 tokio-util = {version = "0.7", features = []}
@@ -64,15 +64,14 @@ x25519-dalek = "1.1" # due to issue #89
 
 [dev-dependencies]
 anyhow = "1"
-bollard = "0.12"
-clap = "3.2"
+bollard = "0.14"
+clap = "4.1"
 colored = "2.0"
 enclose = "1.1"
-env_logger = "0.9"
+env_logger = "0.10"
 futures = "0.3"
 home = "0.5"
-regex = "1.5"
-rustix = {version = "0.35", features = ["termios"]}
+rustix = {version = "0.36", features = ["termios"]}
 tokio = {version = "1", features = ["full"]}
 
 [features]

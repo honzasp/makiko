@@ -42,7 +42,7 @@ def print_privkey(private_key, public_key):
         print_num("p", numbers.p)
         print_num("q", numbers.q)
 
-        print("    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);")
+        print("    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();")
         print("    makiko::Privkey::Rsa(privkey.into())")
     elif isinstance(private_key, EllipticCurvePrivateKey):
         if private_key.curve.name == "secp256r1":

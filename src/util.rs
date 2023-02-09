@@ -1,3 +1,4 @@
+use base64::Engine as _;
 use bytes::BytesMut;
 use futures_core::ready;
 use rand::{CryptoRng, RngCore};
@@ -46,4 +47,10 @@ pub trait CryptoRngCore: CryptoRng + RngCore {
 
 impl<T: CryptoRng + RngCore> CryptoRngCore for T {
     fn as_rngcore(&mut self) -> &mut dyn RngCore { self }
+}
+
+// the `base64` in the latest version seems to have taken an unfortunate inspiration from Boost :(
+
+pub fn base64_encode(data: &[u8]) -> String {
+    base64::engine::general_purpose::STANDARD_NO_PAD.encode(data)
 }

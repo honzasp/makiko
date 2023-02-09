@@ -31,7 +31,10 @@ impl SshServer {
         }
 
         // create and start a new container
-        let create_opts = CreateContainerOptions { name: container_name.as_str() };
+        let create_opts = CreateContainerOptions {
+            name: container_name.as_str(),
+            .. CreateContainerOptions::default()
+        };
         let create_config = Config {
             exposed_ports: Some(vec![("22/tcp", HashMap::new())].into_iter().collect()),
             image: Some(image_name.as_str()),

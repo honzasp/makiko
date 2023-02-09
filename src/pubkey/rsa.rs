@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use guard::guard;
-use rsa::{PublicKey as _, PublicKeyParts as _};
+use rsa::{PublicKey as _, PublicKeyParts as _, pkcs8};
 use sha1::digest;
 use std::fmt;
 use crate::codec::{PacketDecode, PacketEncode};
@@ -75,8 +75,8 @@ fn verify<H: RsaHash>(pubkey: &Pubkey, message: &[u8], signature_blob: Bytes) ->
     hasher.update(message);
     let hashed = hasher.finalize();
 
-    let padding = rsa::PaddingScheme::PKCS1v15Sign { hash: Some(H::HASH) };
-    match pubkey.pubkey.verify(padding, hashed.as_slice(), &signature) {
+    let scheme = rsa::pkcs1v15::Pkcs1v15Sign::new::<H>();
+    match pubkey.pubkey.verify(scheme, hashed.as_slice(), &signature) {
         Ok(_) => Ok(SignatureVerified::assertion()),
         Err(_) => Err(Error::Signature),
     }
@@ -89,8 +89,8 @@ fn sign<H: RsaHash>(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
     hasher.update(message);
     let hashed = hasher.finalize();
 
-    let padding = rsa::PaddingScheme::PKCS1v15Sign { hash: Some(H::HASH) };
-    let signature = privkey.privkey.sign(padding, hashed.as_slice())
+    let scheme = rsa::pkcs1v15::Pkcs1v15Sign::new::<H>();
+    let signature = privkey.privkey.sign(scheme, hashed.as_slice())
         .map_err(|_| Error::Crypto("could not sign with RSA"))?;
 
     let mut signature_blob = PacketEncode::new();
@@ -121,29 +121,26 @@ pub(super) fn decode_privkey(blob: &mut PacketDecode) -> Result<RsaPrivkey> {
     let _iqmp = blob.get_biguint()?;
     let p = blob.get_biguint()?;
     let q = blob.get_biguint()?;
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q])
+        .map_err(|_| Error::Decode("decoded ssh-rsa privkey is invalid"))?;
     Ok(RsaPrivkey { privkey })
 }
 
 
 
-trait RsaHash: digest::Digest {
-    const HASH: rsa::Hash;
+trait RsaHash: digest::Digest + pkcs8::AssociatedOid {
     const ALGO_NAME: &'static str;
 }
 
 impl RsaHash for sha1::Sha1 {
-    const HASH: rsa::Hash = rsa::Hash::SHA1;
     const ALGO_NAME: &'static str = "ssh-rsa";
 }
 
 impl RsaHash for sha2::Sha256 {
-    const HASH: rsa::Hash = rsa::Hash::SHA2_256;
     const ALGO_NAME: &'static str = "rsa-sha2-256";
 }
 
 impl RsaHash for sha2::Sha512 {
-    const HASH: rsa::Hash = rsa::Hash::SHA2_512;
     const ALGO_NAME: &'static str = "rsa-sha2-512";
 }
 

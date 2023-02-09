@@ -1,11 +1,13 @@
 //! Support for OpenSSH-compatible `known_hosts` file.
 
 use guard::guard;
+use base64::Engine as _;
 use bytes::{Bytes, BytesMut};
 use hmac::Mac as _;
 use rand::RngCore as _;
 use std::str;
 use crate::pubkey::Pubkey;
+use crate::util::base64_encode;
 
 /// Representation of an OpenSSH-compatible `known_hosts` file.
 ///
@@ -437,7 +439,7 @@ fn decode_line(mut bytes: &[u8], line_i: usize) -> Result<LineContent, &'static 
 
     // ...followed by base64-encoded public key
     let key_base64 = read_field(&mut bytes).ok_or("expected key data in base64 after key type")?;
-    let key_blob = base64::decode(key_base64).map_err(|_| "key data is invalid base64")?;
+    let key_blob = base64_decode(key_base64).map_err(|_| "key data is invalid base64")?;
     let key = Pubkey::decode(Bytes::copy_from_slice(&key_blob))
         .ok().ok_or("could not decode the public key")?;
     if key.type_str() != key_type {
@@ -466,7 +468,7 @@ fn encode_entry(entry: &Entry) -> String {
     output.push(' ');
     output.push_str(&entry.key.type_str());
     output.push(' ');
-    output.push_str(&base64::encode(&entry.key.encode()));
+    output.push_str(&base64_encode(&entry.key.encode()));
 
     if let Some(comment) = &entry.key_comment {
         output.push(' ');
@@ -511,16 +513,16 @@ fn decode_hashed_pattern(bytes: &[u8]) -> Result<HashedPattern, &'static str> {
     let salt_base64 = parts.next().ok_or("invalid format of hashed pattern")?;
     let hash_base64 = parts.next().ok_or("expected a pipe '|' in the hashed pattern")?;
 
-    let salt = base64::decode(salt_base64).ok().ok_or("invalid base64 in the salt")?;
-    let hash = base64::decode(hash_base64).ok().ok_or("invalid base64 in the hash")?;
+    let salt = base64_decode(salt_base64).ok().ok_or("invalid base64 in the salt")?;
+    let hash = base64_decode(hash_base64).ok().ok_or("invalid base64 in the hash")?;
     Ok(HashedPattern { salt, hash })
 }
 
 fn encode_hashed_pattern(pattern: &HashedPattern, output: &mut String) {
     output.push_str("|1|");
-    output.push_str(&base64::encode(&pattern.salt));
+    output.push_str(&base64_encode(&pattern.salt));
     output.push('|');
-    output.push_str(&base64::encode(&pattern.hash));
+    output.push_str(&base64_encode(&pattern.hash));
 }
 
 fn build_hashed_pattern(hostname: &str) -> HashedPattern {
@@ -619,6 +621,13 @@ fn consume_whitespace(bytes: &mut &[u8]) {
         white_len += 1;
     }
     *bytes = &bytes[white_len..];
+}
+
+fn base64_decode(mut data_base64: &[u8]) -> Result<Vec<u8>, base64::DecodeError> {
+    while data_base64.last() == Some(&b'=') {
+        data_base64 = &data_base64[..data_base64.len() - 1];
+    }
+    base64::engine::general_purpose::STANDARD_NO_PAD.decode(data_base64)
 }
 
 #[cfg(test)]

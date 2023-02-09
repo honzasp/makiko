@@ -65,14 +65,14 @@ pub struct EcdsaPrivkey<C>
 impl EcdsaPrivkey<p256::NistP256> {
     /// Get the public key associated with this private key.
     pub fn pubkey(&self) -> EcdsaPubkey<p256::NistP256> {
-        EcdsaPubkey { verifying: self.signing.verifying_key() }
+        EcdsaPubkey { verifying: *self.signing.verifying_key() }
     }
 }
 
 impl EcdsaPrivkey<p384::NistP384> {
     /// Get the public key associated with this private key.
     pub fn pubkey(&self) -> EcdsaPubkey<p384::NistP384> {
-        EcdsaPubkey { verifying: self.signing.verifying_key() }
+        EcdsaPubkey { verifying: *self.signing.verifying_key() }
     }
 }
 

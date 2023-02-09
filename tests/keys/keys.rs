@@ -69,7 +69,7 @@ pub fn ruth_rsa_1024() -> makiko::Privkey {
         "e962d1151bf00073d3ee5cda8b22a3b03685cf203daf4f9cb110d50dedd52799"
         "92ab6c68dfed18a1e17aadaaf3a524dbc90a6c8569e0d28f16053551acda80e5"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static RUTH_RSA_1024_PRIVKEY_FILE: &'static str = concat!(
@@ -130,7 +130,7 @@ pub fn ruth_rsa_2048() -> makiko::Privkey {
         "a7b88f7ccb93223aeaadc6771bd9a6b6b67138383805f42c4c5cff58b6c4e7f5"
         "76f0cd4a3193f8e4ca2678fa931dc03f621323799b9c565d2953b5d4c1cc5d37"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static RUTH_RSA_2048_PRIVKEY_FILE: &'static str = concat!(
@@ -228,7 +228,7 @@ pub fn ruth_rsa_4096() -> makiko::Privkey {
         "45bc7b533ff23bc9e0d60e0b80cf7d995ba3d4504a0df457d55f446106d6d553"
         "f07198cab9dccc0753c42a1f94418b81c83a97db8c1d01516b804f02ef07cbb9"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static RUTH_RSA_4096_PRIVKEY_FILE: &'static str = concat!(
@@ -389,7 +389,7 @@ pub fn rsa_encrypted() -> makiko::Privkey {
         "0d7b275b0abe503ef7c8fc35445b49e43e7ebf434bcdf87c694b5ae2e22c8345"
         "7b04652a77e90cfaf6c130251f05cbda5a3474ecf3896ef90997e25ef2bccac5"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static RSA_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
@@ -603,7 +603,7 @@ pub fn pkcs1() -> makiko::Privkey {
         "efd28fc7d4631d79c9e675e86d0e8a210ca8b996962ace7686dd045ec3c4569f"
         "dd7f2fafe2ef0bd94090c1ce7498ba821da1f56188660738d3cdafc3c4b4c8f5"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static PKCS1_PRIVKEY_FILE: &'static str = concat!(
@@ -680,7 +680,7 @@ pub fn pkcs1_aes_256_ctr() -> makiko::Privkey {
         "6a1cc5e3dcdd22db51ce81f01c633b3bf61d838649a17132405d2d3f81c86d23"
         "f85fbb8b828590763684fc282f7b3263a6180a4931ac1b62e30d52dd4d72a83d"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static PKCS1_AES_256_CTR_PRIVKEY_FILE: &'static str = concat!(
@@ -760,7 +760,7 @@ pub fn pkcs1_aes_128_cbc() -> makiko::Privkey {
         "63d4145fbc38e3f7920a93efad7514586771acce3810e002ce41f7f3cbb28b5f"
         "ac708035abd7ef4a8ddbdcecb622bead85eb8505b2a97fff008458a47c8a5f0f"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static PKCS1_AES_128_CBC_PRIVKEY_FILE: &'static str = concat!(
@@ -852,7 +852,7 @@ pub fn pkcs8_rsa() -> makiko::Privkey {
         "dd95af958c9a4d8b783a696837406aece856cbeb89b7575624ad1b15be17bc5c"
         "503a9912fe61dee80d00254b3a4f7346023d744b9e89b23e2c0954f2679d482f"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static PKCS8_RSA_PRIVKEY_FILE: &'static str = concat!(
@@ -1030,7 +1030,7 @@ pub fn pkcs8_rsa_encrypted() -> makiko::Privkey {
         "3219302e25c2f3573e1a3d0c4010543cd0d48dde23d97eaf5aa314668d47b04e"
         "3ff5cc8148913e4af06905449e8e0694eb29b92df95f9f99d4b669c3dba03df5"
     ));
-    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]);
+    let privkey = rsa::RsaPrivateKey::from_components(n, e, d, vec![p, q]).unwrap();
     makiko::Privkey::Rsa(privkey.into())
 }
 pub static PKCS8_RSA_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(

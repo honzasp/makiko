@@ -18,6 +18,7 @@ use derivative::Derivative;
 use std::fmt;
 use crate::codec::{PacketDecode, PacketEncode};
 use crate::error::{Result, Error};
+use crate::util::base64_encode;
 pub use self::ecdsa::{ECDSA_SHA2_NISTP256, ECDSA_SHA2_NISTP384, EcdsaPubkey, EcdsaPrivkey};
 pub use self::ed25519::{SSH_ED25519, Ed25519Pubkey, Ed25519Privkey};
 pub use self::rsa::{SSH_RSA_SHA1, RSA_SHA2_256, RSA_SHA2_512, RsaPubkey, RsaPrivkey};
@@ -142,7 +143,7 @@ impl Pubkey {
     pub fn fingerprint(&self) -> String {
         use sha2::Digest;
         let digest = sha2::Sha256::digest(self.encode());
-        format!("SHA256:{}", base64::encode_config(digest, base64::STANDARD_NO_PAD))
+        format!("SHA256:{}", base64_encode(&digest))
     }
 }
 

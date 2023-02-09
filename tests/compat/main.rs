@@ -98,16 +98,10 @@ async fn main() -> ExitCode {
 
     let args = clap::Command::new("test-compat")
         .arg(clap::Arg::new("server").short('s')
-            .takes_value(true)
-            .action(clap::ArgAction::Append)
-            .multiple_values(true)
-            .use_value_delimiter(true)
-            .require_value_delimiter(true))
-        .arg(clap::Arg::new("case").short('c')
-            .takes_value(true)
             .action(clap::ArgAction::Append))
-        .arg(clap::Arg::new("force-addr").short('f')
-            .takes_value(true))
+        .arg(clap::Arg::new("case").short('c')
+            .action(clap::ArgAction::Append))
+        .arg(clap::Arg::new("force-addr").short('f'))
         .get_matches();
 
     let servers = args.get_many::<String>("server").map(|xs| xs.cloned().collect());
