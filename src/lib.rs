@@ -2,7 +2,7 @@
 //!
 //! You may want to **[read the tutorial][tutorial]** to get started with Makiko.
 //!
-//! [tutorial]: https://honzasp.github.io/makiko
+//! [tutorial]: https://honzasp.github.io/makiko/tutorial
 //!
 //! - Entry point for making SSH connections is the [`Client`].
 //! - Functions for decoding keys are in the [`keys`] module.

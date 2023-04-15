@@ -8,7 +8,7 @@ has_children: true
 
 Makiko is an asynchronous SSH client library for Rust. It gives you a lot of control over the SSH connection, but this means that it is quite low-level.
 
-In this tutorial, we will to connect to a server, authenticate with a password or a public key, execute a command and open a tunnel. I will assume that you know [Rust][rust], have some experience with [Tokio][tokio] and have used SSH previously.
+In this tutorial, we will connect to a server, authenticate with a password or a public key, execute a command and open a tunnel. I will assume that you know [Rust][rust], have some experience with [Tokio][tokio] and have used SSH previously.
 
 [rust]: https://www.rust-lang.org/
 [tokio]: https://tokio.rs/

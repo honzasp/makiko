@@ -4,7 +4,7 @@ Makiko is an asynchronous SSH client library in pure Rust.
 
 **[Tutorial][tutorial] | [API docs][docs-rs] | [Github][github] | [Crate][crates-io]**
 
-[tutorial]: https://honzasp.github.io/makiko
+[tutorial]: https://honzasp.github.io/makiko/tutorial
 [docs-rs]: https://docs.rs/makiko/latest/makiko
 [github]: https://github.com/honzasp/makiko
 [crates-io]: https://crates.io/crates/makiko

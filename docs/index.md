@@ -9,7 +9,7 @@ layout: home
 {{ site.description }}
 {: .fs-6 .fw-300 .text-grey-dk-200}
 
-[Get started](/tutorial){: .btn .btn-primary }
+[Get started]({% link tutorial/index.md %}){: .btn .btn-primary }
 [API docs][docs-rs]{: .btn .ml-4 }
 [Github][github]{: .btn .ml-4 }
 [Crate][crates-io]{: .btn .ml-4 }
