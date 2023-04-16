@@ -6,7 +6,7 @@ pub use self::channel::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply, ChannelConfig,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
-pub use self::client::{Client, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
+pub use self::client::{Client, ClientResp, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
 pub use self::client_event::{
     ClientReceiver, ClientEvent, AcceptPubkey, DebugMsg, AuthBanner, AcceptTunnel, AcceptChannel,
 };

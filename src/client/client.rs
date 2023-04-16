@@ -408,6 +408,10 @@ pub enum GlobalReply {
     Failure,
 }
 
+/// Future server response to a [global request][Client::send_request()].
+///
+/// You may either wait for the response using [`.wait()`][Self::wait()], or ignore the response
+/// using [`.ignore()`][Self::ignore()].
 #[derive(Derivative)]
 #[derivative(Debug)]
 #[must_use = "please use .wait().await to await the response, or .ignore() to ignore it"]
@@ -424,6 +428,9 @@ impl<T> ClientResp<T> {
         Self { reply_rx, map_fn: Box::new(map_fn) }
     }
 
+    /// Wait for the response from the server.
+    ///
+    /// If the request failed, this returns an error ([`Error::GlobalReq`]).
     pub async fn wait(self) -> Result<T> {
         match self.reply_rx.await {
             Ok(GlobalReply::Success(payload)) => (self.map_fn)(&mut PacketDecode::new(payload)),
@@ -432,6 +439,10 @@ impl<T> ClientResp<T> {
         }
     }
 
+    /// Ignore the response.
+    ///
+    /// This just drops the [`ClientResp`], but it is a good practice to do this explicitly
+    /// with this method.
     pub fn ignore(self) {}
 }
 

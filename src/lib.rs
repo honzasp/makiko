@@ -22,7 +22,7 @@ pub use crate::client::{
     Channel, ChannelReceiver, ChannelEvent, ChannelReq, ChannelReply, ChannelConfig,
     DataType, DATA_STANDARD, DATA_STDERR,
 };
-pub use crate::client::{Client, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
+pub use crate::client::{Client, ClientResp, ClientFuture, ClientConfig, GlobalReq, GlobalReply};
 pub use crate::client::{
     ClientReceiver, ClientEvent, AcceptPubkey, DebugMsg, AuthBanner, AcceptTunnel, AcceptChannel,
 };
