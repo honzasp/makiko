@@ -39,7 +39,7 @@ pub struct OpensshKeypairNopass {
 
 static PEM_TAG: &str = "OPENSSH PRIVATE KEY";
 
-/// Decode a private key from OpenSSH PEM format.
+/// Decode a keypair from OpenSSH PEM format.
 ///
 /// Files in this format start with `-----BEGIN OPENSSH PRIVATE KEY-----`, followed by
 /// base64-encoded binary data (see [`decode_openssh_binary_keypair()`]).
@@ -55,7 +55,7 @@ pub fn decode_openssh_pem_keypair(pem_data: &[u8], passphrase: &[u8]) -> Result<
     decode_openssh_binary_keypair(data.into(), passphrase)
 }
 
-/// Decode a private key from OpenSSH PEM format without decryption.
+/// Decode a keypair from OpenSSH PEM format without decryption.
 ///
 /// Files in this format start with `-----BEGIN OPENSSH PRIVATE KEY-----`, followed by
 /// base64-encoded binary data (see [`decode_openssh_binary_keypair()`]).
@@ -72,10 +72,10 @@ pub fn decode_openssh_pem_keypair_nopass(pem_data: &[u8]) -> Result<OpensshKeypa
     decode_openssh_binary_keypair_nopass(data.into())
 }
 
-/// Decode a private key from OpenSSH binary format.
+/// Decode a keypair from OpenSSH binary format.
 ///
 /// The binary format is described in file `PROTOCOL.key` in the OpenSSH sources, it starts with
-/// bytes `"openssh-key-v1\0". In real world, key files are usually in textual PEM format (see
+/// bytes `"openssh-key-v1\0"`. In real world, key files are usually in textual PEM format (see
 /// [`decode_openssh_pem_keypair()`].
 pub fn decode_openssh_binary_keypair(data: Bytes, passphrase: &[u8]) -> Result<OpensshKeypair> {
     let raw = decode_raw(data)?;
@@ -84,7 +84,7 @@ pub fn decode_openssh_binary_keypair(data: Bytes, passphrase: &[u8]) -> Result<O
     Ok(OpensshKeypair { pubkey: raw.pubkey, privkey, comment })
 }
 
-/// Decode a private key from OpenSSH binary format without decryption.
+/// Decode a keypair from OpenSSH binary format without decryption.
 ///
 /// The binary format is described in file `PROTOCOL.key` in the OpenSSH sources, it starts with
 /// bytes `"openssh-key-v1\0". In real world, key files are usually in textual PEM format (see
