@@ -36,8 +36,9 @@ pub(super) struct NegotiateState {
     done_txs: Vec<oneshot::Sender<Result<()>>>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 enum State {
+    #[default]
     Idle,
     KexInit,
     Kex,
@@ -87,10 +88,6 @@ pub(super) struct LastKex {
 
 pub(super) fn init_negotiate() -> NegotiateState {
     NegotiateState { state: State::KexInit, .. NegotiateState::default() }
-}
-
-impl Default for State {
-    fn default() -> Self { State::Idle }
 }
 
 pub(super) fn init_last_kex() -> LastKex {

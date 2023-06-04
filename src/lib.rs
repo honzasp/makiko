@@ -8,6 +8,7 @@
 //! - Functions for decoding keys are in the [`keys`] module.
 //! - Support for the `known_hosts` file is in the [`host_file`] module.
 //!
+#![allow(clippy::box_default)]
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::unused_unit)]
 #![allow(clippy::unit_arg)]
