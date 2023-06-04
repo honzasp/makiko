@@ -213,7 +213,7 @@ pub(super) fn decode_privkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaP
     use typenum::Unsigned as _;
     let secret_scalar = blob.get_scalar(elliptic_curve::FieldBytesSize::<C>::to_usize())?;
     let secret_scalar = generic_array::GenericArray::from_slice(&secret_scalar);
-    let secret_key = elliptic_curve::SecretKey::<C>::from_bytes(&secret_scalar)
+    let secret_key = elliptic_curve::SecretKey::<C>::from_bytes(secret_scalar)
         .map_err(|_| Error::Decode("ecdsa private key is invalid (bad bytes of private scalar)"))?;
 
     if secret_key.public_key() != public_key {

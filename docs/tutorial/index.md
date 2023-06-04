@@ -26,7 +26,7 @@ And add the dependencies to Makiko and Tokio into your `Cargo.toml`:
 
 ```toml
 [dependencies]
-makiko = "0.2.1"
+makiko = "0.2"
 tokio = {version = "1.25", features = ["full"]}
 ```
 
