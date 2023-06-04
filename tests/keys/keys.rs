@@ -4,12 +4,12 @@ use hex_literal::hex;
 use makiko::elliptic_curve;
 
 pub fn alice_ed25519() -> makiko::Privkey {
-    let private_bytes = hex!("e264980178ad0b28ef8b9a7cad8278f4f9001c52e1f2fc61165d7baa36b53175");
-    let public_bytes = hex!("09255d6093be46c9db2f486fd0a946f21f5729127603811e20c2fddbf58592b3");
-    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
-        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
-        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
-    }.into())
+    let keypair_bytes = hex!(
+        "e264980178ad0b28ef8b9a7cad8278f4f9001c52e1f2fc61165d7baa36b53175"
+        "09255d6093be46c9db2f486fd0a946f21f5729127603811e20c2fddbf58592b3"
+    );
+    let signing = ed25519_dalek::SigningKey::from_keypair_bytes(&keypair_bytes).unwrap();
+    makiko::Privkey::Ed25519(signing.into())
 }
 pub static ALICE_ED25519_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
@@ -26,12 +26,12 @@ pub static ALICE_ED25519_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn edward_ed25519() -> makiko::Privkey {
-    let private_bytes = hex!("3972dfb17dcf6a949e08d8979ef0722b021379e72c66b549af2a98d3eeae905c");
-    let public_bytes = hex!("f2549b117e1f8d9a440a8360e1eab3d5a1d890de70be755a0632832d61c6cc25");
-    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
-        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
-        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
-    }.into())
+    let keypair_bytes = hex!(
+        "3972dfb17dcf6a949e08d8979ef0722b021379e72c66b549af2a98d3eeae905c"
+        "f2549b117e1f8d9a440a8360e1eab3d5a1d890de70be755a0632832d61c6cc25"
+    );
+    let signing = ed25519_dalek::SigningKey::from_keypair_bytes(&keypair_bytes).unwrap();
+    makiko::Privkey::Ed25519(signing.into())
 }
 pub static EDWARD_ED25519_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
@@ -296,10 +296,10 @@ pub static RUTH_RSA_4096_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn eda_ecdsa_p256() -> makiko::Privkey {
-    let private_key = elliptic_curve::SecretKey::<p256::NistP256>::from_be_bytes(&hex!(
+    let secret_key = elliptic_curve::SecretKey::<p256::NistP256>::from_slice(&hex!(
         "d8fd4505ee0da7db5269de892c3d1a577a1a46188df892478ee7550c359abb1a"
     )).unwrap();
-    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(private_key);
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(secret_key);
     makiko::Privkey::EcdsaP256(privkey)
 }
 pub static EDA_ECDSA_P256_PRIVKEY_FILE: &'static str = concat!(
@@ -319,10 +319,10 @@ pub static EDA_ECDSA_P256_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn eda_ecdsa_p384() -> makiko::Privkey {
-    let private_key = elliptic_curve::SecretKey::<p384::NistP384>::from_be_bytes(&hex!(
+    let secret_key = elliptic_curve::SecretKey::<p384::NistP384>::from_slice(&hex!(
         "48881a10e3140e41e6c4da6c7dfe4cfa3db82d10526f5707dee2722e29e5545d6840d14e54efd37e6eae9c20490729c1"
     )).unwrap();
-    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(private_key);
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(secret_key);
     makiko::Privkey::EcdsaP384(privkey)
 }
 pub static EDA_ECDSA_P384_PRIVKEY_FILE: &'static str = concat!(
@@ -445,12 +445,12 @@ pub static RSA_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn ed25519_encrypted() -> makiko::Privkey {
-    let private_bytes = hex!("658ffa60f316e34424206cb7423a9083034e92cbbb9c4558767dfbcd9ae0ca7e");
-    let public_bytes = hex!("b745e4c87adfbd3945c243969a127b9767132eb232279d3b16607fa70940b027");
-    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
-        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
-        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
-    }.into())
+    let keypair_bytes = hex!(
+        "658ffa60f316e34424206cb7423a9083034e92cbbb9c4558767dfbcd9ae0ca7e"
+        "b745e4c87adfbd3945c243969a127b9767132eb232279d3b16607fa70940b027"
+    );
+    let signing = ed25519_dalek::SigningKey::from_keypair_bytes(&keypair_bytes).unwrap();
+    makiko::Privkey::Ed25519(signing.into())
 }
 pub static ED25519_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN OPENSSH PRIVATE KEY-----\n",
@@ -468,10 +468,10 @@ pub static ED25519_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn ecdsa_p256_encrypted() -> makiko::Privkey {
-    let private_key = elliptic_curve::SecretKey::<p256::NistP256>::from_be_bytes(&hex!(
+    let secret_key = elliptic_curve::SecretKey::<p256::NistP256>::from_slice(&hex!(
         "ad18e77b6941aaba4496a348ec21a863b6fbac8d456c508ce1cd90da7d00968d"
     )).unwrap();
-    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(private_key);
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(secret_key);
     makiko::Privkey::EcdsaP256(privkey)
 }
 pub static ECDSA_P256_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
@@ -492,10 +492,10 @@ pub static ECDSA_P256_ENCRYPTED_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn ecdsa_p384_encrypted() -> makiko::Privkey {
-    let private_key = elliptic_curve::SecretKey::<p384::NistP384>::from_be_bytes(&hex!(
+    let secret_key = elliptic_curve::SecretKey::<p384::NistP384>::from_slice(&hex!(
         "d5e1163bd7efb7b0e2c7554e8dca5cf66eaedd345d54f8734832070997baf782575a660cf57fc71b98deded3a29f22a1"
     )).unwrap();
-    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(private_key);
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(secret_key);
     makiko::Privkey::EcdsaP384(privkey)
 }
 pub static ECDSA_P384_ENCRYPTED_PRIVKEY_FILE: &'static str = concat!(
@@ -912,10 +912,10 @@ pub static PKCS8_RSA_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn pkcs8_ecdsa_p256() -> makiko::Privkey {
-    let private_key = elliptic_curve::SecretKey::<p256::NistP256>::from_be_bytes(&hex!(
+    let secret_key = elliptic_curve::SecretKey::<p256::NistP256>::from_slice(&hex!(
         "d5e07955f86df89a1abb70d494a40a6e7698ff1ef8b940fece2bda7da5d08ce7"
     )).unwrap();
-    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(private_key);
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p256::NistP256>::from(secret_key);
     makiko::Privkey::EcdsaP256(privkey)
 }
 pub static PKCS8_ECDSA_P256_PRIVKEY_FILE: &'static str = concat!(
@@ -933,10 +933,10 @@ pub static PKCS8_ECDSA_P256_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn pkcs8_ecdsa_p384() -> makiko::Privkey {
-    let private_key = elliptic_curve::SecretKey::<p384::NistP384>::from_be_bytes(&hex!(
+    let secret_key = elliptic_curve::SecretKey::<p384::NistP384>::from_slice(&hex!(
         "3b9564ce53defb1405a8061e85014f8363ebfe1de8a58052784fbc634fac38faca2547df6e00eb74c1a60df24a3953c6"
     )).unwrap();
-    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(private_key);
+    let privkey = makiko::pubkey::EcdsaPrivkey::<p384::NistP384>::from(secret_key);
     makiko::Privkey::EcdsaP384(privkey)
 }
 pub static PKCS8_ECDSA_P384_PRIVKEY_FILE: &'static str = concat!(
@@ -956,12 +956,12 @@ pub static PKCS8_ECDSA_P384_PUBKEY_FILE: &'static str = concat!(
 );
 
 pub fn pkcs8_ed25519() -> makiko::Privkey {
-    let private_bytes = hex!("913b3c130b79f9949f91a227ea91a388906e778d19358e2fdf67fb1b26aec1fc");
-    let public_bytes = hex!("5652ceff9784c400f92e20c891fda383efb48b27e163086c05ebf8c214adca28");
-    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {
-        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),
-        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),
-    }.into())
+    let keypair_bytes = hex!(
+        "913b3c130b79f9949f91a227ea91a388906e778d19358e2fdf67fb1b26aec1fc"
+        "5652ceff9784c400f92e20c891fda383efb48b27e163086c05ebf8c214adca28"
+    );
+    let signing = ed25519_dalek::SigningKey::from_keypair_bytes(&keypair_bytes).unwrap();
+    makiko::Privkey::Ed25519(signing.into())
 }
 pub static PKCS8_ED25519_PRIVKEY_FILE: &'static str = concat!(
     "-----BEGIN PRIVATE KEY-----\n",

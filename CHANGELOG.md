@@ -4,6 +4,7 @@
 
 - Replace the `guard` crate with (now stabilized) `let else` expressions
   supported directly by the compiler. Fixes compatibility with Rust 1.70.0.
+- Upgraded dependencies.
 
 ## 0.2.1 (2023-02-09)
 

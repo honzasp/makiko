@@ -773,7 +773,7 @@ mod tests {
 
         let pubkey_b64 = "AAAAC3NzaC1lZDI1NTE5AAAAIPJUmxF+H42aRAqDYOHqs9Wh2JDecL51WgYygy1hxswl";
         let pubkey_bytes = hex!("f2549b117e1f8d9a440a8360e1eab3d5a1d890de70be755a0632832d61c6cc25");
-        let pubkey = ed25519_dalek::PublicKey::from_bytes(&pubkey_bytes).unwrap();
+        let pubkey = ed25519_dalek::VerifyingKey::from_bytes(&pubkey_bytes).unwrap();
         let pubkey = Pubkey::Ed25519(pubkey.into());
 
         check_entry(format!("example.com ssh-ed25519 {} edward", pubkey_b64), Entry {

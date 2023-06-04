@@ -1,5 +1,4 @@
 use ecdsa::elliptic_curve;
-use ed25519_dalek::ed25519;
 use pkcs8::AssociatedOid as _;
 use crate::error::{Result, Error};
 use crate::pubkey::{Privkey, Pubkey};
@@ -14,12 +13,12 @@ use crate::pubkey::{Privkey, Pubkey};
 /// empty passphrase if the key is not encrypted.
 pub fn decode_pkcs8_pem_privkey(pem_data: &[u8], passphrase: &[u8]) -> Result<Privkey> {
     let pem = pem::parse(pem_data).map_err(Error::Pem)?;
-    if pem.tag == "PRIVATE KEY" {
-        decode_pkcs8_der_privkey(&pem.contents)
-    } else if pem.tag == "ENCRYPTED PRIVATE KEY" {
-        decode_pkcs8_encrypted_der_privkey(&pem.contents, passphrase)
+    if pem.tag() == "PRIVATE KEY" {
+        decode_pkcs8_der_privkey(pem.contents())
+    } else if pem.tag() == "ENCRYPTED PRIVATE KEY" {
+        decode_pkcs8_encrypted_der_privkey(pem.contents(), passphrase)
     } else {
-        Err(Error::BadPemTag(pem.tag, "PRIVATE KEY".into()))
+        Err(Error::BadPemTag(pem.tag().into(), "PRIVATE KEY".into()))
     }
 }
 
@@ -32,9 +31,7 @@ pub fn decode_pkcs8_der_privkey(der_data: &[u8]) -> Result<Privkey> {
     let info = pkcs8::PrivateKeyInfo::try_from(der_data).map_err(Error::Pkcs8)?;
     let algo_oid = info.algorithm.oid;
     if algo_oid == RSA_OID {
-        // unfortunately, `rsa` uses an older version of `pkcs8`, so we must re-parse the DER
-        let info = rsa::pkcs8::PrivateKeyInfo::try_from(der_data).map_err(Error::Pkcs8Rsa)?;
-        let privkey = rsa::RsaPrivateKey::try_from(info).map_err(Error::Pkcs8Rsa)?;
+        let privkey = rsa::RsaPrivateKey::try_from(info).map_err(Error::Pkcs8)?;
         Ok(Privkey::Rsa(privkey.into()))
     } else if algo_oid == EC_OID {
         let curve_oid = info.algorithm.parameters_oid().map_err(Error::Pkcs8Spki)?;
@@ -48,14 +45,8 @@ pub fn decode_pkcs8_der_privkey(der_data: &[u8]) -> Result<Privkey> {
             Err(Error::Pkcs8BadCurveOid(curve_oid.to_string()))
         }
     } else if algo_oid == ED25519_OID {
-        let keypair_bytes = ed25519::pkcs8::KeypairBytes::try_from(info).map_err(Error::Pkcs8)?;
-        let secret = ed25519_dalek::SecretKey::from_bytes(&keypair_bytes.secret_key)
-            .map_err(Error::Pkcs8Ed25519)?;
-        let public = match keypair_bytes.public_key {
-            Some(bytes) => ed25519_dalek::PublicKey::from_bytes(&bytes).map_err(Error::Pkcs8Ed25519)?,
-            None => ed25519_dalek::PublicKey::from(&secret),
-        };
-        Ok(Privkey::Ed25519(ed25519_dalek::Keypair { secret, public }.into()))
+        let signing = ed25519_dalek::SigningKey::try_from(info).map_err(Error::Pkcs8)?;
+        Ok(Privkey::Ed25519(signing.into()))
     } else {
         Err(Error::Pkcs8BadAlgorithmOid(algo_oid.to_string()))
     }
@@ -81,9 +72,7 @@ pub fn decode_pkcs8_der_pubkey(der_data: &[u8]) -> Result<Pubkey> {
     let info = pkcs8::SubjectPublicKeyInfo::try_from(der_data).map_err(Error::Pkcs8Spki)?;
     let algo_oid = info.algorithm.oid;
     if algo_oid == RSA_OID {
-        // unfortunately, `rsa` uses an older version of `pkcs8`, so we must re-parse the DER
-        let info = rsa::pkcs8::SubjectPublicKeyInfo::try_from(der_data).map_err(Error::Pkcs8RsaSpki)?;
-        let pubkey = rsa::RsaPublicKey::try_from(info).map_err(Error::Pkcs8RsaSpki)?;
+        let pubkey = rsa::RsaPublicKey::try_from(info).map_err(Error::Pkcs8Spki)?;
         Ok(Pubkey::Rsa(pubkey.into()))
     } else if algo_oid == EC_OID {
         let curve_oid = info.algorithm.parameters_oid().map_err(Error::Pkcs8Spki)?;
@@ -99,10 +88,8 @@ pub fn decode_pkcs8_der_pubkey(der_data: &[u8]) -> Result<Pubkey> {
             Err(Error::Pkcs8BadCurveOid(curve_oid.to_string()))
         }
     } else if algo_oid == ED25519_OID {
-        let public_bytes = ed25519::pkcs8::PublicKeyBytes::try_from(info).map_err(Error::Pkcs8Spki)?;
-        let pubkey = ed25519_dalek::PublicKey::from_bytes(&public_bytes.to_bytes())
-            .map_err(Error::Pkcs8Ed25519)?;
-        Ok(Pubkey::Ed25519(pubkey.into()))
+        let verifying = ed25519_dalek::VerifyingKey::try_from(info).map_err(Error::Pkcs8Spki)?;
+        Ok(Pubkey::Ed25519(verifying.into()))
     } else {
         Err(Error::Pkcs8BadAlgorithmOid(algo_oid.to_string()))
     }

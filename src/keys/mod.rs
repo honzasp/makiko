@@ -22,10 +22,10 @@ mod pkcs8;
 
 fn decode_pem(pem_data: &[u8], expected_tag: &'static str) -> Result<Vec<u8>> {
     let pem = pem::parse(pem_data).map_err(Error::Pem)?;
-    if pem.tag != expected_tag {
-        return Err(Error::BadPemTag(pem.tag, expected_tag.into()))
+    if pem.tag() != expected_tag {
+        return Err(Error::BadPemTag(pem.tag().into(), expected_tag.into()))
     }
-    Ok(pem.contents)
+    Ok(pem.into_contents())
 }
 
 /// Decode a private key from any supported PEM format.
@@ -43,13 +43,13 @@ fn decode_pem(pem_data: &[u8], expected_tag: &'static str) -> Result<Vec<u8>> {
 /// empty passphrase if the key is not encrypted.
 pub fn decode_pem_privkey(pem_data: &[u8], passphrase: &[u8]) -> Result<Privkey> {
     let pem = pem::parse(pem_data).map_err(Error::Pem)?;
-    match pem.tag.as_str() {
-        "OPENSSH PRIVATE KEY" => decode_openssh_binary_keypair(pem.contents.into(), passphrase)
+    match pem.tag() {
+        "OPENSSH PRIVATE KEY" => decode_openssh_binary_keypair(pem.into_contents().into(), passphrase)
             .map(|keypair| keypair.privkey),
-        "RSA PRIVATE KEY" => decode_pkcs1_der_privkey(&pem.contents).map(Privkey::Rsa),
-        "PRIVATE KEY" => decode_pkcs8_der_privkey(&pem.contents),
-        "ENCRYPTED PRIVATE KEY" => decode_pkcs8_encrypted_der_privkey(&pem.contents, passphrase),
-        _ => Err(Error::UnknownPemTag(pem.tag)),
+        "RSA PRIVATE KEY" => decode_pkcs1_der_privkey(pem.contents()).map(Privkey::Rsa),
+        "PRIVATE KEY" => decode_pkcs8_der_privkey(pem.contents()),
+        "ENCRYPTED PRIVATE KEY" => decode_pkcs8_encrypted_der_privkey(pem.contents(), passphrase),
+        _ => Err(Error::UnknownPemTag(pem.tag().into())),
     }
 }
 
@@ -99,20 +99,20 @@ impl DecodedPrivkeyNopass {
 /// [`DecodedPrivkeyNopass::Encrypted`].
 pub fn decode_pem_privkey_nopass(pem_data: &[u8]) -> Result<DecodedPrivkeyNopass> {
     let pem = pem::parse(pem_data).map_err(Error::Pem)?;
-    match pem.tag.as_str() {
+    match pem.tag() {
         "OPENSSH PRIVATE KEY" =>
-            decode_openssh_binary_keypair_nopass(pem.contents.into()).map(|keypair| {
+            decode_openssh_binary_keypair_nopass(pem.into_contents().into()).map(|keypair| {
                 match keypair.privkey {
                     Some(privkey) => DecodedPrivkeyNopass::Privkey(privkey),
                     None => DecodedPrivkeyNopass::Pubkey(keypair.pubkey),
                 }
             }),
-        "RSA PRIVATE KEY" => decode_pkcs1_der_privkey(&pem.contents)
+        "RSA PRIVATE KEY" => decode_pkcs1_der_privkey(pem.contents())
             .map(|privkey| DecodedPrivkeyNopass::Privkey(Privkey::Rsa(privkey))),
-        "PRIVATE KEY" => decode_pkcs8_der_privkey(&pem.contents)
+        "PRIVATE KEY" => decode_pkcs8_der_privkey(pem.contents())
             .map(DecodedPrivkeyNopass::Privkey),
         "ENCRYPTED PRIVATE KEY" => Ok(DecodedPrivkeyNopass::Encrypted),
-        _ => Err(Error::UnknownPemTag(pem.tag)),
+        _ => Err(Error::UnknownPemTag(pem.tag().into())),
     }
 }
 
@@ -125,9 +125,9 @@ pub fn decode_pem_privkey_nopass(pem_data: &[u8]) -> Result<DecodedPrivkeyNopass
 /// - PKCS#8 (`PUBLIC KEY`), see [`decode_pkcs8_pem_pubkey()`].
 pub fn decode_pem_pubkey(pem_data: &[u8]) -> Result<Pubkey> {
     let pem = pem::parse(pem_data).map_err(Error::Pem)?;
-    match pem.tag.as_str() {
-        "RSA PUBLIC KEY" => decode_pkcs1_der_pubkey(&pem.contents).map(Pubkey::Rsa),
-        "PUBLIC KEY" => decode_pkcs8_der_pubkey(&pem.contents),
-        _ => Err(Error::UnknownPemTag(pem.tag)),
+    match pem.tag() {
+        "RSA PUBLIC KEY" => decode_pkcs1_der_pubkey(pem.contents()).map(Pubkey::Rsa),
+        "PUBLIC KEY" => decode_pkcs8_der_pubkey(pem.contents()),
+        _ => Err(Error::UnknownPemTag(pem.tag().into())),
     }
 }

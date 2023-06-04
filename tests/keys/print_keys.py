@@ -17,12 +17,12 @@ def print_privkey(private_key, public_key):
             serialization.PublicFormat.Raw,
         )
 
-        print(f"    let private_bytes = hex!(\"{raw_private.hex()}\");")
-        print(f"    let public_bytes = hex!(\"{raw_public.hex()}\");")
-        print( "    makiko::Privkey::Ed25519(ed25519_dalek::Keypair {")
-        print( "        secret: ed25519_dalek::SecretKey::from_bytes(&private_bytes).unwrap(),")
-        print( "        public: ed25519_dalek::PublicKey::from_bytes(&public_bytes).unwrap(),")
-        print( "    }.into())")
+        print( "    let keypair_bytes = hex!(")
+        print(f"        \"{raw_private.hex()}\"")
+        print(f"        \"{raw_public.hex()}\"")
+        print( "    );")
+        print( "    let signing = ed25519_dalek::SigningKey::from_keypair_bytes(&keypair_bytes).unwrap();")
+        print( "    makiko::Privkey::Ed25519(signing.into())")
     elif isinstance(private_key, RSAPrivateKey):
         def print_num(name, x):
             x = to_be_bytes(x)
@@ -57,10 +57,10 @@ def print_privkey(private_key, public_key):
         private_numbers = private_key.private_numbers()
         private_bytes = to_be_bytes(private_numbers.private_value)
 
-        print(f"    let private_key = elliptic_curve::SecretKey::<{curve}>::from_be_bytes(&hex!(")
+        print(f"    let secret_key = elliptic_curve::SecretKey::<{curve}>::from_slice(&hex!(")
         print(f"        \"{private_bytes.hex()}\"")
         print( "    )).unwrap();")
-        print(f"    let privkey = makiko::pubkey::EcdsaPrivkey::<{curve}>::from(private_key);")
+        print(f"    let privkey = makiko::pubkey::EcdsaPrivkey::<{curve}>::from(secret_key);")
         print(f"    makiko::Privkey::{variant}(privkey)")
     else:
         raise NotImplementedError()

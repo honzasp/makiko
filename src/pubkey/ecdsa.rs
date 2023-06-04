@@ -39,8 +39,9 @@ pub static ECDSA_SHA2_NISTP384: PubkeyAlgo = PubkeyAlgo {
 /// You can convert it to and from [`ecdsa::VerifyingKey<C>`] and [`elliptic_curve::PublicKey<C>`]
 /// using `from()`/`into()`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EcdsaPubkey<C> 
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+pub struct EcdsaPubkey<C: Curve>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     verifying: ecdsa::VerifyingKey<C>,
 }
@@ -54,9 +55,8 @@ pub struct EcdsaPubkey<C>
 /// using `from()`/`into()`.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "debug_less_secure", derive(Debug))]
-pub struct EcdsaPrivkey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+pub struct EcdsaPrivkey<C: Curve>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     signing: ecdsa::SigningKey<C>,
@@ -78,11 +78,10 @@ impl EcdsaPrivkey<p384::NistP384> {
 
 
 fn verify<C: Curve>(pubkey: &Pubkey, message: &[u8], signature: Bytes) -> Result<SignatureVerified> 
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
           elliptic_curve::AffinePoint<C>: ecdsa::hazmat::VerifyPrimitive<C>,
-          C::Digest: digest::FixedOutput<OutputSize = elliptic_curve::FieldSize<C>>,
+          C::Digest: digest::FixedOutput<OutputSize = elliptic_curve::FieldBytesSize<C>>,
 {
     let verifying = C::extract_verifying(pubkey)?;
 
@@ -94,7 +93,7 @@ fn verify<C: Curve>(pubkey: &Pubkey, message: &[u8], signature: Bytes) -> Result
     let to_field_bytes = |scalar: BigUint| -> Result<elliptic_curve::FieldBytes<C>> {
         use typenum::Unsigned as _;
         let scalar = scalar.to_bytes_be();
-        if scalar.len() <= elliptic_curve::FieldSize::<C>::to_usize() {
+        if scalar.len() <= elliptic_curve::FieldBytesSize::<C>::to_usize() {
             let mut scalar_bytes = elliptic_curve::FieldBytes::<C>::default();
             let copy_idx = scalar_bytes.len() - scalar.len();
             scalar_bytes[copy_idx..].copy_from_slice(&scalar);
@@ -121,12 +120,10 @@ fn verify<C: Curve>(pubkey: &Pubkey, message: &[u8], signature: Bytes) -> Result
 }
 
 fn sign<C: Curve>(privkey: &Privkey, message: &[u8]) -> Result<Bytes>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
-          C::UInt: for<'a> From<&'a elliptic_curve::Scalar<C>>,
           C::Digest: crypto_common::BlockSizeUser,
-          C::Digest: digest::FixedOutput<OutputSize = elliptic_curve::FieldSize<C>>,
+          C::Digest: digest::FixedOutput<OutputSize = elliptic_curve::FieldBytesSize<C>>,
           C::Digest: digest::FixedOutputReset,
 {
     let signing = C::extract_signing(privkey)?;
@@ -139,7 +136,7 @@ fn sign<C: Curve>(privkey: &Privkey, message: &[u8]) -> Result<Bytes>
     let digest = C::Digest::new_with_prefix(message);
 
     use signature::DigestSigner as _;
-    let ecdsa_signature = signing.sign_digest(digest);
+    let ecdsa_signature: ecdsa::Signature<C> = signing.sign_digest(digest);
     let (r, s) = ecdsa_signature.split_bytes();
     let r = from_field_bytes(r);
     let s = from_field_bytes(s);
@@ -155,10 +152,9 @@ fn sign<C: Curve>(privkey: &Privkey, message: &[u8]) -> Result<Bytes>
 }
 
 pub(super) fn decode_pubkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPubkey<C>>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
-          elliptic_curve::FieldSize<C>: elliptic_curve::sec1::ModulusSize,
+          elliptic_curve::FieldBytesSize<C>: elliptic_curve::sec1::ModulusSize,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::ToEncodedPoint<C>,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::FromEncodedPoint<C>,
 {
@@ -179,10 +175,9 @@ pub(super) fn decode_pubkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPu
 }
 
 pub(super) fn encode_pubkey<C: Curve>(blob: &mut PacketEncode, pubkey: &EcdsaPubkey<C>)
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
-          elliptic_curve::FieldSize<C>: elliptic_curve::sec1::ModulusSize,
+          elliptic_curve::FieldBytesSize<C>: elliptic_curve::sec1::ModulusSize,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::ToEncodedPoint<C>,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::FromEncodedPoint<C>,
 {
@@ -196,10 +191,9 @@ pub(super) fn encode_pubkey<C: Curve>(blob: &mut PacketEncode, pubkey: &EcdsaPub
 }
 
 pub(super) fn decode_privkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaPrivkey<C>>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
-          elliptic_curve::FieldSize<C>: elliptic_curve::sec1::ModulusSize,
+          elliptic_curve::FieldBytesSize<C>: elliptic_curve::sec1::ModulusSize,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::ToEncodedPoint<C>,
           elliptic_curve::AffinePoint<C>: elliptic_curve::sec1::FromEncodedPoint<C>,
 {
@@ -216,9 +210,10 @@ pub(super) fn decode_privkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaP
         elliptic_curve::PublicKey::from_encoded_point(&encoded_point).into();
     let public_key = public_key.ok_or(Error::Decode("ecdsa private key is invalid (bad public point)"))?;
 
-    use elliptic_curve::bigint::Encoding as _;
-    let secret_scalar = blob.get_scalar(C::UInt::BYTE_SIZE)?;
-    let secret_key = elliptic_curve::SecretKey::<C>::from_be_bytes(&secret_scalar)
+    use typenum::Unsigned as _;
+    let secret_scalar = blob.get_scalar(elliptic_curve::FieldBytesSize::<C>::to_usize())?;
+    let secret_scalar = generic_array::GenericArray::from_slice(&secret_scalar);
+    let secret_key = elliptic_curve::SecretKey::<C>::from_bytes(&secret_scalar)
         .map_err(|_| Error::Decode("ecdsa private key is invalid (bad bytes of private scalar)"))?;
 
     if secret_key.public_key() != public_key {
@@ -230,14 +225,12 @@ pub(super) fn decode_privkey<C: Curve>(blob: &mut PacketDecode) -> Result<EcdsaP
 
 
 
-pub(super) trait Curve
-    where Self: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <Self as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<Self>,
+pub trait Curve: ecdsa::PrimeCurve + elliptic_curve::CurveArithmetic + ecdsa::hazmat::DigestPrimitive
+    where <Self as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<Self>,
           ecdsa::SignatureSize<Self>: generic_array::ArrayLength<u8>,
 {
     const ALGO_NAME: &'static str;
     const CURVE_NAME: &'static str;
-    type Digest: digest::Digest;
 
     fn extract_verifying(pubkey: &Pubkey) -> Result<&ecdsa::VerifyingKey<Self>>;
     fn extract_signing(privkey: &Privkey) -> Result<&ecdsa::SigningKey<Self>>;
@@ -246,7 +239,6 @@ pub(super) trait Curve
 impl Curve for p256::NistP256 {
     const ALGO_NAME: &'static str = "ecdsa-sha2-nistp256";
     const CURVE_NAME: &'static str = "nistp256";
-    type Digest = sha2::Sha256;
 
     fn extract_verifying(pubkey: &Pubkey) -> Result<&ecdsa::VerifyingKey<Self>> {
         match pubkey {
@@ -266,7 +258,6 @@ impl Curve for p256::NistP256 {
 impl Curve for p384::NistP384 {
     const ALGO_NAME: &'static str = "ecdsa-sha2-nistp384";
     const CURVE_NAME: &'static str = "nistp384";
-    type Digest = sha2::Sha384;
 
     fn extract_verifying(pubkey: &Pubkey) -> Result<&ecdsa::VerifyingKey<Self>> {
         match pubkey {
@@ -284,49 +275,50 @@ impl Curve for p384::NistP384 {
 }
 
 
-impl<C> From<ecdsa::VerifyingKey<C>> for EcdsaPubkey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+impl<C: Curve> From<ecdsa::VerifyingKey<C>> for EcdsaPubkey<C> 
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(verifying: ecdsa::VerifyingKey<C>) -> Self { Self { verifying } }
 }
 
-impl<C> From<elliptic_curve::PublicKey<C>> for EcdsaPubkey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+impl<C: Curve> From<elliptic_curve::PublicKey<C>> for EcdsaPubkey<C>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(public: elliptic_curve::PublicKey<C>) -> Self { Self { verifying: public.into() } }
 }
 
-impl<C> From<EcdsaPubkey<C>> for ecdsa::VerifyingKey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+impl<C: Curve> From<EcdsaPubkey<C>> for ecdsa::VerifyingKey<C>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(pubkey: EcdsaPubkey<C>) -> Self { pubkey.verifying }
 }
 
-impl<C> From<EcdsaPubkey<C>> for elliptic_curve::PublicKey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
+impl<C: Curve> From<EcdsaPubkey<C>> for elliptic_curve::PublicKey<C>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+          ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(pubkey: EcdsaPubkey<C>) -> Self { pubkey.verifying.into() }
 }
 
-impl<C> From<ecdsa::SigningKey<C>> for EcdsaPrivkey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+impl<C: Curve> From<ecdsa::SigningKey<C>> for EcdsaPrivkey<C>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(signing: ecdsa::SigningKey<C>) -> Self { Self { signing } }
 }
 
-impl<C> From<elliptic_curve::SecretKey<C>> for EcdsaPrivkey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+impl<C: Curve> From<elliptic_curve::SecretKey<C>> for EcdsaPrivkey<C>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(secret: elliptic_curve::SecretKey<C>) -> Self { Self { signing: secret.into() } }
 }
 
-impl<C> From<EcdsaPrivkey<C>> for ecdsa::SigningKey<C>
-    where C: ecdsa::PrimeCurve + elliptic_curve::ProjectiveArithmetic,
-          <C as elliptic_curve::ScalarArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
+impl<C: Curve> From<EcdsaPrivkey<C>> for ecdsa::SigningKey<C>
+    where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,
 {
     fn from(privkey: EcdsaPrivkey<C>) -> Self { privkey.signing }

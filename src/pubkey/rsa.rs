@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use rsa::{PublicKey as _, PublicKeyParts as _, pkcs8};
+use rsa::pkcs8;
 use sha1::digest;
 use std::fmt;
 use crate::codec::{PacketDecode, PacketEncode};
@@ -99,6 +99,7 @@ fn sign<H: RsaHash>(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
 }
 
 pub(super) fn encode_pubkey(blob: &mut PacketEncode, pubkey: &RsaPubkey) {
+    use rsa::traits::PublicKeyParts as _;
     blob.put_str("ssh-rsa");
     blob.put_biguint(pubkey.pubkey.e());
     blob.put_biguint(pubkey.pubkey.n());
@@ -161,6 +162,7 @@ impl From<RsaPrivkey> for rsa::RsaPrivateKey {
 
 impl fmt::Display for RsaPubkey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use rsa::traits::PublicKeyParts as _;
         write!(f, "rsa n {:x}, e {}", self.pubkey.n(), self.pubkey.e())
     }
 }

@@ -42,7 +42,7 @@ struct EcdhReply {
 fn init_kex(_rng: &mut dyn CryptoRngCore) -> Result<Curve25519Kex> {
     // x25519-dalek depends on rand 0.7 and also requires an owned rng, so there is no way that we
     // could pass `&mut dyn CryptoRngCore` to `EphemeralSecret::new()`
-    let our_eph_privkey = x25519_dalek::EphemeralSecret::new(rand_0_7::rngs::OsRng);
+    let our_eph_privkey = x25519_dalek::EphemeralSecret::random_from_rng(rand::rngs::OsRng);
     let our_eph_pubkey = x25519_dalek::PublicKey::from(&our_eph_privkey);
     log::debug!("initialized curve25519 kex");
     Ok(Curve25519Kex {

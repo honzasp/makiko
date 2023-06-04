@@ -5,7 +5,6 @@ use enclose::enclose;
 use futures::ready;
 use futures::future::{FutureExt as _, FusedFuture as _, Fuse};
 use futures::stream::{StreamExt as _, TryStreamExt as _, FuturesUnordered};
-use guard::guard;
 use regex::Regex;
 use rustix::termios;
 use std::collections::{HashMap, HashSet};
@@ -189,7 +188,7 @@ struct HostFile {
 
 fn read_host_file(path: Option<PathBuf>) -> Result<Option<HostFile>> {
     let default_path = home::home_dir().map(|dir| dir.join(".ssh/known_hosts"));
-    guard!{let Some(path) = path.or(default_path) else { return Ok(None) }};
+    let Some(path) = path.or(default_path) else { return Ok(None) };
 
     let file_data = fs::read(&path)
         .context(format!("could not read known_hosts file {}", path.display()))?;
@@ -304,7 +303,7 @@ async fn run_events(
                 },
                 Some(makiko::ClientEvent::Tunnel(accept)) => {
                     let connect_addr = remote_tunnel_addrs.get(&accept.connected_addr);
-                    guard!{let Some(connect_addr) = connect_addr else { continue }};
+                    let Some(connect_addr) = connect_addr else { continue };
                     tunnel_tasks.push(TaskHandle(tokio::task::spawn(
                         run_remote_tunnel(accept, connect_addr.clone())
                     )));
