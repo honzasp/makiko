@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use futures_core::ready;
-use guard::guard;
 use parking_lot::Mutex;
 use std::cmp::min;
 use std::collections::VecDeque;
@@ -182,18 +181,18 @@ fn send_channel_request(st: &mut ClientState, channel_st: &ChannelState, req: &C
 }
 
 pub(super) fn recv_channel_success(channel_st: &mut ChannelState) -> ResultRecvState {
-    guard!{let Some(reply) = channel_st.recv_replies.pop_front() else {
+    let Some(reply) = channel_st.recv_replies.pop_front() else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_SUCCESS, but no reply was expected"))
-    }};
+    };
     log::debug!("received SSH_MSG_CHANNEL_SUCCESS for our channel {}", channel_st.our_id);
     let _: Result<_, _> = reply.reply_tx.send(ChannelReply::Success);
     Ok(None)
 }
 
 pub(super) fn recv_channel_failure(channel_st: &mut ChannelState) -> ResultRecvState {
-    guard!{let Some(reply) = channel_st.recv_replies.pop_front() else {
+    let Some(reply) = channel_st.recv_replies.pop_front() else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_FAILURE, but no reply was expected"))
-    }};
+    };
     log::debug!("received SSH_MSG_CHANNEL_FAILURE for our channel {}", channel_st.our_id);
     let _: Result<_, _> = reply.reply_tx.send(ChannelReply::Failure);
     Ok(None)

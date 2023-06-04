@@ -1,6 +1,5 @@
 //! Support for OpenSSH-compatible `known_hosts` file.
 
-use guard::guard;
 use base64::Engine as _;
 use bytes::{Bytes, BytesMut};
 use hmac::Mac as _;
@@ -373,9 +372,9 @@ impl EntryBuilder {
 fn pattern_matches(pattern: &Pattern, hostname: &str) -> bool {
     match pattern {
         Pattern::Hashed(pattern) => {
-            guard!{let Ok(mut hmac) = hmac::Hmac::<sha1::Sha1>::new_from_slice(&pattern.salt) else {
+            let Ok(mut hmac) = hmac::Hmac::<sha1::Sha1>::new_from_slice(&pattern.salt) else {
                 return false;
-            }};
+            };
             hmac.update(hostname.as_bytes());
             hmac.verify_slice(&pattern.hash).is_ok()
         },
@@ -417,9 +416,9 @@ fn decode_file(data: Bytes) -> File {
 
 fn decode_line(mut bytes: &[u8], line_i: usize) -> Result<LineContent, &'static str> {
     // empty lines are treated as comments
-    guard!{let Some(first_field) = read_field(&mut bytes) else {
+    let Some(first_field) = read_field(&mut bytes) else {
         return Ok(LineContent::Comment)
-    }};
+    };
 
     // first comes the optional marker preceded with '@'
     let (pattern_field, marker) = if first_field[0] == b'@' {

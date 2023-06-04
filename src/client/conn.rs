@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use guard::guard;
 use parking_lot::Mutex;
 use std::collections::{HashMap, VecDeque};
 use std::future::Future as _;
@@ -248,18 +247,18 @@ fn recv_channel_open_confirmation(
         window {}, max packet size {}", our_id, send_window, send_packet_len_max);
 
     let mut channels = st.conn_st.channels.lock();
-    guard!{let Some(conn_channel_st) = channels.get_mut(&our_id) else {
+    let Some(conn_channel_st) = channels.get_mut(&our_id) else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_OPEN_CONFIRMATION for unknown channel"));
-    }};
+    };
 
-    guard!{let ConnChannelState::Open(_) = conn_channel_st else {
+    let ConnChannelState::Open(_) = conn_channel_st else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_OPEN_CONFIRMATION \
             for a channel that is not being opened"));
-    }};
+    };
     // use `replace()` only after we are sure that `*conn_channel_st` is `Open`
-    guard!{let ConnChannelState::Open(open_st) = replace(conn_channel_st, ConnChannelState::Closed) else {
+    let ConnChannelState::Open(open_st) = replace(conn_channel_st, ConnChannelState::Closed) else {
         unreachable!()
-    }};
+    };
 
     let confirm = ConfirmChannel { their_id, send_window, send_packet_len_max, confirm_payload };
     *conn_channel_st = init_confirmed_channel(open_st, confirm);
@@ -303,17 +302,17 @@ fn recv_channel_open_failure(
     let description_lang = payload.get_string()?;
     
     let mut channels = st.conn_st.channels.lock();
-    guard!{let Some(conn_channel_st) = channels.get_mut(&our_id) else {
+    let Some(conn_channel_st) = channels.get_mut(&our_id) else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_OPEN_FAILURE for unknown channel"));
-    }};
-    guard!{let ConnChannelState::Open(_) = conn_channel_st else {
+    };
+    let ConnChannelState::Open(_) = conn_channel_st else {
         return Err(Error::Protocol("received SSH_MSG_CHANNEL_OPEN_FAILURE \
             for a channel that is not being opened"));
-    }};
+    };
     // use `replace()` only after we are sure that `*conn_channel_st` is `Open`
-    guard!{let ConnChannelState::Open(open_st) = replace(conn_channel_st, ConnChannelState::Closed) else {
+    let ConnChannelState::Open(open_st) = replace(conn_channel_st, ConnChannelState::Closed) else {
         unreachable!()
-    }};
+    };
 
     log::debug!("received SSH_MSG_CHANNEL_OPEN_FAILURE for our channel {}", our_id);
 
@@ -406,12 +405,12 @@ fn recv_channel_packet<F>(
 
     let channels = st.conn_st.channels.clone();
     let mut channels = channels.lock();
-    guard!{let Some(conn_channel_st) = channels.get_mut(&our_id) else {
+    let Some(conn_channel_st) = channels.get_mut(&our_id) else {
         return Err(Error::Protocol(unknown_err));
-    }};
-    guard!{let ConnChannelState::Ready(channel_st) = conn_channel_st else {
+    };
+    let ConnChannelState::Ready(channel_st) = conn_channel_st else {
         return Err(Error::Protocol(not_ready_err));
-    }};
+    };
 
     callback(st, channel_st, payload)
 }
@@ -532,9 +531,9 @@ fn send_global_request(st: &mut ClientState, req: &GlobalReq) {
 }
 
 fn recv_request_success(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
-    guard!{let Some(reply) = st.conn_st.recv_replies.pop_front() else {
+    let Some(reply) = st.conn_st.recv_replies.pop_front() else {
         return Err(Error::Protocol("received SSH_MSG_REQUEST_SUCCESS, but no reply was expected"))
-    }};
+    };
     log::debug!("received SSH_MSG_REQUEST_SUCCESS");
     let payload = payload.remaining();
     let _: Result<_, _> = reply.reply_tx.send(GlobalReply::Success(payload));
@@ -542,9 +541,9 @@ fn recv_request_success(st: &mut ClientState, payload: &mut PacketDecode) -> Res
 }
 
 fn recv_request_failure(st: &mut ClientState) -> ResultRecvState {
-    guard!{let Some(reply) = st.conn_st.recv_replies.pop_front() else {
+    let Some(reply) = st.conn_st.recv_replies.pop_front() else {
         return Err(Error::Protocol("received SSH_MSG_REQUEST_FAILURE, but no reply was expected"))
-    }};
+    };
     log::debug!("received SSH_MSG_REQUEST_FAILURE");
     let _: Result<_, _> = reply.reply_tx.send(GlobalReply::Failure);
     Ok(None)

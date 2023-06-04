@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use guard::guard;
 use crate::codec::{PacketDecode, PacketEncode};
 use crate::error::{Result, Error};
 use std::fmt;
@@ -40,7 +39,7 @@ impl Ed25519Privkey {
 }
 
 fn verify(pubkey: &Pubkey, message: &[u8], signature: Bytes) -> Result<SignatureVerified> {
-    guard!{let Pubkey::Ed25519(pubkey) = pubkey else { return Err(Error::PubkeyFormat) }};
+    let Pubkey::Ed25519(pubkey) = pubkey else { return Err(Error::PubkeyFormat) };
 
     let mut signature = PacketDecode::new(signature);
     if signature.get_string()? != "ssh-ed25519" {
@@ -57,7 +56,7 @@ fn verify(pubkey: &Pubkey, message: &[u8], signature: Bytes) -> Result<Signature
 }
 
 fn sign(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
-    guard!{let Privkey::Ed25519(privkey) = privkey else { return Err(Error::PrivkeyFormat) }};
+    let Privkey::Ed25519(privkey) = privkey else { return Err(Error::PrivkeyFormat) };
 
     use ed25519_dalek::Signer as _;
     let ed_signature = privkey.keypair.try_sign(message)

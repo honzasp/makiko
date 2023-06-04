@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use guard::guard;
 use rsa::{PublicKey as _, PublicKeyParts as _, pkcs8};
 use sha1::digest;
 use std::fmt;
@@ -62,7 +61,7 @@ impl RsaPrivkey {
 }
 
 fn verify<H: RsaHash>(pubkey: &Pubkey, message: &[u8], signature_blob: Bytes) -> Result<SignatureVerified> {
-    guard!{let Pubkey::Rsa(pubkey) = pubkey else { return Err(Error::PubkeyFormat) }};
+    let Pubkey::Rsa(pubkey) = pubkey else { return Err(Error::PubkeyFormat) };
 
     let mut signature_blob = PacketDecode::new(signature_blob);
     if signature_blob.get_string()? != H::ALGO_NAME {
@@ -83,7 +82,7 @@ fn verify<H: RsaHash>(pubkey: &Pubkey, message: &[u8], signature_blob: Bytes) ->
 }
 
 fn sign<H: RsaHash>(privkey: &Privkey, message: &[u8]) -> Result<Bytes> {
-    guard!{let Privkey::Rsa(privkey) = privkey else { return Err(Error::PrivkeyFormat) }};
+    let Privkey::Rsa(privkey) = privkey else { return Err(Error::PrivkeyFormat) };
 
     let mut hasher = H::new();
     hasher.update(message);

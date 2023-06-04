@@ -37,7 +37,6 @@ ecdsa = {version = "0.15", features = ["signing", "verifying"]}
 ed25519 = {version = "1.5", features = ["pkcs8"]}
 ed25519-dalek = "1.0"
 futures-core = "0.3"
-guard = "0.5"
 hex-literal = "0.3"
 hmac = "0.12"
 log = "0.4"
