@@ -68,6 +68,7 @@ enclose = "1.1"
 env_logger = "0.10"
 futures = "0.3"
 home = "0.5"
+regex = {version = "1.6"}
 rustix = {version = "0.37", features = ["termios"]}
 tokio = {version = "1", features = ["full"]}
 
