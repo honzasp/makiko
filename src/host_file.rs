@@ -41,7 +41,7 @@ struct Line {
 enum LineContent {
     Comment,
     Entry(Box<Entry>),
-    Error(&'static str),
+    Error,
 }
 
 /// An entry in [`File`].
@@ -138,7 +138,7 @@ impl File {
     pub fn entries(&self) -> impl Iterator<Item = &Entry> {
         self.lines.iter().filter_map(|line| match &line.content {
             LineContent::Entry(entry) => Some(entry as &Entry),
-            LineContent::Comment | LineContent::Error(_) => None,
+            LineContent::Comment | LineContent::Error => None,
         })
     }
 
@@ -401,7 +401,7 @@ fn decode_file(data: Bytes) -> File {
             let bytes = data.slice_ref(bytes);
             let content = match decode_line(&bytes, line_i) {
                 Ok(content) => content,
-                Err(msg) => LineContent::Error(msg),
+                Err(_msg) => LineContent::Error,
             };
             Line { bytes, content }
         })
