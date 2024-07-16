@@ -112,6 +112,8 @@ async fn smoke_test(socket: TcpStream, config: makiko::ClientConfig) -> Result<(
 
     nursery.spawn(enclose!{(nursery) async move {
         authenticate_alice(&client).await?;
+        client.send_keepalive()?;
+
         let (session, mut session_rx) = client.open_session(makiko::ChannelConfig::default()).await?;
 
         let (stdout_tx, stdout_rx) = oneshot::channel();

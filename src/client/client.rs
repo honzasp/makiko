@@ -332,6 +332,24 @@ impl Client {
         Ok((channel, channel_rx, result.confirm_payload))
     }
 
+    /// Send a keepalive request.
+    ///
+    /// This sends a `keepalive@openssh.com` global request to the server. The server will respond
+    /// with an error, because this request is not defined, but this should be enough to keep the
+    /// connection alive on the server. (This is the keepalive mechanism used by the OpenSSH client.)
+    ///
+    /// This method will wait until you are authenticated before it sends the request, and it will
+    /// ignore the response (which should be an error).
+    pub fn send_keepalive(&self) -> Result<()> {
+        let (reply_tx, _reply_rx) = oneshot::channel();
+        let req = GlobalReq {
+            request_type: "keepalive@openssh.com".to_owned(),
+            payload: Bytes::new(),
+            reply_tx: Some(reply_tx),
+        };
+        self.send_request(req)
+    }
+
     /// Send a global request (low level API).
     ///
     /// This sends `SSH_MSG_GLOBAL_REQUEST` to the server (RFC 4254, section 4). We simply enqueue
@@ -404,7 +422,7 @@ pub struct GlobalReq {
 pub enum GlobalReply {
     /// Successful reply (`SSH_MSG_REQUEST_SUCCESS`) with response specific payload.
     Success(Bytes),
-    /// Failure reply (`SSH_MSG_REQUEST_FAILURE`).
+    /// Failure reply (`SSH_MSG_REQUEST_FAILURE` or `SSH_MSG_UNIMPLEMENTED`).
     Failure,
 }
 

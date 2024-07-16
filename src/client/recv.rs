@@ -81,6 +81,8 @@ fn recv_unimplemented(st: &mut ClientState, payload: &mut PacketDecode) -> Resul
     log::debug!("received SSH_MSG_UNIMPLEMENTED for packet seq {}", packet_seq);
     if negotiate::recv_unimplemented(st, packet_seq)? {
         Ok(None)
+    } else if conn::recv_unimplemented(st, packet_seq) {
+        Ok(None)
     } else {
         Err(Error::PeerRejectedPacket(packet_seq))
     }

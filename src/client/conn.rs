@@ -84,6 +84,7 @@ pub(super) struct AcceptedChannelResult {
 #[derive(Debug)]
 struct RecvReply {
     reply_tx: oneshot::Sender<GlobalReply>,
+    packet_seq: u32,
 }
 
 
@@ -98,9 +99,9 @@ pub(super) fn pump_conn(st: &mut ClientState, cx: &mut Context) -> Result<Pump> 
 
     if negotiate::is_ready(st) {
         if let Some(req) = st.conn_st.send_reqs.pop_front() {
-            send_global_request(st, &req);
+            let packet_seq = send_global_request(st, &req);
             if let Some(reply_tx) = req.reply_tx {
-                st.conn_st.recv_replies.push_back(RecvReply { reply_tx });
+                st.conn_st.recv_replies.push_back(RecvReply { reply_tx, packet_seq });
             }
             return Ok(Pump::Progress)
         }
@@ -520,14 +521,15 @@ pub(super) fn send_request(st: &mut ClientState, req: GlobalReq) -> Result<()> {
     Ok(())
 }
 
-fn send_global_request(st: &mut ClientState, req: &GlobalReq) {
+fn send_global_request(st: &mut ClientState, req: &GlobalReq) -> u32 {
     let mut payload = PacketEncode::new();
     payload.put_u8(msg::GLOBAL_REQUEST);
     payload.put_str(&req.request_type);
     payload.put_bool(req.reply_tx.is_some());
     payload.put_raw(&req.payload);
-    st.codec.send_pipe.feed_packet(&payload.finish());
+    let packet_seq = st.codec.send_pipe.feed_packet(&payload.finish());
     log::debug!("sending SSH_MSG_GLOBAL_REQUEST {:?}", req.request_type);
+    packet_seq
 }
 
 fn recv_request_success(st: &mut ClientState, payload: &mut PacketDecode) -> ResultRecvState {
@@ -547,6 +549,19 @@ fn recv_request_failure(st: &mut ClientState) -> ResultRecvState {
     log::debug!("received SSH_MSG_REQUEST_FAILURE");
     let _: Result<_, _> = reply.reply_tx.send(GlobalReply::Failure);
     Ok(None)
+}
+
+pub(super) fn recv_unimplemented(st: &mut ClientState, packet_seq: u32) -> bool {
+    if let Some(reply) = st.conn_st.recv_replies.pop_front() {
+        // tinyssh seems to send `packet_seq` which is off by one from the correct one
+        if reply.packet_seq == packet_seq || reply.packet_seq + 1 == packet_seq {
+            let _: Result<_, _> = reply.reply_tx.send(GlobalReply::Failure);
+            return true
+        } else {
+            st.conn_st.recv_replies.push_front(reply);
+        }
+    }
+    false
 }
 
 
