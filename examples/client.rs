@@ -734,8 +734,8 @@ async fn ask_for_password(prompt: &str) -> Result<String> {
     let stdin_raw = unsafe { rustix::fd::BorrowedFd::borrow_raw(stdin.as_raw_fd()) };
     let orig_tio = termios::tcgetattr(stdin_raw)?;
 
-    let mut tio = orig_tio;
-    tio.c_lflag &= !termios::ECHO;
+    let mut tio = orig_tio.clone();
+    tio.local_modes.remove(termios::LocalModes::ECHO);
     termios::tcsetattr(stdin_raw, termios::OptionalActions::Drain, &tio)?;
 
     let mut password = Vec::new();
@@ -762,16 +762,20 @@ fn enter_raw_mode() -> Result<termios::Termios> {
     let stdin_raw = unsafe { rustix::fd::BorrowedFd::borrow_raw(stdin.as_raw_fd()) };
 
     let orig_tio = termios::tcgetattr(stdin_raw)?;
-    let mut tio = orig_tio;
+    let mut tio = orig_tio.clone();
 
-	tio.c_iflag |= termios::IGNPAR;
-	tio.c_iflag &= !(termios::ISTRIP | termios::INLCR | termios::IGNCR | termios::ICRNL 
-        | termios::IXON | termios::IXANY | termios::IXOFF | termios::IUCLC);
-	tio.c_lflag &= !(termios::ISIG | termios::ICANON | termios::ECHO | termios::ECHOE 
-        | termios::ECHOK | termios::ECHONL | termios::IEXTEN);
-	tio.c_oflag &= !termios::OPOST;
-	tio.c_cc[termios::VMIN] = 1;
-	tio.c_cc[termios::VTIME] = 0;
+	tio.input_modes.insert(termios::InputModes::IGNPAR);
+	tio.input_modes.remove(termios::InputModes::ISTRIP | termios::InputModes::INLCR |
+        termios::InputModes::IGNCR | termios::InputModes::ICRNL | termios::InputModes::IXON |
+        termios::InputModes::IXANY | termios::InputModes::IXOFF | termios::InputModes::IUCLC,
+    );
+	tio.local_modes.remove(termios::LocalModes::ISIG | termios::LocalModes::ICANON |
+        termios::LocalModes::ECHO | termios::LocalModes::ECHOE | termios::LocalModes::ECHOK |
+        termios::LocalModes::ECHONL | termios::LocalModes::IEXTEN,
+    );
+	tio.output_modes.remove(termios::OutputModes::OPOST);
+	tio.special_codes[termios::SpecialCodeIndex::VMIN] = 1;
+	tio.special_codes[termios::SpecialCodeIndex::VTIME] = 0;
 
     log::debug!("entering terminal raw mode");
     termios::tcsetattr(stdin_raw, termios::OptionalActions::Drain, &tio)?;
@@ -813,7 +817,7 @@ fn get_pty_request() -> Result<makiko::PtyRequest> {
 
     macro_rules! tty_char {
         ($name:ident, $op:ident) => {
-            let value = tio.c_cc[termios::$name];
+            let value = tio.special_codes[termios::SpecialCodeIndex::$name];
             let value = if value == 0 { 255 } else { value as u32 };
             req.modes.add(makiko::codes::terminal_mode::$op, value);
         };
@@ -823,13 +827,13 @@ fn get_pty_request() -> Result<makiko::PtyRequest> {
     }
 
     macro_rules! tty_mode {
-        ($name:ident, $field:ident, $op:ident) => {
-            let value = (tio.$field & termios::$name) != 0;
+        ($mode:expr, $field:ident, $op:ident) => {
+            let value = tio.$field.contains($mode);
             let value = value as u32;
             req.modes.add(makiko::codes::terminal_mode::$op, value);
         };
-        ($name:ident, $field:ident) => {
-            tty_mode!($name, $field, $name)
+        ($enum:ident :: $name:ident, $field:ident) => {
+            tty_mode!(termios::$enum::$name, $field, $name)
         };
     }
 
@@ -848,45 +852,45 @@ fn get_pty_request() -> Result<makiko::PtyRequest> {
     tty_char!(VLNEXT);
     tty_char!(VDISCARD);
 
-    tty_mode!(IGNPAR, c_iflag);
-    tty_mode!(PARMRK, c_iflag);
-    tty_mode!(INPCK, c_iflag);
-    tty_mode!(ISTRIP, c_iflag);
-    tty_mode!(INLCR, c_iflag);
-    tty_mode!(IGNCR, c_iflag);
-    tty_mode!(ICRNL, c_iflag);
-    tty_mode!(IUCLC, c_iflag);
-    tty_mode!(IXON, c_iflag);
-    tty_mode!(IXANY, c_iflag);
-    tty_mode!(IXOFF, c_iflag);
-    tty_mode!(IMAXBEL, c_iflag);
-    tty_mode!(IUTF8, c_iflag);
+    tty_mode!(InputModes::IGNPAR, input_modes);
+    tty_mode!(InputModes::PARMRK, input_modes);
+    tty_mode!(InputModes::INPCK, input_modes);
+    tty_mode!(InputModes::ISTRIP, input_modes);
+    tty_mode!(InputModes::INLCR, input_modes);
+    tty_mode!(InputModes::IGNCR, input_modes);
+    tty_mode!(InputModes::ICRNL, input_modes);
+    tty_mode!(InputModes::IUCLC, input_modes);
+    tty_mode!(InputModes::IXON, input_modes);
+    tty_mode!(InputModes::IXANY, input_modes);
+    tty_mode!(InputModes::IXOFF, input_modes);
+    tty_mode!(InputModes::IMAXBEL, input_modes);
+    tty_mode!(InputModes::IUTF8, input_modes);
 
-    tty_mode!(ISIG, c_lflag);
-    tty_mode!(ICANON, c_lflag);
-    tty_mode!(XCASE, c_lflag);
-    tty_mode!(ECHO, c_lflag);
-    tty_mode!(ECHOE, c_lflag);
-    tty_mode!(ECHOK, c_lflag);
-    tty_mode!(ECHONL, c_lflag);
-    tty_mode!(NOFLSH, c_lflag);
-    tty_mode!(TOSTOP, c_lflag);
-    tty_mode!(IEXTEN, c_lflag);
-    tty_mode!(ECHOCTL, c_lflag);
-    tty_mode!(ECHOKE, c_lflag);
-    tty_mode!(PENDIN, c_lflag);
+    tty_mode!(LocalModes::ISIG, local_modes);
+    tty_mode!(LocalModes::ICANON, local_modes);
+    tty_mode!(LocalModes::XCASE, local_modes);
+    tty_mode!(LocalModes::ECHO, local_modes);
+    tty_mode!(LocalModes::ECHOE, local_modes);
+    tty_mode!(LocalModes::ECHOK, local_modes);
+    tty_mode!(LocalModes::ECHONL, local_modes);
+    tty_mode!(LocalModes::NOFLSH, local_modes);
+    tty_mode!(LocalModes::TOSTOP, local_modes);
+    tty_mode!(LocalModes::IEXTEN, local_modes);
+    tty_mode!(LocalModes::ECHOCTL, local_modes);
+    tty_mode!(LocalModes::ECHOKE, local_modes);
+    tty_mode!(LocalModes::PENDIN, local_modes);
 
-    tty_mode!(OPOST, c_oflag);
-    tty_mode!(OLCUC, c_oflag);
-    tty_mode!(ONLCR, c_oflag);
-    tty_mode!(OCRNL, c_oflag);
-    tty_mode!(ONOCR, c_oflag);
-    tty_mode!(ONLRET, c_oflag);
+    tty_mode!(OutputModes::OPOST, output_modes);
+    tty_mode!(OutputModes::OLCUC, output_modes);
+    tty_mode!(OutputModes::ONLCR, output_modes);
+    tty_mode!(OutputModes::OCRNL, output_modes);
+    tty_mode!(OutputModes::ONOCR, output_modes);
+    tty_mode!(OutputModes::ONLRET, output_modes);
 
-    tty_mode!(CS7, c_cflag);
-    tty_mode!(CS8, c_cflag);
-    tty_mode!(PARENB, c_cflag);
-    tty_mode!(PARODD, c_cflag);
+    tty_mode!(ControlModes::CS7, control_modes);
+    tty_mode!(ControlModes::CS8, control_modes);
+    tty_mode!(ControlModes::PARENB, control_modes);
+    tty_mode!(ControlModes::PARODD, control_modes);
 
     Ok(req)
 }
