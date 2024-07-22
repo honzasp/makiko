@@ -1,5 +1,12 @@
 # Makiko changelog
 
+## Unreleased
+
+## 0.2.3 (2024-07-22)
+
+- Add `Client::send_keepalive()` to send an OpenSSH-compatible keepalive request.
+- Upgraded dependencies.
+
 ## 0.2.2 (2023-06-04)
 
 - Replace the `guard` crate with (now stabilized) `let else` expressions
