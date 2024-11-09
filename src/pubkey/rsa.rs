@@ -48,7 +48,7 @@ pub struct RsaPubkey {
 /// This key is compatible with [`SSH_RSA_SHA1`], [`RSA_SHA2_256`] and [`RSA_SHA2_512`]. You can
 /// convert it to and from [`rsa::RsaPrivateKey`] using `from()`/`into()`.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
+#[cfg_attr(feature = "debug-less-secure", derive(Debug))]
 pub struct RsaPrivkey {
     pub(crate) privkey: rsa::RsaPrivateKey,
 }

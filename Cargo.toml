@@ -73,4 +73,8 @@ rustix = {version = "0.38", features = ["termios"]}
 tokio = {version = "1", features = ["full"]}
 
 [features]
-debug_less_secure = []
+debug-less-secure = []
+insecure-crypto = []
+
+[package.metadata.docs.rs]
+features = ["insecure-crypto"]

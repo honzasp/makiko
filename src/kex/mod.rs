@@ -15,6 +15,8 @@
 //! - "diffie-hellman-group14-sha256" ([`DIFFIE_HELLMAN_GROUP14_SHA256`])
 //! - "diffie-hellman-group16-sha512" ([`DIFFIE_HELLMAN_GROUP16_SHA512`])
 //! - "diffie-hellman-group18-sha512" ([`DIFFIE_HELLMAN_GROUP18_SHA512`])
+//! - "diffie-hellman-group1-sha1" ([`DIFFIE_HELLMAN_GROUP1_SHA1`], SHOULD NOT be used, available
+//! only with feature `insecure-crypto`).
 use bytes::Bytes;
 use derivative::Derivative;
 use num_bigint_dig::BigUint;
@@ -27,6 +29,8 @@ pub use self::dh::{
     DIFFIE_HELLMAN_GROUP14_SHA1, DIFFIE_HELLMAN_GROUP14_SHA256,
     DIFFIE_HELLMAN_GROUP16_SHA512, DIFFIE_HELLMAN_GROUP18_SHA512,
 };
+#[cfg(feature = "insecure-crypto")]
+pub use self::dh::DIFFIE_HELLMAN_GROUP1_SHA1;
 
 mod curve25519;
 mod dh;

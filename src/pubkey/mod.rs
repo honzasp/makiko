@@ -173,7 +173,7 @@ impl SignatureVerified {
 /// backwards compatibility.
 #[derive(Clone, PartialEq, Eq)]
 #[non_exhaustive]
-#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
+#[cfg_attr(feature = "debug-less-secure", derive(Debug))]
 pub enum Privkey {
     /// Ed25519 private key.
     Ed25519(Ed25519Privkey),

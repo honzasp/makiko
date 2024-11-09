@@ -33,6 +33,16 @@ pub static DIFFIE_HELLMAN_GROUP18_SHA512: KexAlgo = KexAlgo {
     make_kex: |rng| Ok(Box::new(init_kex(Group::group_18(), compute_hash_sha512, rng)?)),
 };
 
+/// "diffie-hellman-group1-sha1" key exchange from RFC 4253 (which SHOULD NOT be implemented
+/// according to RFC 9142).
+///
+/// Note that the name refers to "group1", but in fact the key exchange uses group 2.
+#[cfg(feature = "insecure-crypto")]
+pub static DIFFIE_HELLMAN_GROUP1_SHA1: KexAlgo = KexAlgo {
+    name: "diffie-hellman-group1-sha1",
+    make_kex: |rng| Ok(Box::new(init_kex(Group::group_2(), compute_hash_sha1, rng)?)),
+};
+
 
 #[derive(Debug)]
 struct Group {
@@ -171,6 +181,22 @@ fn compute_hash_sha512(data: &[u8]) -> Vec<u8> {
 }
 
 impl Group {
+    #[cfg(feature = "insecure-crypto")]
+    fn group_2() -> Group {
+        // RFC 2409, section 6.2
+        let g = BigUint::from(2u32);
+        let p = BigUint::from_bytes_be(&hex!(
+            "FFFFFFFF" "FFFFFFFF" "C90FDAA2" "2168C234" "C4C6628B" "80DC1CD1"
+            "29024E08" "8A67CC74" "020BBEA6" "3B139B22" "514A0879" "8E3404DD"
+            "EF9519B3" "CD3A431B" "302B0A6D" "F25F1437" "4FE1356D" "6D51C245"
+            "E485B576" "625E7EC6" "F44C42E9" "A637ED6B" "0BFF5CB6" "F406B7ED"
+            "EE386BFB" "5A899FA5" "AE9F2411" "7C4B1FE6" "49286651" "ECE65381"
+            "FFFFFFFF" "FFFFFFFF"
+        ));
+        let p_minus_1 = &p - BigUint::from(1u32);
+        Group { g, p, p_minus_1 }
+    }
+
     fn group_14() -> Group {
         // RFC 3526, section 3
         let g = BigUint::from(2u32);

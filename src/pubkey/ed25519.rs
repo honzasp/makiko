@@ -26,7 +26,7 @@ pub struct Ed25519Pubkey {
 ///
 /// This key is compatible with [`SSH_ED25519`]. You can convert it to and from
 /// [`ed25519_dalek::SigningKey`] using `from()`/`into()`.
-#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
+#[cfg_attr(feature = "debug-less-secure", derive(Debug))]
 pub struct Ed25519Privkey {
     pub(crate) signing: ed25519_dalek::SigningKey,
 }

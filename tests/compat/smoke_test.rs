@@ -46,6 +46,8 @@ pub fn collect(suite: &mut TestSuite) {
         // these kexes are very slow
         //(&makiko::kex::DIFFIE_HELLMAN_GROUP16_SHA512, vec!["openssh", "paramiko"]),
         //(&makiko::kex::DIFFIE_HELLMAN_GROUP18_SHA512, vec!["openssh"]),
+        #[cfg(feature = "insecure-crypto")]
+        (&makiko::kex::DIFFIE_HELLMAN_GROUP1_SHA1, vec!["openssh", "paramiko", "lsh"]),
     ];
 
     let pubkey_algos = vec![

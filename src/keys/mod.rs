@@ -55,7 +55,7 @@ pub fn decode_pem_privkey(pem_data: &[u8], passphrase: &[u8]) -> Result<Privkey>
 
 /// Private key decoded without a password.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
+#[cfg_attr(feature = "debug-less-secure", derive(Debug))]
 pub enum DecodedPrivkeyNopass {
     /// Private key that was not encrypted, so we decoded it without a password.
     Privkey(Privkey),

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add support for `diffie-hellman-group1-sha1` key exchange under `insecure-crypto` feature.
+
 ## 0.2.3 (2024-07-22)
 
 - Add `Client::send_keepalive()` to send an OpenSSH-compatible keepalive request.

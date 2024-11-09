@@ -611,6 +611,18 @@ impl ClientConfig {
         })
     }
 
+    /// Default configuration with highest compatibility and lowest security.
+    ///
+    /// Returns a configuration that supports outdated and insecure crypto.
+    #[cfg(feature = "insecure-crypto")]
+    pub fn default_insecure() -> ClientConfig {
+        Self::default_compatible_less_secure().with(|c| {
+            c.kex_algos.extend_from_slice(&[
+                &kex::DIFFIE_HELLMAN_GROUP1_SHA1,
+            ]);
+        })
+    }
+
     /// Update the configuration in pseudo-builder pattern style.
     ///
     /// This method applies your closure to `self` and returns the mutated configuration.

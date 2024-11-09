@@ -54,7 +54,7 @@ pub struct EcdsaPubkey<C: Curve>
 /// You can convert it to and from [`ecdsa::SigningKey<C>`] and [`elliptic_curve::SecretKey<C>`]
 /// using `from()`/`into()`.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "debug_less_secure", derive(Debug))]
+#[cfg_attr(feature = "debug-less-secure", derive(Debug))]
 pub struct EcdsaPrivkey<C: Curve>
     where <C as elliptic_curve::CurveArithmetic>::Scalar: ecdsa::hazmat::SignPrimitive<C>,
           ecdsa::SignatureSize<C>: generic_array::ArrayLength<u8>,

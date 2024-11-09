@@ -1,14 +1,14 @@
 #[allow(dead_code)]
 mod keys;
 
-#[cfg(feature = "debug_less_secure")]
+#[cfg(feature = "debug-less-secure")]
 macro_rules! assert_privkeys_eq {
     ($a:expr, $b:expr) => {
         assert_eq!($a, $b)
     }
 }
 
-#[cfg(not(feature = "debug_less_secure"))]
+#[cfg(not(feature = "debug-less-secure"))]
 macro_rules! assert_privkeys_eq {
     ($a:expr, $b:expr) => {
         assert!($a == $b, "privkeys are not equal \

@@ -15,7 +15,7 @@ pub struct OpensshKeypair {
     /// Public key, always unencrypted.
     pub pubkey: Pubkey,
     /// Private key, may be encrypted in the key file.
-    #[cfg_attr(not(feature = "debug_less_secure"), derivative(Debug = "ignore"))]
+    #[cfg_attr(not(feature = "debug-less-secure"), derivative(Debug = "ignore"))]
     pub privkey: Privkey,
     /// Comment, encrypted if and only if the private key is encrypted.
     pub comment: String,
@@ -31,7 +31,7 @@ pub struct OpensshKeypairNopass {
     /// Public key, available even without password.
     pub pubkey: Pubkey,
     /// Private key, available only if the key file was not encrypted.
-    #[cfg_attr(not(feature = "debug_less_secure"), derivative(Debug = "ignore"))]
+    #[cfg_attr(not(feature = "debug-less-secure"), derivative(Debug = "ignore"))]
     pub privkey: Option<Privkey>,
     /// Comment, available only if the key file was not encrypted.
     pub comment: Option<String>,
