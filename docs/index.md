@@ -26,14 +26,14 @@ layout: home
 - Remote and local tunnels
 - Raw SSH channels (low-level API)
 - Ciphers: chacha20-poly1305, aes128-gcm, aes256-gcm, aes128-ctr, aes192-ctr,
-  aes256-ctr, aes128-cbc\*, aes192-cbc\*, aes256-cbc\*
+  aes256-ctr, aes128-cbc\*, aes192-cbc\*, aes256-cbc\*, 3des-cbc\*
 - MACs: hmac-sha2-256-etm, hmac-sha2-512-etm, hmac-sha2-256, hmac-sha2-512,
   hmac-sha1-etm\*, hmac-sha1\*
 - Public key algorithms: ssh-ed25519, rsa-sha2-256, rsa-sha2-512,
   ecdsa-sha2-nistp256\*, ecdsa-sha2-nistp384\*, ssh-rsa\*
 - Key exchange algorithms: curve25519-sha256, diffie-hellman-group14-sha1\*,
   diffie-hellman-group14-sha256\*, diffie-hellman-group16-sha512\*,
-  diffie-hellmann-group18-sha512\*
+  diffie-hellmann-group18-sha512\*, diffie-hellman-group1-sha1\*\*
 - Crypto from [Rust Crypto][rust-crypto]
 - Use your own sockets, spawn your own tasks
 - Uses [Tokio][tokio] interfaces (but does not depend on the Tokio runtime)
@@ -43,6 +43,9 @@ layout: home
 [tokio]: https://tokio.rs/
 
 <i>\* Algorithms marked with an asterisk are not enabled by default</i>
+{: .text-grey-dk-200}
+
+<i>\*\* Algorithms marked two asterisks are only available with feature <code>insecure-crypto</code></i>
 {: .text-grey-dk-200}
 
 ## Low-level
