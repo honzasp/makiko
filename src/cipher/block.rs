@@ -38,6 +38,20 @@ pub static AES256_CBC: CipherAlgo = CipherAlgo {
     }),
 };
 
+/// "3des-cbc" cipher from RFC 4253, which is insecure and only available with feature
+/// `insecure-crypto`.
+#[cfg(feature = "insecure-crypto")]
+pub static TDES_CBC: CipherAlgo = CipherAlgo {
+    name: "3des-cbc",
+    block_len: 8,
+    key_len: 24,
+    iv_len: 8,
+    variant: CipherAlgoVariant::Standard(StandardCipherAlgo {
+        make_encrypt: |key, iv| Box::new(new_cbc_enc::<des::TdesEde3>(key, iv)),
+        make_decrypt: |key, iv| Box::new(new_cbc_dec::<des::TdesEde3>(key, iv)),
+    }),
+};
+
 struct BlockEncrypt<T> {
     encrypt: T,
 }

@@ -5,7 +5,7 @@ HostKey /etc/ssh/ssh_host_ed25519_key
 
 KexAlgorithms=+diffie-hellman-group14-sha1,diffie-hellman-group1-sha1
 HostKeyAlgorithms=+ssh-rsa,ecdsa-sha2-nistp384
-Ciphers=+aes128-cbc,aes192-cbc,aes256-cbc
+Ciphers=+aes128-cbc,aes192-cbc,aes256-cbc,3des-cbc
 PubkeyAcceptedAlgorithms=+ssh-rsa
 
 PermitEmptyPasswords=yes

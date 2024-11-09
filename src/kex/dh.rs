@@ -33,8 +33,8 @@ pub static DIFFIE_HELLMAN_GROUP18_SHA512: KexAlgo = KexAlgo {
     make_kex: |rng| Ok(Box::new(init_kex(Group::group_18(), compute_hash_sha512, rng)?)),
 };
 
-/// "diffie-hellman-group1-sha1" key exchange from RFC 4253 (which SHOULD NOT be implemented
-/// according to RFC 9142).
+/// "diffie-hellman-group1-sha1" key exchange from RFC 4253, which SHOULD NOT be implemented
+/// according to RFC 9142 and is available only with feature `insecure-crypto`.
 ///
 /// Note that the name refers to "group1", but in fact the key exchange uses group 2.
 #[cfg(feature = "insecure-crypto")]

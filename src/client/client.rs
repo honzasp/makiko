@@ -620,6 +620,9 @@ impl ClientConfig {
             c.kex_algos.extend_from_slice(&[
                 &kex::DIFFIE_HELLMAN_GROUP1_SHA1,
             ]);
+            c.cipher_algos.extend_from_slice(&[
+                &cipher::TDES_CBC,
+            ]);
         })
     }
 

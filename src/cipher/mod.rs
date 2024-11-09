@@ -18,11 +18,14 @@
 //! - "aes128-cbc" ([`AES128_CBC`])
 //! - "aes192-cbc" ([`AES192_CBC`])
 //! - "aes256-cbc" ([`AES256_CBC`])
+//! - "3des-cbc" ([`TDES_CBC`], SHOULD NOT be used, available only with feature `insecure-crypto`).
 //! - "none" ([`NONE`])
 use crate::Result;
 use derivative::Derivative;
 pub use self::aes_gcm::{AES128_GCM, AES256_GCM};
 pub use self::block::{AES128_CBC, AES192_CBC, AES256_CBC};
+#[cfg(feature = "insecure-crypto")]
+pub use self::block::TDES_CBC;
 pub use self::chacha_poly::CHACHA20_POLY1305;
 pub use self::none::NONE;
 pub use self::stream::{AES128_CTR, AES192_CTR, AES256_CTR};
@@ -41,6 +44,8 @@ static ALGOS: &[&CipherAlgo] = &[
     &CHACHA20_POLY1305,
     &NONE,
     &AES128_CTR, &AES192_CTR, &AES256_CTR,
+    #[cfg(feature = "insecure-crypto")]
+    &TDES_CBC,
 ];
 
 /// Algorithm for encrypting and decrypting messages.
