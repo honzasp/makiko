@@ -14,7 +14,7 @@ pub use self::session::{
     Session, SessionReceiver, SessionEvent, SessionResp, ExitSignal,
     PtyRequest, PtyTerminalModes, WindowChange,
 };
-pub use self::tunnel::{Tunnel, TunnelReceiver, TunnelEvent};
+pub use self::tunnel::{Tunnel, TunnelReceiver, TunnelEvent, TunnelReader, TunnelWriter, TunnelStream};
 
 #[macro_use] mod pump;
 mod auth;

@@ -93,6 +93,16 @@ pub enum Error {
     BadKeyPassphrase,
 }
 
+impl From<Error> for std::io::Error {
+    fn from(err: Error) -> std::io::Error {
+        let kind = match &err {
+            Error::ReadIo(io_err) | Error::WriteIo(io_err) => io_err.kind(),
+            _other => std::io::ErrorKind::Other,
+        };
+        std::io::Error::new(kind, err)
+    }
+}
+
 /// Error that occured because we could not negotiate an algorithm.
 ///
 /// During the SSH key exchange, the client and the server must negotiate which cryptographic

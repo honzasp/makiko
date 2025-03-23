@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `TunnelReader`, `TunnelWriter` and `TunnelStream`
+
 ## 0.2.4 (2024-11-09)
 
 - Add support for `diffie-hellman-group1-sha1` key exchange under `insecure-crypto` feature.

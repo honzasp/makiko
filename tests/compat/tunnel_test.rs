@@ -2,7 +2,7 @@ use anyhow::{Result, bail, ensure, Context as _};
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use std::future::Future;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{oneshot, mpsc};
@@ -19,6 +19,8 @@ pub fn collect(suite: &mut TestSuite) {
     suite.add(TestCase::new("tunnel_remote_simple_5000", 
         |socket| test_remote_simple(socket, Some(5000)))
         .except_servers(vec!["paramiko", "tinyssh", "lsh"]));
+    suite.add(TestCase::new("tunnel_proxy_jump", test_proxy_jump)
+        .except_servers(vec!["paramiko", "tinyssh"]));
 }
 
 async fn test_local_simple(socket: TcpStream) -> Result<()> {
@@ -46,7 +48,7 @@ async fn test_local_simple(socket: TcpStream) -> Result<()> {
                 ("10.20.30.40".into(), 50),
             ).await.context("could not open tunnel")?;
 
-            check_tunnel(&tunnel, &mut tunnel_rx).await
+            check_tunnel_simple(&tunnel, &mut tunnel_rx).await
         });
 
         drop(nursery);
@@ -55,7 +57,7 @@ async fn test_local_simple(socket: TcpStream) -> Result<()> {
 }
 
 async fn test_remote_simple(socket: TcpStream, tunnel_port: Option<u16>) -> Result<()> {
-    test_tunnel(socket, move |client, _, peer_ip, mut tunnel_accept_rx| async move {
+    test_tunnel(socket, move |client, _, peer_addr, mut tunnel_accept_rx| async move {
         let bind_addr = ("".into(), tunnel_port.unwrap_or(0));
         let bound_port = client.bind_tunnel(bind_addr)?.wait().await?;
         let bound_port = match tunnel_port {
@@ -67,7 +69,7 @@ async fn test_remote_simple(socket: TcpStream, tunnel_port: Option<u16>) -> Resu
 
         let (socket_addr_tx, socket_addr_rx) = oneshot::channel();
         nursery.spawn(async move {
-            let mut socket = TcpStream::connect((peer_ip, bound_port)).await?;
+            let mut socket = TcpStream::connect((peer_addr.ip(), bound_port)).await?;
             let _: Result<_, _> = socket_addr_tx.send((socket.local_addr()?, socket.peer_addr()?));
 
             socket.write_all(b"server-to-client" as &[u8]).await.context("could not write to socket")?;
@@ -100,7 +102,7 @@ async fn test_remote_simple(socket: TcpStream, tunnel_port: Option<u16>) -> Resu
                 "connected addr {:?} != {:?}", connected_addr, socket_peer_addr,
             );
 
-            check_tunnel(&tunnel, &mut tunnel_rx).await
+            check_tunnel_simple(&tunnel, &mut tunnel_rx).await
         });
 
         drop(nursery);
@@ -108,7 +110,7 @@ async fn test_remote_simple(socket: TcpStream, tunnel_port: Option<u16>) -> Resu
     }).await
 }
 
-async fn check_tunnel(tunnel: &makiko::Tunnel, tunnel_rx: &mut makiko::TunnelReceiver) -> Result<()> {
+async fn check_tunnel_simple(tunnel: &makiko::Tunnel, tunnel_rx: &mut makiko::TunnelReceiver) -> Result<()> {
     let mut recvd = Vec::new();
     loop {
         let event = tunnel_rx.recv().await?;
@@ -130,8 +132,48 @@ async fn check_tunnel(tunnel: &makiko::Tunnel, tunnel_rx: &mut makiko::TunnelRec
     Ok(())
 }
 
+async fn test_proxy_jump(socket: TcpStream) -> Result<()> {
+    test_tunnel(socket, |outer_client, _, peer_addr, _| async move {
+        let (nursery, mut nursery_stream) = Nursery::new();
+
+        let (tunnel, tunnel_rx) = outer_client.connect_tunnel(
+            makiko::ChannelConfig::default(),
+            (peer_addr.ip().to_string(), peer_addr.port()),
+            ("1.2.3.4".to_owned(), 56),
+        ).await?;
+        let tunnel_stream = makiko::TunnelStream::new(tunnel, tunnel_rx);
+
+        let inner_config = makiko::ClientConfig::default_compatible_less_secure();
+        let (inner_client, mut inner_client_rx, inner_client_fut) =
+            makiko::Client::open(tunnel_stream, inner_config)?;
+
+        nursery.spawn(async move {
+            inner_client_fut.await?;
+            Ok(())
+        });
+
+        nursery.spawn(async move {
+            while let Some(event) = inner_client_rx.recv().await? {
+                if let makiko::ClientEvent::ServerPubkey(_pubkey, accept_tx) = event {
+                    accept_tx.accept();
+                }
+            }
+            Ok(())
+        });
+        
+        nursery.spawn(async move {
+            authenticate_alice(&inner_client).await?;
+            inner_client.disconnect(makiko::DisconnectError::by_app())?;
+            Ok(())
+        });
+
+        drop(nursery);
+        nursery_stream.try_run().await
+    }).await
+}
+
 async fn test_tunnel<F, Fut>(socket: TcpStream, f: F) -> Result<()>
-    where F: FnOnce(makiko::Client, IpAddr, IpAddr, mpsc::Receiver<makiko::AcceptTunnel>)
+    where F: FnOnce(makiko::Client, IpAddr, SocketAddr, mpsc::Receiver<makiko::AcceptTunnel>)
             -> Fut + Send + Sync + 'static,
           Fut: Future<Output = Result<()>> + Send + Sync + 'static,
 {
@@ -140,7 +182,7 @@ async fn test_tunnel<F, Fut>(socket: TcpStream, f: F) -> Result<()>
 
 async fn test_tunnel_inner(
     socket: TcpStream,
-    f: Box<dyn FnOnce(makiko::Client, IpAddr, IpAddr, mpsc::Receiver<makiko::AcceptTunnel>)
+    f: Box<dyn FnOnce(makiko::Client, IpAddr, SocketAddr, mpsc::Receiver<makiko::AcceptTunnel>)
         -> BoxFuture<'static, Result<()>> + Sync + Send>,
 ) -> Result<()> {
     let local_addr = socket.local_addr()?;
@@ -169,7 +211,7 @@ async fn test_tunnel_inner(
 
     nursery.spawn(async move {
         authenticate_alice(&client).await?;
-        f(client.clone(), local_addr.ip(), peer_addr.ip(), tunnel_accept_rx).await?;
+        f(client.clone(), local_addr.ip(), peer_addr, tunnel_accept_rx).await?;
         client.disconnect(makiko::DisconnectError::by_app())?;
         Ok(())
     });

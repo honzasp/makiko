@@ -312,6 +312,9 @@ impl AcceptTunnel {
     /// - [`TunnelReceiver`] receives the data from the server as
     /// [`TunnelEvent`][super::TunnelEvent]s. You **must** receive these events in time, otherwise
     /// the client will stall.
+    ///
+    /// If you need something that implements `AsyncRead` and `AsyncWrite`, consider using
+    /// [`TunnelStream`][super::TunnelStream].
     pub async fn accept(self, config: ChannelConfig) -> Result<(Tunnel, TunnelReceiver)> {
         let (channel, channel_rx) = self.accept.accept(config, Bytes::new()).await?;
         Tunnel::accept(channel, channel_rx)

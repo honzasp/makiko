@@ -217,6 +217,9 @@ impl Client {
     /// [`TunnelEvent`][super::TunnelEvent]s. You **must** receive these events in time, otherwise
     /// the client will stall.
     ///
+    /// If you need something that implements `AsyncRead` and `AsyncWrite`, consider using
+    /// [`TunnelStream`][super::TunnelStream].
+    ///
     /// You can open many tunnels or sessions in parallel, the SSH protocol will multiplex them
     /// over the underlying connection.
     ///
