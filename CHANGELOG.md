@@ -1,6 +1,6 @@
 # Makiko changelog
 
-## Unreleased
+## 0.2.5 (2025-03-29)
 
 - Add `TunnelReader`, `TunnelWriter` and `TunnelStream`
 
