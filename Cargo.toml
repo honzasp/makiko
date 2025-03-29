@@ -1,6 +1,6 @@
 [package]
 name = "makiko"
-version = "0.2.5"
+version = "0.2.6-pre"
 edition = "2021"
 
 authors = ["Jan Špaček <patek.mail@gmail.com>"]
